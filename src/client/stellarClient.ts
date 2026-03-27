@@ -25,14 +25,38 @@ export type TransactionSendResult = {
   raw: unknown;
 };
 
+/**
+ * RPC gateway for interacting with Soroban networks.
+ *
+ * Provides methods for querying network state, simulating transactions,
+ * preparing transactions with fees, and submitting signed transactions.
+ *
+ * @example
+ * ```typescript
+ * import { StellarClient } from "axionvera-sdk";
+ *
+ * const client = new StellarClient({ network: "testnet" });
+ * const health = await client.getHealth();
+ * ```
+ */
 export class StellarClient {
+  /** The network this client is connected to. */
   readonly network: AxionveraNetwork;
+  /** The RPC URL this client uses. */
   readonly rpcUrl: string;
+  /** The network passphrase for transaction signing. */
   readonly networkPassphrase: string;
+  /** The underlying RPC server instance. */
   readonly rpc: rpc.Server;
+  /** The HTTP client with retry interceptors. */
   readonly httpClient;
+  /** The effective retry configuration after merging with defaults. */
   readonly retryConfig: Partial<RetryConfig>;
 
+  /**
+   * Creates a new StellarClient instance.
+   * @param options - Configuration options
+   */
   constructor(options?: StellarClientOptions) {
     const config = resolveNetworkConfig(options);
     this.network = config.network;
@@ -49,32 +73,70 @@ export class StellarClient {
     }
   }
 
+  /**
+   * Checks the health of the RPC server.
+   * Automatically retries on failure.
+   * @returns The health check response
+   */
   async getHealth(): Promise<unknown> {
     return retry(() => this.rpc.getHealth(), this.retryConfig);
   }
 
+  /**
+   * Retrieves the network configuration from the RPC server.
+   * Automatically retries on failure.
+   * @returns The network configuration
+   */
   async getNetwork(): Promise<unknown> {
     return retry(() => this.rpc.getNetwork(), this.retryConfig);
   }
 
+  /**
+   * Gets the latest ledger sequence number.
+   * Automatically retries on failure.
+   * @returns The latest ledger info
+   */
   async getLatestLedger(): Promise<unknown> {
     return retry(() => this.rpc.getLatestLedger(), this.retryConfig);
   }
 
+  /**
+   * Retrieves an account's information from the network.
+   * Automatically retries on failure.
+   * @param publicKey - The account's public key
+   * @returns The account information
+   */
   async getAccount(publicKey: string): Promise<Account> {
     return retry(() => this.rpc.getAccount(publicKey), this.retryConfig);
   }
 
+  /**
+   * Simulates a transaction without submitting it.
+   * This is useful for testing transaction validity and getting expected costs.
+   * @param tx - The transaction to simulate
+   * @returns The simulation result
+   */
   async simulateTransaction(
     tx: Transaction | FeeBumpTransaction
   ): Promise<rpc.Api.SimulateTransactionResponse> {
     return this.rpc.simulateTransaction(tx);
   }
 
+  /**
+   * Prepares a transaction by fetching the current ledger sequence
+   * and setting the correct min sequence age.
+   * @param tx - The transaction to prepare
+   * @returns The prepared transaction
+   */
   async prepareTransaction(tx: Transaction | FeeBumpTransaction): Promise<Transaction> {
     return this.rpc.prepareTransaction(tx);
   }
 
+  /**
+   * Submits a signed transaction to the network.
+   * @param tx - The signed transaction to submit
+   * @returns The submission result containing hash and status
+   */
   async sendTransaction(tx: Transaction | FeeBumpTransaction): Promise<TransactionSendResult> {
     const result = await this.rpc.sendTransaction(tx);
     const hash = (result as any).hash ?? (result as any).id ?? "";
@@ -82,10 +144,25 @@ export class StellarClient {
     return { hash, status, raw: result };
   }
 
+  /**
+   * Retrieves the status of a submitted transaction.
+   * Automatically retries on failure.
+   * @param hash - The transaction hash
+   * @returns The transaction status response
+   */
   async getTransaction(hash: string): Promise<unknown> {
     return retry(() => this.rpc.getTransaction(hash), this.retryConfig);
   }
 
+  /**
+   * Polls for a transaction to be confirmed or rejected.
+   * @param hash - The transaction hash to wait for
+   * @param params - Polling parameters
+   * @param params.timeoutMs - Maximum time to wait in milliseconds (default: 30000)
+   * @param params.intervalMs - Time between polls in milliseconds (default: 1000)
+   * @returns The transaction result when it reaches a final state
+   * @throws Error if the transaction times out
+   */
   async pollTransaction(
     hash: string,
     params?: { timeoutMs?: number; intervalMs?: number }
@@ -106,11 +183,24 @@ export class StellarClient {
     throw new Error(`Timed out waiting for transaction ${hash}`);
   }
 
+  /**
+   * Signs a transaction using a local Keypair.
+   * This is a convenience method for local signing without a wallet connector.
+   * @param tx - The transaction to sign
+   * @param keypair - The keypair to sign with
+   * @returns The signed transaction
+   */
   async signWithKeypair(tx: Transaction, keypair: Keypair): Promise<Transaction> {
     tx.sign(keypair);
     return tx;
   }
 
+  /**
+   * Parses a base64-encoded transaction XDR string.
+   * @param transactionXdr - The base64-encoded transaction
+   * @param networkPassphrase - The network passphrase
+   * @returns The parsed Transaction or FeeBumpTransaction
+   */
   static parseTransactionXdr(
     transactionXdr: string,
     networkPassphrase: string
@@ -118,6 +208,11 @@ export class StellarClient {
     return TransactionBuilder.fromXDR(transactionXdr, networkPassphrase);
   }
 
+  /**
+   * Gets the default network passphrase for a given network.
+   * @param network - The network ("testnet" or "mainnet")
+   * @returns The corresponding network passphrase
+   */
   static getDefaultNetworkPassphrase(network: AxionveraNetwork): string {
     switch (network) {
       case "testnet":

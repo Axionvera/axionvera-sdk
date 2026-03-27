@@ -1,10 +1,19 @@
 import { Networks } from "@stellar/stellar-sdk";
 
+/**
+ * Supported Axionvera networks.
+ */
 export type AxionveraNetwork = "testnet" | "mainnet";
 
+/**
+ * Configuration for network connections.
+ */
 export type NetworkConfig = {
+  /** The network identifier */
   network: AxionveraNetwork;
+  /** The RPC URL for the network */
   rpcUrl: string;
+  /** The network passphrase for transaction signing */
   networkPassphrase: string;
 };
 
@@ -13,6 +22,11 @@ const DEFAULT_RPC_URLS: Record<AxionveraNetwork, string> = {
   mainnet: "https://soroban-mainnet.stellar.org"
 };
 
+/**
+ * Gets the network passphrase for a given network.
+ * @param network - The network identifier
+ * @returns The network passphrase
+ */
 export function getNetworkPassphrase(network: AxionveraNetwork): string {
   switch (network) {
     case "testnet":
@@ -22,10 +36,21 @@ export function getNetworkPassphrase(network: AxionveraNetwork): string {
   }
 }
 
+/**
+ * Gets the default RPC URL for a given network.
+ * @param network - The network identifier
+ * @returns The default RPC URL
+ */
 export function getDefaultRpcUrl(network: AxionveraNetwork): string {
   return DEFAULT_RPC_URLS[network];
 }
 
+/**
+ * Resolves network configuration from input options.
+ * Fills in defaults for any missing values.
+ * @param input - Optional network configuration overrides
+ * @returns The resolved network configuration
+ */
 export function resolveNetworkConfig(input?: {
   network?: AxionveraNetwork;
   rpcUrl?: string;

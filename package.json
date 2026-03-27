@@ -35,21 +35,24 @@
     "build": "npm run clean && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src/**/*.ts",
-    "test": "jest"
+    "test": "jest",
+    "docs": "typedoc"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^14.6.1",
     "axios": "^1.7.9"
   },
   "devDependencies": {
-    "@types/node": "^22.13.5",
     "@types/jest": "^29.5.12",
+    "@types/node": "^22.13.5",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
     "rimraf": "^6.0.1",
     "ts-jest": "^29.2.5",
+    "typedoc": "^0.28.18",
+    "typedoc-plugin-markdown": "^4.11.0",
     "typescript": "^5.5.4"
   },
   "jest": {
