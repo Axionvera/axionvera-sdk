@@ -16,3 +16,12 @@ export { createHttpClientWithRetry, retry } from "./utils/httpInterceptor";
 
 export type { ConcurrencyConfig } from "./utils/concurrencyQueue";
 export { ConcurrencyQueue, createConcurrencyControlledClient, DEFAULT_CONCURRENCY_CONFIG } from "./utils/concurrencyQueue";
+
+export {
+	AxionveraError,
+	AuthenticationError,
+	NetworkError,
+	RateLimitError,
+	ValidationError,
+	toAxionveraError
+} from "./errors/axionveraError";

@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
+import { getErrorStatusCode, toAxionveraError } from '../errors/axionveraError';
 
 /**
  * Configuration for retry behavior.
@@ -37,11 +38,13 @@ function isRetryableRequest(config: AxiosRequestConfig, retryConfig: RetryConfig
   return method ? retryConfig.retryableMethods.includes(method) : false;
 }
 
-function isRetryableError(error: AxiosError, retryConfig: RetryConfig): boolean {
-  if (!error.response) {
+function isRetryableError(error: unknown, retryConfig: RetryConfig): boolean {
+  const statusCode = getErrorStatusCode(error);
+  if (statusCode === undefined) {
     return false;
   }
-  return retryConfig.retryableStatusCodes.includes(error.response.status);
+
+  return retryConfig.retryableStatusCodes.includes(statusCode);
 }
 
 function delay(ms: number): Promise<void> {
@@ -72,13 +75,13 @@ export function createHttpClientWithRetry(
       const originalRequest = error.config as AxiosRequestConfig & { _retryCount?: number };
 
       if (!originalRequest || !isRetryableRequest(originalRequest, config) || !isRetryableError(error, config)) {
-        return Promise.reject(error);
+        return Promise.reject(toAxionveraError(error));
       }
 
       originalRequest._retryCount = originalRequest._retryCount || 0;
 
       if (originalRequest._retryCount >= config.maxRetries) {
-        return Promise.reject(error);
+        return Promise.reject(toAxionveraError(error));
       }
 
       originalRequest._retryCount++;
@@ -108,21 +111,26 @@ export async function retry<T>(
   const config = { ...DEFAULT_RETRY_CONFIG, ...retryConfig };
 
   if (!config.enabled) {
-    return fn();
+    try {
+      return await fn();
+    } catch (error: unknown) {
+      throw toAxionveraError(error);
+    }
   }
 
-  let lastError: any;
+  let lastError: unknown;
 
   for (let attempt = 1; attempt <= config.maxRetries + 1; attempt++) {
     try {
       return await fn();
-    } catch (error: any) {
+    } catch (error: unknown) {
       lastError = error;
 
-      const isRetryable = error.response && config.retryableStatusCodes.includes(error.response.status);
+      const statusCode = getErrorStatusCode(error);
+      const isRetryable = statusCode !== undefined && config.retryableStatusCodes.includes(statusCode);
 
       if (!isRetryable || attempt > config.maxRetries) {
-        throw error;
+        throw toAxionveraError(error);
       }
 
       const delayMs = calculateDelay(attempt, config.baseDelayMs, config.maxDelayMs);
@@ -130,5 +138,5 @@ export async function retry<T>(
     }
   }
 
-  throw lastError;
+  throw toAxionveraError(lastError);
 }

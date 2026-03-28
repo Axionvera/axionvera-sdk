@@ -140,6 +140,10 @@ describe('ConcurrencyQueue', () => {
       const promise3 = queue.execute(() => slowMockFn()); // Will be queued
       const promise4 = queue.execute(() => slowMockFn()); // Will be queued
 
+      // Attach rejection handlers before clearing to avoid unhandled rejections.
+      const promise3Rejected = expect(promise3).rejects.toThrow('Request cancelled due to queue clearance');
+      const promise4Rejected = expect(promise4).rejects.toThrow('Request cancelled due to queue clearance');
+
       await new Promise(resolve => setTimeout(resolve, 10));
 
       // Clear queue
@@ -150,8 +154,8 @@ describe('ConcurrencyQueue', () => {
       await expect(promise2).resolves.toBe('done');
 
       // Queued requests should be rejected
-      await expect(promise3).rejects.toThrow('Request cancelled due to queue clearance');
-      await expect(promise4).rejects.toThrow('Request cancelled due to queue clearance');
+      await promise3Rejected;
+      await promise4Rejected;
     });
 
     it('should update configuration', () => {
@@ -186,8 +190,11 @@ describe('ConcurrencyQueue', () => {
       // Add another request that will timeout in queue
       const promise2 = shortTimeoutQueue.execute(() => slowMockFn());
 
+      // Attach rejection handler immediately to avoid unhandled timeout rejection.
+      const timeoutRejected = expect(promise2).rejects.toThrow('Request timed out in queue');
+
       await expect(promise1).resolves.toBe('done');
-      await expect(promise2).rejects.toThrow('Request timed out in queue');
+      await timeoutRejected;
 
       shortTimeoutQueue.clearQueue();
     });

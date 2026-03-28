@@ -1,6 +1,7 @@
 import { Account, Keypair, StrKey, Transaction } from "@stellar/stellar-sdk";
 
 import { VaultContract } from "../src";
+import { ValidationError } from "../src/errors/axionveraError";
 
 describe("VaultContract", () => {
   test("builds, simulates, prepares, signs, and submits a deposit transaction", async () => {

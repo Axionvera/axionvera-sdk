@@ -1,4 +1,5 @@
 import { StellarClient } from "../src";
+import { RateLimitError } from "../src/errors/axionveraError";
 
 describe("StellarClient", () => {
   test("delegates network calls to the RPC client", async () => {
@@ -113,5 +114,46 @@ describe("StellarClient", () => {
     ).resolves.toEqual({ status: "SUCCESS", resultMetaXdr: "AAAA" });
 
     expect(rpc.getTransaction).toHaveBeenCalledTimes(2);
+  });
+
+  test("wraps RPC errors with status code and request id metadata", async () => {
+    const rpc = {
+      getHealth: jest.fn().mockRejectedValue({
+        response: {
+          status: 429,
+          headers: {
+            'x-request-id': 'req-health-42'
+          }
+        }
+      }),
+      getNetwork: jest.fn(),
+      getLatestLedger: jest.fn(),
+      getAccount: jest.fn(),
+      simulateTransaction: jest.fn(),
+      prepareTransaction: jest.fn(),
+      sendTransaction: jest.fn(),
+      getTransaction: jest.fn()
+    };
+
+    const client = new StellarClient({
+      network: "testnet",
+      rpcUrl: "http://localhost:8000",
+      networkPassphrase: "Test Network ; February 2017",
+      rpcClient: rpc as any,
+      retryConfig: { enabled: false }
+    });
+
+    let thrown: unknown;
+    try {
+      await client.getHealth();
+    } catch (error: unknown) {
+      thrown = error;
+    }
+
+    expect(thrown).toBeInstanceOf(RateLimitError);
+    expect(thrown).toMatchObject({
+      statusCode: 429,
+      requestId: 'req-health-42'
+    });
   });
 });

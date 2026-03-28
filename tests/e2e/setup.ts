@@ -1,5 +1,14 @@
 // E2E test setup for MSW
 import { server } from '../../src/test/msw/server';
+import { TextDecoder, TextEncoder } from 'util';
+
+if (!(global as any).TextEncoder) {
+  (global as any).TextEncoder = TextEncoder;
+}
+
+if (!(global as any).TextDecoder) {
+  (global as any).TextDecoder = TextDecoder;
+}
 
 // Setup MSW server for all E2E tests
 beforeAll(() => {

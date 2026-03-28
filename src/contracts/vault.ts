@@ -8,6 +8,7 @@ import {
 } from "@stellar/stellar-sdk";
 
 import { StellarClient } from "../client/stellarClient";
+import { ValidationError, toAxionveraError } from "../errors/axionveraError";
 import { WalletConnector } from "../wallet/walletConnector";
 import { buildContractCallTransaction, toScVal } from "../utils/transactionBuilder";
 
@@ -134,33 +135,35 @@ export class VaultContract {
    * @returns The account balance
    */
   async getBalance(params: { account?: string }): Promise<unknown> {
-    const publicKey = params.account ?? (this.wallet ? await this.wallet.getPublicKey() : undefined);
-    if (!publicKey) {
-      throw new Error("account is required when no wallet connector is provided");
-    }
+    return this.executeWithErrorHandling(async () => {
+      const publicKey = params.account ?? (this.wallet ? await this.wallet.getPublicKey() : undefined);
+      if (!publicKey) {
+        throw new ValidationError("account is required when no wallet connector is provided");
+      }
 
-    const sourceAccount = await this.client.getAccount(publicKey);
-    const tx = buildContractCallTransaction({
-      sourceAccount,
-      networkPassphrase: this.client.networkPassphrase,
-      contractId: this.contractId,
-      method: this.methods.balance,
-      args: [Address.fromString(publicKey)]
-    });
+      const sourceAccount = await this.client.getAccount(publicKey);
+      const tx = buildContractCallTransaction({
+        sourceAccount,
+        networkPassphrase: this.client.networkPassphrase,
+        contractId: this.contractId,
+        method: this.methods.balance,
+        args: [Address.fromString(publicKey)]
+      });
 
-    const sim = await this.client.simulateTransaction(tx);
-    if (!isSimSuccess(sim)) {
-      throw new Error("Simulation failed");
-    }
+      const sim = await this.client.simulateTransaction(tx);
+      if (!isSimSuccess(sim)) {
+        throw new ValidationError("Simulation failed");
+      }
 
-    const retval = (sim as any).result?.retval as xdr.ScVal | undefined;
-    return retval ? scValToNative(retval) : null;
+      const retval = (sim as any).result?.retval as xdr.ScVal | undefined;
+      return retval ? scValToNative(retval) : null;
+    }, "Failed to retrieve vault balance");
   }
 
   private async getSourcePublicKey(source?: string): Promise<string> {
     if (source) return source;
     if (!this.wallet) {
-      throw new Error("wallet connector is required for signing transactions");
+      throw new ValidationError("wallet connector is required for signing transactions");
     }
     return this.wallet.getPublicKey();
   }
@@ -171,36 +174,47 @@ export class VaultContract {
     args?: Array<xdr.ScVal>;
   }): Promise<unknown> {
     if (!this.wallet) {
-      throw new Error("wallet connector is required for signing transactions");
+      throw new ValidationError("wallet connector is required for signing transactions");
     }
+    const wallet = this.wallet;
 
-    const publicKey = await this.getSourcePublicKey(params.source);
-    const sourceAccount = await this.client.getAccount(publicKey);
+    return this.executeWithErrorHandling(async () => {
+      const publicKey = await this.getSourcePublicKey(params.source);
+      const sourceAccount = await this.client.getAccount(publicKey);
 
-    const tx = buildContractCallTransaction({
-      sourceAccount,
-      networkPassphrase: this.client.networkPassphrase,
-      contractId: this.contractId,
-      method: params.method,
-      args: params.args ?? []
-    });
+      const tx = buildContractCallTransaction({
+        sourceAccount,
+        networkPassphrase: this.client.networkPassphrase,
+        contractId: this.contractId,
+        method: params.method,
+        args: params.args ?? []
+      });
 
-    const sim = await this.client.simulateTransaction(tx);
-    if (!isSimSuccess(sim)) {
-      throw new Error("Simulation failed");
+      const sim = await this.client.simulateTransaction(tx);
+      if (!isSimSuccess(sim)) {
+        throw new ValidationError("Simulation failed");
+      }
+
+      const prepared = await this.client.prepareTransaction(tx);
+      const signedXdr = await wallet.signTransaction(
+        prepared.toXDR(),
+        this.client.networkPassphrase
+      );
+      const signedTx = TransactionBuilder.fromXDR(
+        signedXdr,
+        this.client.networkPassphrase
+      ) as Transaction | FeeBumpTransaction;
+
+      return this.client.sendTransaction(signedTx);
+    }, `Failed to execute vault method ${params.method}`);
+  }
+
+  private async executeWithErrorHandling<T>(fn: () => Promise<T>, fallbackMessage: string): Promise<T> {
+    try {
+      return await fn();
+    } catch (error: unknown) {
+      throw toAxionveraError(error, fallbackMessage);
     }
-
-    const prepared = await this.client.prepareTransaction(tx);
-    const signedXdr = await this.wallet.signTransaction(
-      prepared.toXDR(),
-      this.client.networkPassphrase
-    );
-    const signedTx = TransactionBuilder.fromXDR(
-      signedXdr,
-      this.client.networkPassphrase
-    ) as Transaction | FeeBumpTransaction;
-
-    return this.client.sendTransaction(signedTx);
   }
 }
 

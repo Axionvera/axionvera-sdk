@@ -1,5 +1,6 @@
 import { StellarClient } from '../src/client/stellarClient';
 import { rpc } from '@stellar/stellar-sdk';
+import { NetworkError } from '../src/errors/axionveraError';
 
 jest.mock('@stellar/stellar-sdk');
 const mockedRpc = rpc as jest.Mocked<typeof rpc>;
@@ -174,7 +175,15 @@ describe('StellarClient Retry Functionality', () => {
       const error = { response: { status: 500 } };
       mockServer.simulateTransaction.mockRejectedValue(error);
 
-      await expect(client.simulateTransaction({} as any)).rejects.toEqual(error);
+      let thrown: unknown;
+      try {
+        await client.simulateTransaction({} as any);
+      } catch (err: unknown) {
+        thrown = err;
+      }
+
+      expect(thrown).toBeInstanceOf(NetworkError);
+      expect(thrown).toMatchObject({ statusCode: 500 });
       expect(mockServer.simulateTransaction).toHaveBeenCalledTimes(1);
     });
 
@@ -182,7 +191,15 @@ describe('StellarClient Retry Functionality', () => {
       const error = { response: { status: 500 } };
       mockServer.prepareTransaction.mockRejectedValue(error);
 
-      await expect(client.prepareTransaction({} as any)).rejects.toEqual(error);
+      let thrown: unknown;
+      try {
+        await client.prepareTransaction({} as any);
+      } catch (err: unknown) {
+        thrown = err;
+      }
+
+      expect(thrown).toBeInstanceOf(NetworkError);
+      expect(thrown).toMatchObject({ statusCode: 500 });
       expect(mockServer.prepareTransaction).toHaveBeenCalledTimes(1);
     });
 
@@ -190,7 +207,15 @@ describe('StellarClient Retry Functionality', () => {
       const error = { response: { status: 500 } };
       mockServer.sendTransaction.mockRejectedValue(error);
 
-      await expect(client.sendTransaction({} as any)).rejects.toEqual(error);
+      let thrown: unknown;
+      try {
+        await client.sendTransaction({} as any);
+      } catch (err: unknown) {
+        thrown = err;
+      }
+
+      expect(thrown).toBeInstanceOf(NetworkError);
+      expect(thrown).toMatchObject({ statusCode: 500 });
       expect(mockServer.sendTransaction).toHaveBeenCalledTimes(1);
     });
   });

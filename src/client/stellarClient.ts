@@ -14,6 +14,7 @@ import {
 } from "../utils/networkConfig";
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
+import { NetworkError, toAxionveraError } from "../errors/axionveraError";
 
 export type StellarClientOptions = {
   network?: AxionveraNetwork;
@@ -57,6 +58,10 @@ export class StellarClient {
   readonly httpClient;
   /** The effective retry configuration after merging with defaults. */
   readonly retryConfig: Partial<RetryConfig>;
+  /** The effective concurrency configuration after merging with defaults. */
+  private readonly concurrencyConfig: ConcurrencyConfig;
+  /** Indicates whether concurrency control was explicitly enabled. */
+  private readonly concurrencyEnabled: boolean;
 
   /**
    * Creates a new StellarClient instance.
@@ -96,7 +101,10 @@ export class StellarClient {
    * @returns The health check response
    */
   async getHealth(): Promise<unknown> {
-    return retry(() => this.rpc.getHealth(), this.retryConfig);
+    return this.executeWithErrorHandling(
+      () => retry(() => this.rpc.getHealth(), this.retryConfig),
+      "Failed to fetch network health"
+    );
   }
 
   /**
@@ -105,7 +113,10 @@ export class StellarClient {
    * @returns The network configuration
    */
   async getNetwork(): Promise<unknown> {
-    return retry(() => this.rpc.getNetwork(), this.retryConfig);
+    return this.executeWithErrorHandling(
+      () => retry(() => this.rpc.getNetwork(), this.retryConfig),
+      "Failed to fetch network configuration"
+    );
   }
 
   /**
@@ -114,7 +125,10 @@ export class StellarClient {
    * @returns The latest ledger info
    */
   async getLatestLedger(): Promise<unknown> {
-    return retry(() => this.rpc.getLatestLedger(), this.retryConfig);
+    return this.executeWithErrorHandling(
+      () => retry(() => this.rpc.getLatestLedger(), this.retryConfig),
+      "Failed to fetch latest ledger"
+    );
   }
 
   /**
@@ -124,7 +138,10 @@ export class StellarClient {
    * @returns The account information
    */
   async getAccount(publicKey: string): Promise<Account> {
-    return retry(() => this.rpc.getAccount(publicKey), this.retryConfig);
+    return this.executeWithErrorHandling(
+      () => retry(() => this.rpc.getAccount(publicKey), this.retryConfig),
+      `Failed to fetch account ${publicKey}`
+    );
   }
 
   /**
@@ -136,7 +153,10 @@ export class StellarClient {
   async simulateTransaction(
     tx: Transaction | FeeBumpTransaction
   ): Promise<rpc.Api.SimulateTransactionResponse> {
-    return this.rpc.simulateTransaction(tx);
+    return this.executeWithErrorHandling(
+      () => this.rpc.simulateTransaction(tx),
+      "Failed to simulate transaction"
+    );
   }
 
   /**
@@ -146,7 +166,10 @@ export class StellarClient {
    * @returns The prepared transaction
    */
   async prepareTransaction(tx: Transaction | FeeBumpTransaction): Promise<Transaction> {
-    return this.rpc.prepareTransaction(tx);
+    return this.executeWithErrorHandling(
+      () => this.rpc.prepareTransaction(tx),
+      "Failed to prepare transaction"
+    );
   }
 
   /**
@@ -155,10 +178,12 @@ export class StellarClient {
    * @returns The submission result containing hash and status
    */
   async sendTransaction(tx: Transaction | FeeBumpTransaction): Promise<TransactionSendResult> {
-    const result = await this.rpc.sendTransaction(tx);
-    const hash = (result as any).hash ?? (result as any).id ?? "";
-    const status = (result as any).status ?? (result as any).statusText ?? "unknown";
-    return { hash, status, raw: result };
+    return this.executeWithErrorHandling(async () => {
+      const result = await this.rpc.sendTransaction(tx);
+      const hash = (result as any).hash ?? (result as any).id ?? "";
+      const status = (result as any).status ?? (result as any).statusText ?? "unknown";
+      return { hash, status, raw: result };
+    }, "Failed to send transaction");
   }
 
   /**
@@ -168,7 +193,10 @@ export class StellarClient {
    * @returns The transaction status response
    */
   async getTransaction(hash: string): Promise<unknown> {
-    return retry(() => this.rpc.getTransaction(hash), this.retryConfig);
+    return this.executeWithErrorHandling(
+      () => retry(() => this.rpc.getTransaction(hash), this.retryConfig),
+      `Failed to fetch transaction ${hash}`
+    );
   }
 
   /**
@@ -184,20 +212,22 @@ export class StellarClient {
     hash: string,
     params?: { timeoutMs?: number; intervalMs?: number }
   ): Promise<unknown> {
-    const timeoutMs = params?.timeoutMs ?? 30_000;
-    const intervalMs = params?.intervalMs ?? 1_000;
-    const deadline = Date.now() + timeoutMs;
+    return this.executeWithErrorHandling(async () => {
+      const timeoutMs = params?.timeoutMs ?? 30_000;
+      const intervalMs = params?.intervalMs ?? 1_000;
+      const deadline = Date.now() + timeoutMs;
 
-    while (Date.now() < deadline) {
-      const res = await this.getTransaction(hash);
-      const status = (res as any)?.status;
-      if (status && status !== "NOT_FOUND") {
-        return res;
+      while (Date.now() < deadline) {
+        const res = await this.getTransaction(hash);
+        const status = (res as any)?.status;
+        if (status && status !== "NOT_FOUND") {
+          return res;
+        }
+        await new Promise((r) => setTimeout(r, intervalMs));
       }
-      await new Promise((r) => setTimeout(r, intervalMs));
-    }
 
-    throw new Error(`Timed out waiting for transaction ${hash}`);
+      throw new NetworkError(`Timed out waiting for transaction ${hash}`);
+    }, `Failed while polling transaction ${hash}`);
   }
 
   /**
@@ -259,5 +289,13 @@ export class StellarClient {
       queueTimeout: this.concurrencyConfig.queueTimeout,
       message: 'Stats not available from wrapped client'
     };
+  }
+
+  private async executeWithErrorHandling<T>(fn: () => Promise<T>, fallbackMessage: string): Promise<T> {
+    try {
+      return await fn();
+    } catch (error: unknown) {
+      throw toAxionveraError(error, fallbackMessage);
+    }
   }
 }

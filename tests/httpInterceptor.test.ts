@@ -1,5 +1,6 @@
 import { createHttpClientWithRetry, retry, RetryConfig, DEFAULT_RETRY_CONFIG } from '../src/utils/httpInterceptor';
 import axios from 'axios';
+import { NetworkError, ValidationError } from '../src/errors/axionveraError';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -87,8 +88,16 @@ describe('HTTP Interceptor', () => {
 
     it('should not retry on non-retryable error', async () => {
       const mockFn = jest.fn().mockRejectedValue({ response: { status: 400 } });
-      
-      await expect(retry(mockFn, { maxRetries: 2 })).rejects.toEqual({ response: { status: 400 } });
+
+      let thrown: unknown;
+      try {
+        await retry(mockFn, { maxRetries: 2 });
+      } catch (error: unknown) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(ValidationError);
+      expect(thrown).toMatchObject({ statusCode: 400 });
       expect(mockFn).toHaveBeenCalledTimes(1);
     });
 
@@ -101,8 +110,16 @@ describe('HTTP Interceptor', () => {
 
     it('should fail after max retries', async () => {
       const mockFn = jest.fn().mockRejectedValue({ response: { status: 500 } });
-      
-      await expect(retry(mockFn, { maxRetries: 2 })).rejects.toEqual({ response: { status: 500 } });
+
+      let thrown: unknown;
+      try {
+        await retry(mockFn, { maxRetries: 2 });
+      } catch (error: unknown) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(NetworkError);
+      expect(thrown).toMatchObject({ statusCode: 500 });
       expect(mockFn).toHaveBeenCalledTimes(3); // 1 initial + 2 retries
     });
 
@@ -122,8 +139,16 @@ describe('HTTP Interceptor', () => {
 
     it('should not retry when disabled', async () => {
       const mockFn = jest.fn().mockRejectedValue({ response: { status: 500 } });
-      
-      await expect(retry(mockFn, { enabled: false })).rejects.toEqual({ response: { status: 500 } });
+
+      let thrown: unknown;
+      try {
+        await retry(mockFn, { enabled: false });
+      } catch (error: unknown) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(NetworkError);
+      expect(thrown).toMatchObject({ statusCode: 500 });
       expect(mockFn).toHaveBeenCalledTimes(1);
     });
   });
