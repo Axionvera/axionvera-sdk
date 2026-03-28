@@ -1,11 +1,20 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 
+/**
+ * Configuration for retry behavior.
+ */
 export type RetryConfig = {
+  /** Whether retries are enabled */
   enabled: boolean;
+  /** Maximum number of retry attempts */
   maxRetries: number;
+  /** Base delay between retries in milliseconds */
   baseDelayMs: number;
+  /** Maximum delay between retries in milliseconds */
   maxDelayMs: number;
+  /** HTTP methods that should be retried */
   retryableMethods: string[];
+  /** HTTP status codes that should trigger a retry */
   retryableStatusCodes: number[];
 };
 
@@ -39,6 +48,11 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * Creates an Axios client with automatic retry interceptors.
+ * @param retryConfig - Configuration for retry behavior
+ * @returns An Axios instance with retry interceptors
+ */
 export function createHttpClientWithRetry(
   retryConfig: Partial<RetryConfig> = {}
 ): AxiosInstance {
@@ -79,6 +93,14 @@ export function createHttpClientWithRetry(
   return client;
 }
 
+/**
+ * Executes a function with automatic retries on failure.
+ * Uses exponential backoff between retry attempts.
+ * @param fn - The function to execute
+ * @param retryConfig - Configuration for retry behavior
+ * @returns The result of the function
+ * @throws The last error if all retries are exhausted
+ */
 export async function retry<T>(
   fn: () => Promise<T>,
   retryConfig: Partial<RetryConfig> = {}
@@ -97,7 +119,6 @@ export async function retry<T>(
     } catch (error: any) {
       lastError = error;
 
-      // Check if this is a retryable error
       const isRetryable = error.response && config.retryableStatusCodes.includes(error.response.status);
 
       if (!isRetryable || attempt > config.maxRetries) {
