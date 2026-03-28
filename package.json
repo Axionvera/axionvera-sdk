@@ -48,6 +48,8 @@
     "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "msw": "^2.3.5",
     "rimraf": "^6.0.1",
     "ts-jest": "^29.2.5",
     "typescript": "^5.5.4"
@@ -58,6 +60,27 @@
     "testMatch": [
       "<rootDir>/tests/**/*.test.ts"
     ],
+    "clearMocks": true,
+    "projects": [
+      {
+        "displayName": "Unit Tests",
+        "testMatch": [
+          "<rootDir>/tests/*.test.ts",
+          "!<rootDir>/tests/e2e/*.test.ts"
+        ],
+        "testEnvironment": "node"
+      },
+      {
+        "displayName": "E2E Tests",
+        "testMatch": [
+          "<rootDir>/tests/e2e/*.test.ts"
+        ],
+        "testEnvironment": "jsdom",
+        "setupFilesAfterEnv": [
+          "<rootDir>/tests/e2e/setup.ts"
+        ]
+      }
+    ]
     "clearMocks": true
   },
   "publishConfig": {
