@@ -15,6 +15,7 @@ import {
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
 import { NetworkError, toAxionveraError } from "../errors/axionveraError";
+import { LogLevel, Logger } from "../utils/logger";
 
 export type StellarClientOptions = {
   network?: AxionveraNetwork;
@@ -23,6 +24,7 @@ export type StellarClientOptions = {
   rpcClient?: rpc.Server;
   concurrencyConfig?: Partial<ConcurrencyConfig>;
   retryConfig?: Partial<RetryConfig>;
+  logLevel?: LogLevel;
 };
 
 export type TransactionSendResult = {
@@ -62,6 +64,8 @@ export class StellarClient {
   private readonly concurrencyConfig: ConcurrencyConfig;
   /** Indicates whether concurrency control was explicitly enabled. */
   private readonly concurrencyEnabled: boolean;
+  /** The internal logger instance. */
+  private readonly logger: Logger;
 
   /**
    * Creates a new StellarClient instance.
@@ -79,6 +83,9 @@ export class StellarClient {
     this.concurrencyEnabled = !!options?.concurrencyConfig;
     this.retryConfig = options?.retryConfig ?? {};
     this.httpClient = createHttpClientWithRetry(this.retryConfig);
+    this.logger = new Logger(options?.logLevel ?? 'none');
+
+    this.logger.info(`Initializing StellarClient for ${this.network} at ${this.rpcUrl}`);
 
     if (options?.rpcClient) {
       this.rpc = options.rpcClient;
@@ -101,6 +108,7 @@ export class StellarClient {
    * @returns The health check response
    */
   async getHealth(): Promise<unknown> {
+    this.logger.debug("Fetching network health");
     return this.executeWithErrorHandling(
       () => retry(() => this.rpc.getHealth(), this.retryConfig),
       "Failed to fetch network health"
@@ -113,6 +121,7 @@ export class StellarClient {
    * @returns The network configuration
    */
   async getNetwork(): Promise<unknown> {
+    this.logger.debug("Fetching network configuration");
     return this.executeWithErrorHandling(
       () => retry(() => this.rpc.getNetwork(), this.retryConfig),
       "Failed to fetch network configuration"
@@ -125,6 +134,7 @@ export class StellarClient {
    * @returns The latest ledger info
    */
   async getLatestLedger(): Promise<unknown> {
+    this.logger.debug("Fetching latest ledger");
     return this.executeWithErrorHandling(
       () => retry(() => this.rpc.getLatestLedger(), this.retryConfig),
       "Failed to fetch latest ledger"
@@ -138,6 +148,7 @@ export class StellarClient {
    * @returns The account information
    */
   async getAccount(publicKey: string): Promise<Account> {
+    this.logger.debug(`Fetching account ${publicKey}`);
     return this.executeWithErrorHandling(
       () => retry(() => this.rpc.getAccount(publicKey), this.retryConfig),
       `Failed to fetch account ${publicKey}`
@@ -153,6 +164,7 @@ export class StellarClient {
   async simulateTransaction(
     tx: Transaction | FeeBumpTransaction
   ): Promise<rpc.Api.SimulateTransactionResponse> {
+    this.logger.debug("Simulating transaction");
     return this.executeWithErrorHandling(
       () => this.rpc.simulateTransaction(tx),
       "Failed to simulate transaction"
@@ -166,6 +178,7 @@ export class StellarClient {
    * @returns The prepared transaction
    */
   async prepareTransaction(tx: Transaction | FeeBumpTransaction): Promise<Transaction> {
+    this.logger.debug("Preparing transaction");
     return this.executeWithErrorHandling(
       () => this.rpc.prepareTransaction(tx),
       "Failed to prepare transaction"
@@ -178,10 +191,12 @@ export class StellarClient {
    * @returns The submission result containing hash and status
    */
   async sendTransaction(tx: Transaction | FeeBumpTransaction): Promise<TransactionSendResult> {
+    this.logger.info("Sending transaction");
     return this.executeWithErrorHandling(async () => {
       const result = await this.rpc.sendTransaction(tx);
       const hash = (result as any).hash ?? (result as any).id ?? "";
       const status = (result as any).status ?? (result as any).statusText ?? "unknown";
+      this.logger.info(`Transaction submitted: ${hash} (Status: ${status})`);
       return { hash, status, raw: result };
     }, "Failed to send transaction");
   }
@@ -193,6 +208,7 @@ export class StellarClient {
    * @returns The transaction status response
    */
   async getTransaction(hash: string): Promise<unknown> {
+    this.logger.debug(`Fetching transaction status for ${hash}`);
     return this.executeWithErrorHandling(
       () => retry(() => this.rpc.getTransaction(hash), this.retryConfig),
       `Failed to fetch transaction ${hash}`
@@ -295,6 +311,7 @@ export class StellarClient {
     try {
       return await fn();
     } catch (error: unknown) {
+      this.logger.error(fallbackMessage, error);
       throw toAxionveraError(error, fallbackMessage);
     }
   }
