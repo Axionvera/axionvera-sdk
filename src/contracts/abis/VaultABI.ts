@@ -1,0 +1,85 @@
+export const VaultABI = [
+  // View functions
+  {
+    inputs: [],
+    name: 'totalAssets',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'totalSupply',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'shares', type: 'uint256' }],
+    name: 'convertToAssets',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'uint256', name: 'assets', type: 'uint256' }],
+    name: 'convertToShares',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'apy',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'lockPeriod',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ internalType: 'address', name: 'user', type: 'address' }],
+    name: 'pendingRewards',
+    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  // Write functions
+  {
+    inputs: [{ internalType: 'uint256', name: 'assets', type: 'uint256' }],
+    name: 'deposit',
+    outputs: [{ internalType: 'uint256', name: 'shares', type: 'uint256' }],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { internalType: 'uint256', name: 'assets', type: 'uint256' },
+      { internalType: 'address', name: 'receiver', type: 'address' },
+      { internalType: 'address', name: 'owner', type: 'address' },
+    ],
+    name: 'withdraw',
+    outputs: [{ internalType: 'uint256', name: 'shares', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'claimRewards',
+    outputs: [{ internalType: 'uint256', name: 'rewardAmount', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+];
