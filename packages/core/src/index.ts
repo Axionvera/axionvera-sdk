@@ -18,6 +18,22 @@ export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export { buildContractCallOperation, buildContractCallTransaction, toScVal } from './utils/transactionBuilder';
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
 
+// Transaction Signing
+export { TransactionSigner, EnhancedTransactionBuilder, TransactionSimulator } from './transaction';
+export type {
+  TransactionSignerConfig,
+  ContractCallParams,
+  TransactionBuildParams,
+  TransactionResult,
+  SimulationResult,
+  FeeBumpParams,
+  MultiStepTransactionParams,
+  BatchTransactionParams,
+  BatchTransactionResult,
+  DetailedSimulationResult,
+  ResourceOptimizationOptions
+} from './transaction';
+
 // Testing & MSW
 export * from './test/msw/setup';
 export * from './test/msw/handlers';
