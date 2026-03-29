@@ -34,6 +34,7 @@ Building on Stellar's Soroban smart contract platform requires managing RPC conn
 - **Network Management**: Seamlessly connect to Stellar networks (Testnet/Mainnet) via Soroban RPC.
 - **Transaction Lifecycle**: Build, simulate, prepare, and submit Soroban contract call transactions in a few lines of code.
 - **Resilience**: Built-in HTTP interceptors with exponential backoff for robust RPC interactions, handling rate limits automatically.
+- **Configurable Logging**: Built-in logger with automatic sensitive data redaction for easier debugging.
 - **Vault Contract Module**: Out-of-the-box support for the Axionvera Vault contract (`deposit`, `withdraw`, `balance`, `claimRewards`).
 - **Wallet Integration**: Flexible `WalletConnector` interface, including a built-in `LocalKeypairWalletConnector` for server-side or automated signing.
 
@@ -138,6 +139,7 @@ The core client wrapping the Soroban RPC connection.
 - `prepareTransaction(tx)`: Attaches the simulation footprints and minimum fees to the transaction.
 - `sendTransaction(tx)`: Submits a signed transaction to the network.
 - `pollTransaction(hash, params)`: Polls the network until a transaction reaches a final state (`SUCCESS` or `FAILED`).
+- `logLevel`: Property in `StellarClientOptions` to control SDK output visibility.
 
 ### `VaultContract`
 A high-level abstraction for the Axionvera Vault smart contract.
