@@ -2,20 +2,15 @@ import {
   Account,
   FeeBumpTransaction,
   Keypair,
+  Networks,
   rpc,
   Transaction,
   TransactionBuilder
 } from "@stellar/stellar-sdk";
 
-import {
-  AxionveraNetwork,
-  getNetworkPassphrase,
-  resolveNetworkConfig
-} from "../utils/networkConfig";
+import { AxionveraNetwork, resolveNetworkConfig } from "../utils/networkConfig";
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
-import { NetworkError, toAxionveraError } from "../errors/axionveraError";
-import { LogLevel, Logger } from "../utils/logger";
 
 export type StellarClientOptions = {
   network?: AxionveraNetwork;
@@ -24,7 +19,6 @@ export type StellarClientOptions = {
   rpcClient?: rpc.Server;
   concurrencyConfig?: Partial<ConcurrencyConfig>;
   retryConfig?: Partial<RetryConfig>;
-  logLevel?: LogLevel;
 };
 
 export type TransactionSendResult = {
@@ -61,11 +55,9 @@ export class StellarClient {
   /** The effective retry configuration after merging with defaults. */
   readonly retryConfig: Partial<RetryConfig>;
   /** The effective concurrency configuration after merging with defaults. */
-  private readonly concurrencyConfig: ConcurrencyConfig;
-  /** Indicates whether concurrency control was explicitly enabled. */
-  private readonly concurrencyEnabled: boolean;
-  /** The internal logger instance. */
-  private readonly logger: Logger;
+  readonly concurrencyConfig: ConcurrencyConfig;
+  /** Whether concurrency control is enabled. */
+  readonly concurrencyEnabled: boolean;
 
   /**
    * Creates a new StellarClient instance.
@@ -83,9 +75,6 @@ export class StellarClient {
     this.concurrencyEnabled = !!options?.concurrencyConfig;
     this.retryConfig = options?.retryConfig ?? {};
     this.httpClient = createHttpClientWithRetry(this.retryConfig);
-    this.logger = new Logger(options?.logLevel ?? 'none');
-
-    this.logger.info(`Initializing StellarClient for ${this.network} at ${this.rpcUrl}`);
 
     if (options?.rpcClient) {
       this.rpc = options.rpcClient;
@@ -108,11 +97,7 @@ export class StellarClient {
    * @returns The health check response
    */
   async getHealth(): Promise<unknown> {
-    this.logger.debug("Fetching network health");
-    return this.executeWithErrorHandling(
-      () => retry(() => this.rpc.getHealth(), this.retryConfig),
-      "Failed to fetch network health"
-    );
+    return retry(() => this.rpc.getHealth(), this.retryConfig);
   }
 
   /**
@@ -121,11 +106,7 @@ export class StellarClient {
    * @returns The network configuration
    */
   async getNetwork(): Promise<unknown> {
-    this.logger.debug("Fetching network configuration");
-    return this.executeWithErrorHandling(
-      () => retry(() => this.rpc.getNetwork(), this.retryConfig),
-      "Failed to fetch network configuration"
-    );
+    return retry(() => this.rpc.getNetwork(), this.retryConfig);
   }
 
   /**
@@ -134,11 +115,7 @@ export class StellarClient {
    * @returns The latest ledger info
    */
   async getLatestLedger(): Promise<unknown> {
-    this.logger.debug("Fetching latest ledger");
-    return this.executeWithErrorHandling(
-      () => retry(() => this.rpc.getLatestLedger(), this.retryConfig),
-      "Failed to fetch latest ledger"
-    );
+    return retry(() => this.rpc.getLatestLedger(), this.retryConfig);
   }
 
   /**
@@ -148,11 +125,7 @@ export class StellarClient {
    * @returns The account information
    */
   async getAccount(publicKey: string): Promise<Account> {
-    this.logger.debug(`Fetching account ${publicKey}`);
-    return this.executeWithErrorHandling(
-      () => retry(() => this.rpc.getAccount(publicKey), this.retryConfig),
-      `Failed to fetch account ${publicKey}`
-    );
+    return retry(() => this.rpc.getAccount(publicKey), this.retryConfig);
   }
 
   /**
@@ -164,11 +137,7 @@ export class StellarClient {
   async simulateTransaction(
     tx: Transaction | FeeBumpTransaction
   ): Promise<rpc.Api.SimulateTransactionResponse> {
-    this.logger.debug("Simulating transaction");
-    return this.executeWithErrorHandling(
-      () => this.rpc.simulateTransaction(tx),
-      "Failed to simulate transaction"
-    );
+    return this.rpc.simulateTransaction(tx);
   }
 
   /**
@@ -178,11 +147,7 @@ export class StellarClient {
    * @returns The prepared transaction
    */
   async prepareTransaction(tx: Transaction | FeeBumpTransaction): Promise<Transaction> {
-    this.logger.debug("Preparing transaction");
-    return this.executeWithErrorHandling(
-      () => this.rpc.prepareTransaction(tx),
-      "Failed to prepare transaction"
-    );
+    return this.rpc.prepareTransaction(tx);
   }
 
   /**
@@ -190,16 +155,36 @@ export class StellarClient {
    * @param tx - The signed transaction to submit
    * @returns The submission result containing hash and status
    */
-  async sendTransaction(tx: Transaction | FeeBumpTransaction): Promise<TransactionSendResult> {
-    this.logger.info("Sending transaction");
-    return this.executeWithErrorHandling(async () => {
-      const result = await this.rpc.sendTransaction(tx);
-      const hash = (result as any).hash ?? (result as any).id ?? "";
-      const status = (result as any).status ?? (result as any).statusText ?? "unknown";
-      this.logger.info(`Transaction submitted: ${hash} (Status: ${status})`);
-      return { hash, status, raw: result };
-    }, "Failed to send transaction");
+ async sendTransaction(tx: Transaction | FeeBumpTransaction): Promise<TransactionSendResult> {
+  let finalTx: Transaction | FeeBumpTransaction = tx;
+
+  // If a wallet is available, sign the transaction before submission
+  if ((this as any).wallet) {
+    const wallet = (this as any).wallet;
+
+    // Convert transaction to XDR for wallet signing
+    const txXdr = tx.toXDR();
+
+    // Sign via wallet connector
+    const signedXdr = await wallet.signTransaction(
+      txXdr,
+      this.networkPassphrase
+    );
+
+    // Reconstruct signed transaction from XDR
+    finalTx = TransactionBuilder.fromXDR(
+      signedXdr,
+      this.networkPassphrase
+    );
   }
+
+  // Submit either original or signed transaction
+  const result = await this.rpc.sendTransaction(finalTx);
+  const hash = (result as any).hash ?? (result as any).id ?? "";
+  const status = (result as any).status ?? (result as any).statusText ?? "unknown";
+  return { hash, status, raw: result };
+}
+
 
   /**
    * Retrieves the status of a submitted transaction.
@@ -208,11 +193,7 @@ export class StellarClient {
    * @returns The transaction status response
    */
   async getTransaction(hash: string): Promise<unknown> {
-    this.logger.debug(`Fetching transaction status for ${hash}`);
-    return this.executeWithErrorHandling(
-      () => retry(() => this.rpc.getTransaction(hash), this.retryConfig),
-      `Failed to fetch transaction ${hash}`
-    );
+    return retry(() => this.rpc.getTransaction(hash), this.retryConfig);
   }
 
   /**
@@ -228,22 +209,20 @@ export class StellarClient {
     hash: string,
     params?: { timeoutMs?: number; intervalMs?: number }
   ): Promise<unknown> {
-    return this.executeWithErrorHandling(async () => {
-      const timeoutMs = params?.timeoutMs ?? 30_000;
-      const intervalMs = params?.intervalMs ?? 1_000;
-      const deadline = Date.now() + timeoutMs;
+    const timeoutMs = params?.timeoutMs ?? 30_000;
+    const intervalMs = params?.intervalMs ?? 1_000;
+    const deadline = Date.now() + timeoutMs;
 
-      while (Date.now() < deadline) {
-        const res = await this.getTransaction(hash);
-        const status = (res as any)?.status;
-        if (status && status !== "NOT_FOUND") {
-          return res;
-        }
-        await new Promise((r) => setTimeout(r, intervalMs));
+    while (Date.now() < deadline) {
+      const res = await this.getTransaction(hash);
+      const status = (res as any)?.status;
+      if (status && status !== "NOT_FOUND") {
+        return res;
       }
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
 
-      throw new NetworkError(`Timed out waiting for transaction ${hash}`);
-    }, `Failed while polling transaction ${hash}`);
+    throw new Error(`Timed out waiting for transaction ${hash}`);
   }
 
   /**
@@ -277,7 +256,12 @@ export class StellarClient {
    * @returns The corresponding network passphrase
    */
   static getDefaultNetworkPassphrase(network: AxionveraNetwork): string {
-    return getNetworkPassphrase(network);
+    switch (network) {
+      case "testnet":
+        return Networks.TESTNET;
+      case "mainnet":
+        return Networks.PUBLIC;
+    }
   }
 
   /**
@@ -305,14 +289,5 @@ export class StellarClient {
       queueTimeout: this.concurrencyConfig.queueTimeout,
       message: 'Stats not available from wrapped client'
     };
-  }
-
-  private async executeWithErrorHandling<T>(fn: () => Promise<T>, fallbackMessage: string): Promise<T> {
-    try {
-      return await fn();
-    } catch (error: unknown) {
-      this.logger.error(fallbackMessage, error);
-      throw toAxionveraError(error, fallbackMessage);
-    }
   }
 }
