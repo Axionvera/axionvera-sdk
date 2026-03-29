@@ -1,0 +1,134 @@
+name: Release SDK
+
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  # Job 1: Validate - Run build and test suite
+  validate:
+    name: Validate (${{ matrix.task }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        task: [lint, test, build, typecheck]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ${{ matrix.task }}
+        run: npm run ${{ matrix.task }}
+
+  # Job 2: Check version and publish to NPM
+  publish:
+    name: Publish to NPM
+    needs: validate
+    runs-on: ubuntu-latest
+    # Only run on main branch pushes (not on release events)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Extract version from package.json
+        id: package-version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Package version: $VERSION"
+
+      - name: Check if version exists on NPM
+        id: check-version
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          
+          echo "Checking if $PACKAGE_NAME@$CURRENT_VERSION exists on NPM..."
+          
+          # Query NPM registry for the package
+          NPM_VERSION=$(npm view "$PACKAGE_NAME" version 2>/dev/null || echo "not-found")
+          
+          if [ "$NPM_VERSION" = "not-found" ]; then
+            echo "Package not found on NPM. This appears to be the first publish."
+            echo "should-publish=true" >> $GITHUB_OUTPUT
+            echo "current-npm-version=none" >> $GITHUB_OUTPUT
+          elif [ "$NPM_VERSION" = "$CURRENT_VERSION" ]; then
+            echo "Version $CURRENT_VERSION already exists on NPM. Skipping publish."
+            echo "should-publish=false" >> $GITHUB_OUTPUT
+            echo "current-npm-version=$NPM_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "New version $CURRENT_VERSION (current NPM: $NPM_VERSION). Proceeding with publish."
+            echo "should-publish=true" >> $GITHUB_OUTPUT
+            echo "current-npm-version=$NPM_VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Publish to NPM
+        if: steps.check-version.outputs.should-publish == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+      - name: Skip publish - version already exists
+        if: steps.check-version.outputs.should-publish == 'false'
+        run: |
+          echo "⚠️ Version ${{ steps.package-version.outputs.version }} already exists on NPM."
+          echo "Current NPM version: ${{ steps.check-version.outputs.current-npm-version }}"
+          echo "To publish a new version, update the version in package.json and push again."
+          exit 0
+
+  # Job 3: Create GitHub Release (optional, runs on release events)
+  github-release:
+    name: Create GitHub Release
+    needs: validate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish to NPM
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+      - name: Comment on release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = require('./package.json').version;
+            console.log(`✅ Successfully published version ${version} to NPM`);
