@@ -45,6 +45,12 @@ export class RateLimitError extends AxionveraError {}
 
 export class ValidationError extends AxionveraError {}
 
+export class StellarRpcNetworkError extends AxionveraError {}
+
+export class StellarRpcResponseError extends AxionveraError {}
+
+export class StellarRpcTimeoutError extends AxionveraError {}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -173,6 +179,18 @@ export function toAxionveraError(error: unknown, fallbackMessage = "API request 
     requestId,
     originalError: error
   };
+
+  if (errorLike.code === 'ETIMEDOUT') {
+    return new StellarRpcTimeoutError(message, options);
+  }
+
+  if (isNetworkCode(errorLike.code)) {
+    return new StellarRpcNetworkError(message, options);
+  }
+
+  if (statusCode !== undefined && statusCode >= 400) {
+    return new StellarRpcResponseError(message, options);
+  }
 
   if (statusCode === 401 || statusCode === 403) {
     return new AuthenticationError(message, options);

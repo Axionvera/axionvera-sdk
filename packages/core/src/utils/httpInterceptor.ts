@@ -30,7 +30,8 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
 
 function calculateDelay(attemptNumber: number, baseDelayMs: number, maxDelayMs: number): number {
   const delay = baseDelayMs * Math.pow(2, attemptNumber - 1);
-  return Math.min(delay, maxDelayMs);
+  const jitter = delay * 0.2 * (Math.random() - 0.5);
+  return Math.min(delay + jitter, maxDelayMs);
 }
 
 function isRetryableRequest(config: AxiosRequestConfig, retryConfig: RetryConfig): boolean {
@@ -87,6 +88,16 @@ export function createHttpClientWithRetry(
       originalRequest._retryCount++;
 
       const delayMs = calculateDelay(originalRequest._retryCount, config.baseDelayMs, config.maxDelayMs);
+      
+      console.log(JSON.stringify({
+        message: 'Retrying request',
+        attempt: originalRequest._retryCount,
+        delay: delayMs,
+        url: originalRequest.url,
+        method: originalRequest.method,
+        error: error.message,
+      }));
+
       await delay(delayMs);
 
       return client(originalRequest);

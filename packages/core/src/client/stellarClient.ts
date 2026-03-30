@@ -29,6 +29,7 @@ export type StellarClientOptions = {
   logLevel?: LogLevel;
   webSocketConfig?: WebSocketConfig;
   cloudWatchConfig?: CloudWatchConfig;
+  customHeaders?: Record<string, string>;
 };
 
 export type TransactionSendResult = {
@@ -51,7 +52,11 @@ export type TransactionSendResult = {
  * const health = await client.getHealth();
  * ```
  */
-export class StellarClient {
+export abstract class BaseStellarRpcClient {
+  // ...
+}
+
+export class StellarClient extends BaseStellarRpcClient {
   /** The network this client is connected to. */
   readonly network: AxionveraNetwork;
   /** The RPC URL this client uses. */
@@ -82,6 +87,11 @@ export class StellarClient {
     this.network = config.network;
     this.rpcUrl = config.rpcUrl;
     this.networkPassphrase = config.networkPassphrase;
+
+    if (this.network === 'mainnet' && !this.rpcUrl.startsWith('https://')) {
+      throw new AxionveraError('RPC URL must use https for mainnet');
+    }
+
     this.concurrencyConfig = {
       ...DEFAULT_CONCURRENCY_CONFIG,
       ...options?.concurrencyConfig
