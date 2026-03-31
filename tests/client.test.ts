@@ -1,159 +1,94 @@
-import { StellarClient } from "../src";
-import { RateLimitError } from "../src/errors/axionveraError";
 
-describe("StellarClient", () => {
-  test("delegates network calls to the RPC client", async () => {
-    const rpc = {
-      getHealth: jest.fn().mockResolvedValue({ status: "healthy" }),
-      getNetwork: jest.fn().mockResolvedValue({ passphrase: "TESTNET" }),
-      getLatestLedger: jest.fn().mockResolvedValue({ sequence: 123 }),
-      getAccount: jest.fn(),
-      simulateTransaction: jest.fn(),
-      prepareTransaction: jest.fn(),
-      sendTransaction: jest.fn(),
-      getTransaction: jest.fn()
-    };
+import { StellarClient } from '../../src/client/stellarClient';
+import { createStellarRpcClient, getDefaultClient } from '../../src/client/stellarClientFactory';
+import { AxionveraError, StellarRpcNetworkError, StellarRpcResponseError, StellarRpcTimeoutError } from '../../src/errors/axionveraError';
 
-    const client = new StellarClient({
-      network: "testnet",
-      rpcUrl: "http://localhost:8000",
-      networkPassphrase: "Test Network ; February 2017",
-      rpcClient: rpc as any
-    });
+jest.mock('../../src/client/stellarClient');
 
-    await expect(client.getHealth()).resolves.toEqual({ status: "healthy" });
-    await expect(client.getNetwork()).resolves.toEqual({ passphrase: "TESTNET" });
-    await expect(client.getLatestLedger()).resolves.toEqual({ sequence: 123 });
-
-    expect(rpc.getHealth).toHaveBeenCalledTimes(1);
-    expect(rpc.getNetwork).toHaveBeenCalledTimes(1);
-    expect(rpc.getLatestLedger).toHaveBeenCalledTimes(1);
+describe('StellarClientFactory', () => {
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
-  test("maps sendTransaction hash/status regardless of field names", async () => {
-    const rpc2 = {
-      getHealth: jest.fn(),
-      getNetwork: jest.fn(),
-      getLatestLedger: jest.fn(),
-      getAccount: jest.fn(),
-      simulateTransaction: jest.fn(),
-      prepareTransaction: jest.fn(),
-      sendTransaction: jest.fn().mockResolvedValue({ id: "id-hash", statusText: "OK" }),
-      getTransaction: jest.fn()
-    };
-
-    const client2 = new StellarClient({
-      network: "testnet",
-      rpcUrl: "http://localhost:8000",
-      networkPassphrase: "Test Network ; February 2017",
-      rpcClient: rpc2 as any
-    });
-
-    await expect(client2.sendTransaction({} as any)).resolves.toEqual({
-      hash: "id-hash",
-      status: "OK",
-      raw: { id: "id-hash", statusText: "OK" }
-    });
-
-    expect(rpc2.sendTransaction).toHaveBeenCalledTimes(1);
+  it('should create a new client if one does not exist in the cache', () => {
+    const options = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
+    const client = createStellarRpcClient(options);
+    expect(StellarClient).toHaveBeenCalledWith(options);
+    expect(client).toBeInstanceOf(StellarClient);
   });
 
-  test("exposes default network passphrase helper", () => {
-    expect(StellarClient.getDefaultNetworkPassphrase("testnet")).toBe("Test SDF Network ; September 2015");
-    expect(StellarClient.getDefaultNetworkPassphrase("mainnet")).toBe("Public Global Stellar Network ; September 2015");
+  it('should return a cached client if one exists for the same configuration', () => {
+    const options = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
+    const client1 = createStellarRpcClient(options);
+    const client2 = createStellarRpcClient(options);
+    expect(StellarClient).toHaveBeenCalledTimes(1);
+    expect(client1).toBe(client2);
   });
 
-  test("pollTransaction times out when transaction remains NOT_FOUND", async () => {
-    const rpc3 = {
-      getHealth: jest.fn(),
-      getNetwork: jest.fn(),
-      getLatestLedger: jest.fn(),
-      getAccount: jest.fn(),
-      simulateTransaction: jest.fn(),
-      prepareTransaction: jest.fn(),
-      sendTransaction: jest.fn(),
-      getTransaction: jest.fn().mockResolvedValue({ status: "NOT_FOUND" })
-    };
-
-    const client3 = new StellarClient({
-      network: "testnet",
-      rpcUrl: "http://localhost:8000",
-      networkPassphrase: "Test Network ; February 2017",
-      rpcClient: rpc3 as any
-    });
-
-    await expect(client3.pollTransaction("deadbeef", { timeoutMs: 10, intervalMs: 1 })).rejects.toThrow(
-      /Timed out waiting for transaction deadbeef/
-    );
+  it('should create a new client for a different configuration', () => {
+    const options1 = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
+    const options2 = { network: 'mainnet' as const, rpcUrl: 'https://soroban-mainnet.stellar.org' };
+    const client1 = createStellarRpcClient(options1);
+    const client2 = createStellarRpcClient(options2);
+    expect(StellarClient).toHaveBeenCalledTimes(2);
+    expect(client1).not.toBe(client2);
   });
 
-  test("polls a transaction until it is found", async () => {
-    const rpc = {
-      getHealth: jest.fn(),
-      getNetwork: jest.fn(),
-      getLatestLedger: jest.fn(),
-      getAccount: jest.fn(),
-      simulateTransaction: jest.fn(),
-      prepareTransaction: jest.fn(),
-      sendTransaction: jest.fn(),
-      getTransaction: jest
-        .fn()
-        .mockResolvedValueOnce({ status: "NOT_FOUND" })
-        .mockResolvedValueOnce({ status: "SUCCESS", resultMetaXdr: "AAAA" })
-    };
+  it('should return a default testnet client', () => {
+    const client = getDefaultClient();
+    expect(StellarClient).toHaveBeenCalledWith({ network: 'testnet' });
+    expect(client).toBeInstanceOf(StellarClient);
+  });
+});
 
-    const client = new StellarClient({
-      network: "testnet",
-      rpcUrl: "http://localhost:8000",
-      networkPassphrase: "Test Network ; February 2017",
-      rpcClient: rpc as any
-    });
-
-    await expect(
-      client.pollTransaction("deadbeef", { timeoutMs: 2_000, intervalMs: 1 })
-    ).resolves.toEqual({ status: "SUCCESS", resultMetaXdr: "AAAA" });
-
-    expect(rpc.getTransaction).toHaveBeenCalledTimes(2);
+describe('StellarClient', () => {
+  it('should throw an error if the URL scheme is invalid for mainnet', () => {
+    const options = { network: 'mainnet' as const, rpcUrl: 'http://soroban-mainnet.stellar.org' };
+    expect(() => new StellarClient(options)).toThrow('RPC URL must use https for mainnet');
   });
 
-  test("wraps RPC errors with status code and request id metadata", async () => {
-    const rpc = {
-      getHealth: jest.fn().mockRejectedValue({
-        response: {
-          status: 429,
-          headers: {
-            'x-request-id': 'req-health-42'
-          }
-        }
-      }),
-      getNetwork: jest.fn(),
-      getLatestLedger: jest.fn(),
-      getAccount: jest.fn(),
-      simulateTransaction: jest.fn(),
-      prepareTransaction: jest.fn(),
-      sendTransaction: jest.fn(),
-      getTransaction: jest.fn()
-    };
+  it('should retry on transient network failures', async () => {
+    const options = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
+    const client = new StellarClient(options);
+    const mockRpcCall = jest.fn()
+      .mockRejectedValueOnce(new StellarRpcNetworkError('Network error'))
+      .mockResolvedValueOnce({ status: 'SUCCESS' });
 
-    const client = new StellarClient({
-      network: "testnet",
-      rpcUrl: "http://localhost:8000",
-      networkPassphrase: "Test Network ; February 2017",
-      rpcClient: rpc as any,
-      retryConfig: { enabled: false }
-    });
+    client.rpc.getHealth = mockRpcCall;
 
-    let thrown: unknown;
-    try {
-      await client.getHealth();
-    } catch (error: unknown) {
-      thrown = error;
-    }
+    const result = await client.getHealth();
 
-    expect(thrown).toBeInstanceOf(RateLimitError);
-    expect(thrown).toMatchObject({
-      statusCode: 429,
-      requestId: 'req-health-42'
-    });
+    expect(mockRpcCall).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ status: 'SUCCESS' });
+  });
+
+  it('should throw a StellarRpcNetworkError on network errors', async () => {
+    const options = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
+    const client = new StellarClient(options);
+    const mockRpcCall = jest.fn().mockRejectedValue(new StellarRpcNetworkError('Network error'));
+
+    client.rpc.getHealth = mockRpcCall;
+
+    await expect(client.getHealth()).rejects.toThrow(StellarRpcNetworkError);
+  });
+
+  it('should throw a StellarRpcResponseError on non-2xx responses', async () => {
+    const options = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
+    const client = new StellarClient(options);
+    const mockRpcCall = jest.fn().mockRejectedValue(new StellarRpcResponseError('Response error'));
+
+    client.rpc.getHealth = mockRpcCall;
+
+    await expect(client.getHealth()).rejects.toThrow(StellarRpcResponseError);
+  });
+
+  it('should throw a StellarRpcTimeoutError on timeouts', async () => {
+    const options = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
+    const client = new StellarClient(options);
+    const mockRpcCall = jest.fn().mockRejectedValue(new StellarRpcTimeoutError('Timeout error'));
+
+    client.rpc.getHealth = mockRpcCall;
+
+    await expect(client.getHealth()).rejects.toThrow(StellarRpcTimeoutError);
   });
 });

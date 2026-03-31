@@ -1,6 +1,5 @@
 import { ethers } from 'ethers';
 import { VaultABI } from './abis/VaultABI';
-import { ValidationError, InsufficientFundsError, ContractError } from '../errors/axionveraError';
 
 export interface VaultConfig {
   contractAddress: string;
@@ -109,24 +108,17 @@ export class Vault {
    */
   async deposit(params: DepositParams, signer?: ethers.Signer): Promise<ethers.ContractTransaction> {
     const signerToUse = signer || (this.provider as ethers.Signer);
-
+    
     if (!signerToUse || !('sendTransaction' in signerToUse)) {
-      throw new ValidationError('Signer required for deposit operation');
+      throw new Error('Signer required for deposit operation');
     }
 
-    try {
-      const contractWithSigner = this.contract.connect(signerToUse);
-      const tx = await contractWithSigner.deposit(params.amount, {
-        value: params.amount,
-      });
-
-      return tx;
-    } catch (error) {
-      if (error instanceof Error && error.message.toLowerCase().includes('insufficient funds')) {
-        throw new InsufficientFundsError('Insufficient funds for deposit', { originalError: error });
-      }
-      throw new ContractError(`Deposit failed: ${error instanceof Error ? error.message : 'Unknown error'}`, { originalError: error });
-    }
+    const contractWithSigner = this.contract.connect(signerToUse);
+    const tx = await contractWithSigner.deposit(params.amount, {
+      value: params.amount,
+    });
+    
+    return tx;
   }
 
   /**
@@ -136,26 +128,19 @@ export class Vault {
    */
   async withdraw(params: WithdrawParams, signer?: ethers.Signer): Promise<ethers.ContractTransaction> {
     const signerToUse = signer || (this.provider as ethers.Signer);
-
+    
     if (!signerToUse || !('sendTransaction' in signerToUse)) {
-      throw new ValidationError('Signer required for withdraw operation');
+      throw new Error('Signer required for withdraw operation');
     }
 
-    try {
-      const contractWithSigner = this.contract.connect(signerToUse);
-      const tx = await contractWithSigner.withdraw(
-        params.amount,
-        await signerToUse.getAddress(),
-        await signerToUse.getAddress()
-      );
-
-      return tx;
-    } catch (error) {
-      if (error instanceof Error && error.message.toLowerCase().includes('insufficient funds')) {
-        throw new InsufficientFundsError('Insufficient funds for withdrawal', { originalError: error });
-      }
-      throw new ContractError(`Withdrawal failed: ${error instanceof Error ? error.message : 'Unknown error'}`, { originalError: error });
-    }
+    const contractWithSigner = this.contract.connect(signerToUse);
+    const tx = await contractWithSigner.withdraw(
+      params.amount,
+      await signerToUse.getAddress(),
+      await signerToUse.getAddress()
+    );
+    
+    return tx;
   }
 
   /**
@@ -164,19 +149,15 @@ export class Vault {
    */
   async claimRewards(signer?: ethers.Signer): Promise<ethers.ContractTransaction> {
     const signerToUse = signer || (this.provider as ethers.Signer);
-
+    
     if (!signerToUse || !('sendTransaction' in signerToUse)) {
-      throw new ValidationError('Signer required for claim rewards operation');
+      throw new Error('Signer required for claim rewards operation');
     }
 
-    try {
-      const contractWithSigner = this.contract.connect(signerToUse);
-      const tx = await contractWithSigner.claimRewards();
-
-      return tx;
-    } catch (error) {
-      throw new ContractError(`Claim rewards failed: ${error instanceof Error ? error.message : 'Unknown error'}`, { originalError: error });
-    }
+    const contractWithSigner = this.contract.connect(signerToUse);
+    const tx = await contractWithSigner.claimRewards();
+    
+    return tx;
   }
 
   /**

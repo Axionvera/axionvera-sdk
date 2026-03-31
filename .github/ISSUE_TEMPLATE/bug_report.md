@@ -10,6 +10,15 @@ assignees: ""
 
 ## Steps to reproduce
 
+1.
+2.
+3.
+
+## Minimum reproducible example
+```ts
+// Paste a minimal example that reproduces the issue.
+```
+
 ## Expected behavior
 
 ## Actual behavior

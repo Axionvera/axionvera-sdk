@@ -1,24 +1,3 @@
-// Errors
-export {
-    AxionveraError,
-    NetworkError,
-    AuthenticationError,
-    RateLimitError,
-    ValidationError,
-    TransactionError,
-    RpcError,
-    ContractError,
-    TimeoutError,
-    InsufficientFundsError,
-    InvalidSignatureError,
-    SimulationError,
-    toAxionveraError,
-    normalizeRpcError,
-    normalizeTransactionError,
-    normalizeContractError,
-    normalizeSimulationError
-} from './errors/axionveraError';
-
 // Client
 export { StellarClient } from './client/stellarClient';
 export type { StellarClientOptions } from './client/stellarClient';
@@ -38,6 +17,22 @@ export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/con
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export { buildContractCallOperation, buildContractCallTransaction, toScVal } from './utils/transactionBuilder';
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
+
+// Transaction Signing
+export { TransactionSigner, EnhancedTransactionBuilder, TransactionSimulator } from './transaction';
+export type {
+  TransactionSignerConfig,
+  ContractCallParams,
+  TransactionBuildParams,
+  TransactionResult,
+  SimulationResult,
+  FeeBumpParams,
+  MultiStepTransactionParams,
+  BatchTransactionParams,
+  BatchTransactionResult,
+  DetailedSimulationResult,
+  ResourceOptimizationOptions
+} from './transaction';
 
 // Testing & MSW
 export * from './test/msw/setup';

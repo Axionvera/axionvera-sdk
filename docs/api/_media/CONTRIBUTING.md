@@ -7,6 +7,7 @@ npm i
 npm test
 npm run typecheck
 npm run build
+npm run release:dry-run
 ```
 
 ## Project Structure

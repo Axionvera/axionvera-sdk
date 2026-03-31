@@ -113,6 +113,14 @@ Checks the production bundle size against the limits defined in `.size-limit.jso
 npm run size
 ```
 
+### Dry-run Release Preview
+
+You can preview the next version number and the generated changelog without actually performing a release by running the dry-run command. This is recommended to verify that your commit messages follow the convention correctly:
+
+```bash
+npm run release:dry-run
+```
+
 ### Recommended pre-PR validation
 
 Before submitting a pull request, run:
