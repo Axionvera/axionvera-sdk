@@ -37,13 +37,133 @@ export class AxionveraError extends Error {
   }
 }
 
-export class NetworkError extends AxionveraError {}
+export class NetworkError extends AxionveraError { }
 
-export class AuthenticationError extends AxionveraError {}
+export class AuthenticationError extends AxionveraError { }
 
-export class RateLimitError extends AxionveraError {}
+export class RateLimitError extends AxionveraError { }
 
-export class ValidationError extends AxionveraError {}
+export class ValidationError extends AxionveraError { }
+
+export class TransactionError extends AxionveraError { }
+
+export class RpcError extends AxionveraError { }
+
+export class ContractError extends AxionveraError { }
+
+export class TimeoutError extends AxionveraError { }
+
+export class InsufficientFundsError extends AxionveraError { }
+
+export class InvalidSignatureError extends AxionveraError { }
+
+export class SimulationError extends AxionveraError { }
+
+/**
+ * Normalizes RPC errors from Stellar/Soroban RPC responses.
+ * @param error - The raw error from RPC call
+ * @param operation - Description of the operation that failed
+ * @returns Normalized AxionveraError
+ */
+export function normalizeRpcError(error: unknown, operation: string): AxionveraError {
+  if (error instanceof AxionveraError) {
+    return error;
+  }
+
+  const errorLike = asErrorLike(error);
+  const message = getErrorMessage(error, `RPC operation failed: ${operation}`);
+
+  // Check for specific RPC error patterns
+  if (typeof errorLike.code === 'string') {
+    if (errorLike.code.includes('TIMEOUT') || message.toLowerCase().includes('timeout')) {
+      return new TimeoutError(`RPC timeout during ${operation}`, {
+        originalError: error
+      });
+    }
+    if (errorLike.code.includes('NETWORK') || message.toLowerCase().includes('network')) {
+      return new NetworkError(`Network error during ${operation}`, {
+        originalError: error
+      });
+    }
+  }
+
+  return new RpcError(message, {
+    originalError: error
+  });
+}
+
+/**
+ * Normalizes transaction submission errors.
+ * @param error - The raw error from transaction submission
+ * @param txHash - The transaction hash if available
+ * @returns Normalized AxionveraError
+ */
+export function normalizeTransactionError(error: unknown, txHash?: string): AxionveraError {
+  if (error instanceof AxionveraError) {
+    return error;
+  }
+
+  const errorLike = asErrorLike(error);
+  const message = getErrorMessage(error, 'Transaction failed');
+
+  // Check for specific transaction error patterns
+  const lowerMessage = message.toLowerCase();
+  if (lowerMessage.includes('insufficient') && lowerMessage.includes('fund')) {
+    return new InsufficientFundsError(`Insufficient funds for transaction${txHash ? ` (${txHash})` : ''}`, {
+      originalError: error
+    });
+  }
+  if (lowerMessage.includes('invalid') && lowerMessage.includes('signature')) {
+    return new InvalidSignatureError(`Invalid signature for transaction${txHash ? ` (${txHash})` : ''}`, {
+      originalError: error
+    });
+  }
+  if (lowerMessage.includes('timeout') || lowerMessage.includes('timed out')) {
+    return new TimeoutError(`Transaction timeout${txHash ? ` (${txHash})` : ''}`, {
+      originalError: error
+    });
+  }
+
+  return new TransactionError(message, {
+    originalError: error
+  });
+}
+
+/**
+ * Normalizes contract call errors.
+ * @param error - The raw error from contract call
+ * @param contractId - The contract ID
+ * @param method - The method that was called
+ * @returns Normalized AxionveraError
+ */
+export function normalizeContractError(error: unknown, contractId: string, method: string): AxionveraError {
+  if (error instanceof AxionveraError) {
+    return error;
+  }
+
+  const message = getErrorMessage(error, `Contract call failed: ${method} on ${contractId}`);
+
+  return new ContractError(message, {
+    originalError: error
+  });
+}
+
+/**
+ * Normalizes simulation errors.
+ * @param error - The raw error from simulation
+ * @returns Normalized AxionveraError
+ */
+export function normalizeSimulationError(error: unknown): AxionveraError {
+  if (error instanceof AxionveraError) {
+    return error;
+  }
+
+  const message = getErrorMessage(error, 'Transaction simulation failed');
+
+  return new SimulationError(message, {
+    originalError: error
+  });
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

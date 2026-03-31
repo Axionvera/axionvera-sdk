@@ -1,3 +1,24 @@
+// Errors
+export {
+    AxionveraError,
+    NetworkError,
+    AuthenticationError,
+    RateLimitError,
+    ValidationError,
+    TransactionError,
+    RpcError,
+    ContractError,
+    TimeoutError,
+    InsufficientFundsError,
+    InvalidSignatureError,
+    SimulationError,
+    toAxionveraError,
+    normalizeRpcError,
+    normalizeTransactionError,
+    normalizeContractError,
+    normalizeSimulationError
+} from './errors/axionveraError';
+
 // Client
 export { StellarClient } from './client/stellarClient';
 export type { StellarClientOptions } from './client/stellarClient';
