@@ -59,6 +59,8 @@ export class InvalidSignatureError extends AxionveraError { }
 
 export class SimulationError extends AxionveraError { }
 
+export class InsecureNetworkError extends AxionveraError { }
+
 /**
  * Normalizes RPC errors from Stellar/Soroban RPC responses.
  * @param error - The raw error from RPC call

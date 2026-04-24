@@ -12,6 +12,7 @@ export {
     InsufficientFundsError,
     InvalidSignatureError,
     SimulationError,
+    InsecureNetworkError,
     toAxionveraError,
     normalizeRpcError,
     normalizeTransactionError,

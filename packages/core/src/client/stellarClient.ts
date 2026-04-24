@@ -14,10 +14,26 @@ import {
 } from "../utils/networkConfig";
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
-import { NetworkError, toAxionveraError } from "../errors/axionveraError";
+import { NetworkError, toAxionveraError, InsecureNetworkError, AxionveraError } from "../errors/axionveraError";
 import { LogLevel, Logger } from "../utils/logger";
 import { WebSocketManager, EventFilter, SorobanEvent, WebSocketConfig } from "./websocket";
 import { CloudWatchConfig } from "../utils/logging/cloudwatch";
+
+/**
+ * Checks if a URL points to a localhost address.
+ * @param url - The URL to check
+ * @returns true if the URL hostname is localhost, 127.0.0.1, or ::1
+ */
+function isLocalhostUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname;
+    return hostname === 'localhost' ||
+           hostname === '127.0.0.1' ||
+           hostname === '::1';
+  } catch {
+    return false;
+  }
+}
 
 export type StellarClientOptions = {
   network?: AxionveraNetwork;
@@ -30,6 +46,7 @@ export type StellarClientOptions = {
   webSocketConfig?: WebSocketConfig;
   cloudWatchConfig?: CloudWatchConfig;
   customHeaders?: Record<string, string>;
+  allowHttp?: boolean;
 };
 
 export type TransactionSendResult = {
@@ -78,21 +95,42 @@ export class StellarClient extends BaseStellarRpcClient {
   /** WebSocket manager for real-time events. */
   private webSocketManager: WebSocketManager | null = null;
 
-  /**
-   * Creates a new StellarClient instance.
-   * @param options - Configuration options
-   */
-  constructor(options?: StellarClientOptions) {
-    const config = resolveNetworkConfig(options);
-    this.network = config.network;
-    this.rpcUrl = config.rpcUrl;
-    this.networkPassphrase = config.networkPassphrase;
+   /**
+    * Creates a new StellarClient instance.
+    * @param options - Configuration options
+    */
+    constructor(options?: StellarClientOptions) {
+      const config = resolveNetworkConfig(options);
+      const rpcUrl = config.rpcUrl;
+      const network = config.network;
+      const networkPassphrase = config.networkPassphrase;
 
-    if (this.network === 'mainnet' && !this.rpcUrl.startsWith('https://')) {
-      throw new AxionveraError('RPC URL must use https for mainnet');
-    }
+      // Validate RPC URL has a protocol
+      if (!rpcUrl.startsWith('http://') && !rpcUrl.startsWith('https://')) {
+        throw new AxionveraError('RPC URL must include a protocol (http:// or https://)');
+      }
 
-    this.concurrencyConfig = {
+      // Security guard: prevent insecure HTTP in production unless explicitly allowed
+      const isProduction = process.env.NODE_ENV === 'production';
+      const isHttp = rpcUrl.startsWith('http://');
+      const isLocalhost = isLocalhostUrl(rpcUrl);
+      const allowHttp = options?.allowHttp ?? false;
+
+      if (isProduction && isHttp && !isLocalhost && !allowHttp) {
+        throw new InsecureNetworkError(
+          'Insecure RPC connection in production: HTTP endpoint detected. ' +
+          'Use HTTPS for production or set allowHttp: true to override. ' +
+          'Note: localhost endpoints are always permitted.'
+        );
+      }
+
+      super();
+
+      this.network = network;
+      this.rpcUrl = rpcUrl;
+      this.networkPassphrase = networkPassphrase;
+
+     this.concurrencyConfig = {
       ...DEFAULT_CONCURRENCY_CONFIG,
       ...options?.concurrencyConfig
     };
