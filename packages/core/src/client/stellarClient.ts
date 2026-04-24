@@ -427,6 +427,21 @@ export class StellarClient extends BaseStellarRpcClient {
   }
 
   /**
+   * Alias for cleanup(). Removes all active subscriptions and listeners.
+   * Useful in React useEffect cleanup blocks.
+   * 
+   * @example
+   * ```typescript
+   * useEffect(() => {
+   *   return () => client.removeAllListeners();
+   * }, [client]);
+   * ```
+   */
+  public removeAllListeners(): void {
+    this.cleanup();
+  }
+
+  /**
    * Cleanup all async resources including WebSocket and CloudWatch.
    */
   async cleanup(): Promise<void> {
