@@ -1,10 +1,14 @@
 import {
   Account,
+  Address,
+  Contract,
   FeeBumpTransaction,
   Keypair,
+  nativeToScVal,
   rpc,
   Transaction,
-  TransactionBuilder
+  TransactionBuilder,
+  xdr
 } from "@stellar/stellar-sdk";
 
 import {
@@ -190,6 +194,92 @@ export class StellarClient {
   }
 
   /**
+   * Simulates a pure read-only contract call without requiring a source account or sequence number.
+   * This dramatically speeds up dashboard loading times because the SDK doesn't need to fetch 
+   * the user's ledger sequence number before checking a read-only balance.
+   * 
+   * @param contractId - The contract ID to call
+   * @param method - The method name to call
+   * @param args - The arguments to pass to the method (optional)
+   * @returns The unwrapped scVal result directly
+   */
+  async simulateRead(
+    contractId: string,
+    method: string,
+    args?: any[]
+  ): Promise<xdr.ScVal> {
+    this.logger.debug(`Simulating read-only call to ${contractId}.${method}`);
+
+    return this.executeWithErrorHandling(async () => {
+      // Create a dummy account with zeroed-out sequence for read-only simulation
+      const dummyAccount = new Account(
+        "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH", // All zeros public key
+        "0" // Zero sequence number
+      );
+
+      // Convert args to ScVal if provided
+      const scVals = args ? args.map(arg => {
+        if (typeof arg === 'string') {
+          try {
+            // Try to parse as address first
+            return Address.fromString(arg).toScVal();
+          } catch {
+            // Fall back to native conversion
+            return nativeToScVal(arg);
+          }
+        } else if (typeof arg === 'number' || typeof arg === 'bigint') {
+          return nativeToScVal(arg);
+        } else if (typeof arg === 'boolean') {
+          return nativeToScVal(arg);
+        } else if (arg === null || arg === undefined) {
+          return xdr.ScVal.scvVoid();
+        } else {
+          return nativeToScVal(arg);
+        }
+      }) : [];
+
+      // Create the contract call operation
+      const contract = new Contract(contractId);
+      const operation = contract.call(method, ...scVals);
+
+      // Build a minimal transaction for simulation
+      const tx = new TransactionBuilder(dummyAccount, {
+        fee: "100", // Minimal fee for simulation
+        networkPassphrase: this.networkPassphrase
+      })
+        .addOperation(operation)
+        .setTimeout(30) // Short timeout for read operations
+        .build();
+
+      // Simulate the transaction
+      const simulationResult = await this.rpc.simulateTransaction(tx);
+
+      // Check for simulation errors
+      if (simulationResult.error) {
+        throw new NetworkError(`Simulation failed: ${simulationResult.error}`);
+      }
+
+      // Extract the result from the simulation
+      if (!simulationResult.result) {
+        throw new NetworkError('No result returned from simulation');
+      }
+
+      // Return the first (and typically only) result
+      const results = simulationResult.result;
+      if (results.length === 0) {
+        throw new NetworkError('No results returned from simulation');
+      }
+
+      const firstResult = results[0];
+      if (!firstResult) {
+        throw new NetworkError('Empty result returned from simulation');
+      }
+
+      return firstResult;
+    }, `Failed to simulate read call to ${contractId}.${method}`);
+  }
+
+  /**
    * Prepares a transaction by fetching the current ledger sequence
    * and setting the correct min sequence age.
    * @param tx - The transaction to prepare
@@ -287,6 +377,71 @@ export class StellarClient {
     networkPassphrase: string
   ): Transaction | FeeBumpTransaction {
     return TransactionBuilder.fromXDR(transactionXdr, networkPassphrase);
+  }
+
+  /**
+   * Serializes an unsigned transaction to a Base64 JSON string for offline signing.
+   * This is critical for air-gapped signing workflows or hardware security module (HSM) integrations.
+   * @param tx - The transaction to serialize (Transaction or FeeBumpTransaction)
+   * @returns Base64-encoded JSON string containing transaction XDR, network passphrase, and timeout limits
+   */
+  serializeTransaction(tx: Transaction | FeeBumpTransaction): string {
+    const serializedData = {
+      xdr: tx.toXDR(),
+      networkPassphrase: this.networkPassphrase,
+      timeout: tx.timeBounds?.maxTime || null,
+      fee: tx.fee.toString(),
+      sourceAccount: tx.sourceAccount().accountId(),
+      sequence: tx.sequence,
+      memo: tx.memo ? tx.memo.value : null,
+      operations: tx.operations.map((op: any) => ({
+        type: op.type,
+        source: op.source ? op.source : null,
+        // Basic operation serialization - can be extended based on needs
+      }))
+    };
+
+    return Buffer.from(JSON.stringify(serializedData)).toString('base64');
+  }
+
+  /**
+   * Deserializes a transaction from a Base64 JSON string.
+   * Reconstructs the exact Transaction or FeeBumpTransaction object.
+   * @param jsonString - The Base64-encoded JSON string from serializeTransaction
+   * @returns The reconstructed Transaction or FeeBumpTransaction
+   */
+  deserializeTransaction(jsonString: string): Transaction | FeeBumpTransaction {
+    try {
+      const decodedJson = Buffer.from(jsonString, 'base64').toString('utf8');
+      const serializedData = JSON.parse(decodedJson);
+
+      // Validate required fields
+      if (!serializedData.xdr || !serializedData.networkPassphrase) {
+        throw new Error('Invalid serialized transaction: missing required fields');
+      }
+
+      // Parse the transaction from XDR
+      const tx = TransactionBuilder.fromXDR(serializedData.xdr, serializedData.networkPassphrase);
+
+      return tx;
+    } catch (error) {
+      throw new Error(`Failed to deserialize transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Verifies that a deserialized transaction matches the hash of the original.
+   * @param originalTx - The original transaction
+   * @param deserializedTx - The deserialized transaction
+   * @returns True if the hashes match
+   */
+  static verifyTransactionHash(
+    originalTx: Transaction | FeeBumpTransaction,
+    deserializedTx: Transaction | FeeBumpTransaction
+  ): boolean {
+    const originalHash = originalTx.hash().toString('hex');
+    const deserializedHash = deserializedTx.hash().toString('hex');
+    return originalHash === deserializedHash;
   }
 
   /**
