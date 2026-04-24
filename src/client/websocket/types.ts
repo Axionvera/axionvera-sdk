@@ -9,6 +9,9 @@ export interface SorobanEvent {
   type: 'contract' | 'ledger';
   contractId?: string;
   topic?: string;
+  topics?: string[];
+  topicNames?: string[];
+  eventName?: string;
   value: any;
   ledger: number;
   timestamp: number;

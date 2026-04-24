@@ -1,4 +1,5 @@
 import { EventFilter, SorobanEvent, WebSocketEventSubscription, WebSocketConfig } from './types';
+import { parseEvents } from '../../utils/soroban';
 
 export class WebSocketManager {
   private ws: WebSocket | null = null;
@@ -139,14 +140,20 @@ export class WebSocketManager {
   }
 
   private parseSorobanEvent(rawEvent: any): SorobanEvent {
+    const events = parseEvents([rawEvent]);
+    const parsed = events[0];
+    
     return {
-      id: rawEvent.id || this.generateEventId(),
-      type: rawEvent.type || 'contract',
-      contractId: rawEvent.contractId,
-      topic: rawEvent.topic,
-      value: rawEvent.value,
-      ledger: rawEvent.ledger || 0,
-      timestamp: rawEvent.timestamp || Date.now(),
+      id: parsed.id || this.generateEventId(),
+      type: parsed.type || 'contract',
+      contractId: parsed.contractId,
+      topic: parsed.topic,
+      topics: Array.isArray(parsed.topic) ? parsed.topic : (parsed.topic ? [parsed.topic] : []),
+      topicNames: parsed.topicNames,
+      eventName: parsed.eventName,
+      value: parsed.value,
+      ledger: parsed.ledger || 0,
+      timestamp: parsed.timestamp || Date.now(),
     };
   }
 

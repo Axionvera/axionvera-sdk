@@ -37,6 +37,7 @@ export type { WalletConnector } from './wallet/walletConnector';
 export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export { buildContractCallOperation, buildContractCallTransaction, toScVal } from './utils/transactionBuilder';
+export { decodeSorobanSymbol, parseEvents } from './utils/soroban';
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
 
 // Testing & MSW
