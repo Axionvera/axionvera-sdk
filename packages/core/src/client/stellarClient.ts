@@ -18,6 +18,13 @@ import { NetworkError, toAxionveraError } from "../errors/axionveraError";
 import { LogLevel, Logger } from "../utils/logger";
 import { WebSocketManager, EventFilter, SorobanEvent, WebSocketConfig } from "./websocket";
 import { CloudWatchConfig } from "../utils/logging/cloudwatch";
+import {
+  FetchTransactionHistoryOptions,
+  TransactionHistoryResult,
+  parseTransaction,
+  sortByTimestamp,
+  filterByActionType
+} from "../utils/transactionHistory";
 
 export type StellarClientOptions = {
   network?: AxionveraNetwork;
@@ -427,6 +434,135 @@ export class StellarClient extends BaseStellarRpcClient {
   }
 
   /**
+   * Fetches transaction history for a user account.
+   * 
+   * Queries the Horizon API for transactions involving the specified account
+   * and parses them to provide a clean, reverse-chronological list of interactions.
+   * 
+   * @param publicKey - The public key of the account
+   * @param options - Fetch options
+   * @returns Transaction history result with parsed transactions
+   * 
+   * @example
+   * ```typescript
+   * const history = await client.fetchUserHistory('G...', {
+   *   limit: 20,
+   *   actionType: 'vault_deposit'
+   * });
+   * 
+   * history.transactions.forEach(tx => {
+   *   console.log(`${tx.action}: ${tx.amount} at ${tx.timestamp}`);
+   * });
+   * ```
+   */
+  async fetchUserHistory(
+    publicKey: string,
+    options?: FetchTransactionHistoryOptions
+  ): Promise<TransactionHistoryResult> {
+    return this.executeWithErrorHandling(async () => {
+      const limit = options?.limit ?? 50;
+      const cursor = options?.cursor;
+      const actionType = options?.actionType;
+
+      this.logger.debug(`Fetching transaction history for ${publicKey}`);
+
+      // If custom indexer URL is provided, use it for richer data
+      if (options?.customIndexerUrl) {
+        return this.fetchFromCustomIndexer(publicKey, options);
+      }
+
+      // Otherwise, use Horizon API
+      const horizonUrl = this.getHorizonUrl();
+      const params = new URLSearchParams({
+        limit: Math.min(limit, 200).toString(),
+        order: 'desc'
+      });
+
+      if (cursor) {
+        params.append('cursor', cursor);
+      }
+
+      const url = `${horizonUrl}/accounts/${publicKey}/transactions?${params.toString()}`;
+      const response = await this.httpClient.get(url);
+      const data = response.data;
+
+      // Parse transactions
+      const transactions = (data._embedded?.records || [])
+        .map((tx: any) => parseTransaction(tx))
+        .filter((tx: any) => tx.status !== 'pending');
+
+      // Sort by timestamp (newest first)
+      const sorted = sortByTimestamp(transactions);
+
+      // Filter by action type if specified
+      const filtered = actionType ? filterByActionType(sorted, actionType) : sorted;
+
+      return {
+        transactions: filtered,
+        nextCursor: data._links?.next?.href ? extractCursor(data._links.next.href) : undefined,
+        hasMore: filtered.length === limit
+      };
+    }, `Failed to fetch transaction history for ${publicKey}`);
+  }
+
+  /**
+   * Fetches transaction history from a custom indexer.
+   * @param publicKey - The public key of the account
+   * @param options - Fetch options including customIndexerUrl
+   * @returns Transaction history result
+   */
+  private async fetchFromCustomIndexer(
+    publicKey: string,
+    options: FetchTransactionHistoryOptions
+  ): Promise<TransactionHistoryResult> {
+    const limit = options.limit ?? 50;
+    const cursor = options.cursor;
+    const customIndexerUrl = options.customIndexerUrl!;
+
+    const params = new URLSearchParams({
+      publicKey,
+      limit: Math.min(limit, 200).toString(),
+      order: 'desc'
+    });
+
+    if (cursor) {
+      params.append('cursor', cursor);
+    }
+
+    const url = `${customIndexerUrl}/user-history?${params.toString()}`;
+    const response = await this.httpClient.get(url);
+    const data = response.data;
+
+    // Parse transactions from custom indexer response
+    const transactions = (data.transactions || [])
+      .map((tx: any) => parseTransaction(tx))
+      .filter((tx: any) => tx.status !== 'pending');
+
+    // Sort by timestamp (newest first)
+    const sorted = sortByTimestamp(transactions);
+
+    // Filter by action type if specified
+    const filtered = options.actionType ? filterByActionType(sorted, options.actionType) : sorted;
+
+    return {
+      transactions: filtered,
+      nextCursor: data.nextCursor,
+      hasMore: data.hasMore ?? (filtered.length === limit)
+    };
+  }
+
+  /**
+   * Gets the Horizon API URL for the current network.
+   * @returns The Horizon API URL
+   */
+  private getHorizonUrl(): string {
+    if (this.network === 'mainnet') {
+      return 'https://horizon.stellar.org';
+    }
+    return 'https://horizon-testnet.stellar.org';
+  }
+
+  /**
    * Cleanup all async resources including WebSocket and CloudWatch.
    */
   async cleanup(): Promise<void> {
@@ -441,5 +577,19 @@ export class StellarClient extends BaseStellarRpcClient {
       this.logger.error(fallbackMessage, error);
       throw toAxionveraError(error, fallbackMessage);
     }
+  }
+}
+
+/**
+ * Extracts cursor parameter from a URL.
+ * @param url - The URL to extract cursor from
+ * @returns The cursor value or undefined
+ */
+function extractCursor(url: string): string | undefined {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.searchParams.get('cursor') ?? undefined;
+  } catch {
+    return undefined;
   }
 }
