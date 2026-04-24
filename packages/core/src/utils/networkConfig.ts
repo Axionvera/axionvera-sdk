@@ -3,7 +3,7 @@ import { Networks } from "@stellar/stellar-sdk";
 /**
  * Supported Axionvera networks.
  */
-export type AxionveraNetwork = "testnet" | "mainnet";
+export type AxionveraNetwork = "testnet" | "mainnet" | "futurenet";
 
 /**
  * Configuration for network connections.
@@ -19,7 +19,8 @@ export type NetworkConfig = {
 
 const DEFAULT_RPC_URLS: Record<AxionveraNetwork, string> = {
   testnet: "https://soroban-testnet.stellar.org",
-  mainnet: "https://soroban-mainnet.stellar.org"
+  mainnet: "https://soroban-mainnet.stellar.org",
+  futurenet: "https://rpc-futurenet.stellar.org"
 };
 
 /**
@@ -33,6 +34,8 @@ export function getNetworkPassphrase(network: AxionveraNetwork): string {
       return Networks.TESTNET;
     case "mainnet":
       return Networks.PUBLIC;
+    case "futurenet":
+      return Networks.FUTURENET;
   }
 }
 
