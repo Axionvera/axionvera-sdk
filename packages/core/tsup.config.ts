@@ -12,5 +12,5 @@ export default defineConfig({
   dts: true,
   clean: true,
   splitting: true,
-  external: ['@stellar/stellar-sdk', 'axios'],
+  external: ['@stellar/stellar-sdk', 'axios', '@aws-sdk/client-cloudwatch-logs', 'ethers'],
 });

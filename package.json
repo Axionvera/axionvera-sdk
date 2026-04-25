@@ -36,7 +36,7 @@
     "test": "jest --config jest.config.js",
     "docs": "typedoc",
     "start": "npm run build --workspaces",
-    "size": "size-limit",
+    "size": "size-limit --config .size-limit.cjs",
     "release:dry-run": "semantic-release --dry-run",    "csp-audit": "node ./scripts/csp-audit.js",    "dev": "npm run build --workspaces -- --watch"
   },
   "devDependencies": {

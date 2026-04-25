@@ -41,6 +41,7 @@ export {
   StellarRpcTimeoutError,
   WalletNotInstalledError,
   FaucetRateLimitError,
+  InsecureNetworkError,
   toAxionveraError
 } from './errors/axionveraError';
 

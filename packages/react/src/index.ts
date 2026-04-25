@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { StellarClientOptions } from '@axionvera/core';
-import { StellarClient, EventFilter, SorobanEvent, CloudWatchConfig, WebSocketConfig } from '@axionvera/core';
+import type { StellarClientOptions, EventFilter, SorobanEvent, CloudWatchConfig, WebSocketConfig } from '@axionvera/core';
+import { StellarClient } from '@axionvera/core';
 
 /**
  * Hook for managing StellarClient instance
@@ -106,4 +106,5 @@ export function useQueueStatus(client: StellarClient | null) {
   return { status, isLoading, refreshStatus };
 }
 
-export { StellarClient, EventFilter, SorobanEvent, CloudWatchConfig, WebSocketConfig } from '@axionvera/core';
+export { StellarClient } from '@axionvera/core';
+export type { EventFilter, SorobanEvent, CloudWatchConfig, WebSocketConfig } from '@axionvera/core';

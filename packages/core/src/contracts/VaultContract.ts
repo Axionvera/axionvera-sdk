@@ -308,7 +308,6 @@ export class VaultContract {
     }
 
     const _scVal = xdr.ScVal.fromXDR(result.xdr, "base64");
-
     // For now, return mock data - in practice, you'd parse the actual contract response
     return {
       totalAssets: 0n,
