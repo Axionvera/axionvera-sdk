@@ -27,7 +27,7 @@ export function useStellarClient(options?: {
     }
 
     return () => {
-      client?.cleanup();
+      client?.removeAllListeners();
     };
   }, []);
 
