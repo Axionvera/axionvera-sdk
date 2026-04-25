@@ -6,10 +6,12 @@ export type { StellarClientOptions } from './client/stellarClient';
 export type { AxionveraClientConfig } from './client/axionveraClient';
 
 // Contracts
+export { BaseContract } from './contracts/BaseContract';
 export { VaultContract } from './contracts/VaultContract';
 export { ContractEventEmitter } from './contracts/ContractEventEmitter';
 export { Vault } from './contracts/Vault';
 export { VaultABI } from './contracts/abis/VaultABI';
+export type { ContractConfig } from './contracts/BaseContract';
 export type { VaultConfig, DepositParams, WithdrawParams, VaultInfo } from './contracts/Vault';
 export type { ContractEvent, EventCallback } from './contracts/ContractEventEmitter';
 
