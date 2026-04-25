@@ -32,8 +32,7 @@
     "docs": "typedoc",
     "start": "npm run build --workspaces",
     "size": "size-limit",
-    "release:dry-run": "semantic-release --dry-run",
-    "dev": "npm run build --workspaces -- --watch"
+    "release:dry-run": "semantic-release --dry-run",    "csp-audit": "node ./scripts/csp-audit.js",    "dev": "npm run build --workspaces -- --watch"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
@@ -54,7 +53,9 @@
     "ts-jest": "^29.2.5",
     "typedoc": "^0.28.18",
     "typedoc-plugin-markdown": "^4.11.0",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "esbuild": "^0.19.4",
+    "playwright": "^1.46.0"
   },
   "jest": {
     "preset": "ts-jest",
