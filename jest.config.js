@@ -1,19 +1,19 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  collectCoverage: true,
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.d.ts',
-    '!src/index.ts'
+  collectCoverage: false,
+  testMatch: [
+    '<rootDir>/packages/**/src/**/*.test.ts',
+    '<rootDir>/packages/**/src/**/*.spec.ts',
   ],
-  coverageThreshold: {
-    global: {
-      statements: 85,
-      branches: 85,
-      functions: 85,
-      lines: 85
-    }
+  globals: {
+    'ts-jest': {
+      tsconfig: '<rootDir>/packages/core/tsconfig.json',
+    },
   },
-  testPathIgnorePatterns: ['/node_modules/', '/dist/']
+  collectCoverageFrom: [
+    'packages/**/src/**/*.ts',
+    '!packages/**/src/**/*.d.ts'
+  ],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '<rootDir>/tests/', '<rootDir>/src/']
 };

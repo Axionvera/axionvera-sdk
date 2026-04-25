@@ -227,25 +227,19 @@ export class VaultContract {
 
     // Simulate to get the result
     const simulation = await this.client.simulateTransaction(transaction);
-
-    if (!rpc.Api.isSimulationSuccess(simulation)) {
+    if (simulation.error) {
       throw new Error(`Failed to get balance: ${simulation.error}`);
     }
 
-    // Extract the return value from simulation
     const result = simulation.results?.[0];
     if (!result) {
       throw new Error("No result in simulation");
     }
 
-    // Parse the return value (assuming it returns an i128)
-    const returnValue = result.xdr;
-    const scVal = xdr.ScVal.fromXDR(returnValue, 'base64');
-
-    // Convert ScVal to bigint (this is a simplified conversion)
+    const scVal = xdr.ScVal.fromXDR(result.xdr, "base64");
     if (scVal.switch() === xdr.ScValType.scvI128()) {
       const i128 = scVal.i128();
-      return BigInt(i128.low().toString()) + (BigInt(i128.high().toString()) << 64n);
+      return BigInt(i128.lo().toString()) + (BigInt(i128.hi().toString()) << 64n);
     }
 
     throw new Error("Unexpected return value type");
@@ -303,7 +297,7 @@ export class VaultContract {
 
     const simulation = await this.client.simulateTransaction(transaction);
 
-    if (!rpc.Api.isSimulationSuccess(simulation)) {
+    if (simulation.error) {
       throw new Error(`Failed to get vault info: ${simulation.error}`);
     }
 
@@ -312,10 +306,7 @@ export class VaultContract {
       throw new Error("No result in simulation");
     }
 
-    // Parse the complex return value
-    // This is a simplified implementation - actual parsing would depend on the contract's return structure
-    const returnValue = result.xdr;
-    const _scVal = xdr.ScVal.fromXDR(returnValue, 'base64');
+    const _scVal = xdr.ScVal.fromXDR(result.xdr, "base64");
 
     // For now, return mock data - in practice, you'd parse the actual contract response
     return {

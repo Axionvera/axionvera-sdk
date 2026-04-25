@@ -127,7 +127,8 @@ export class ContractEventEmitter {
           const eventTopics = event.topic || [];
           
           for (const topicXdr of eventTopics) {
-            const listeners = this.listeners.get(topicXdr);
+            const topicKey = topicXdr.toXDR("base64");
+            const listeners = this.listeners.get(topicKey);
             if (listeners) {
               listeners.forEach(cb => cb(event));
             }

@@ -114,15 +114,22 @@ export function parseTransaction(tx: any): TransactionHistoryEntry {
         }
     }
 
-    return {
+    const entry: TransactionHistoryEntry = {
         hash,
         timestamp,
         action,
-        amount,
-        contractId,
         status,
         raw: tx
     };
+
+    if (amount !== undefined) {
+        entry.amount = amount;
+    }
+    if (contractId !== undefined) {
+        entry.contractId = contractId;
+    }
+
+    return entry;
 }
 
 /**

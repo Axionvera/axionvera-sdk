@@ -35,12 +35,13 @@ export class Logger {
    * Recursively redacts sensitive information from messages and objects.
    */
   private redact(message: any): any {
-    const sensitiveKeys = ['authorization', 'api-key', 'apikey', 'secret', 'password', 'token', 'x-api-key', 'privatekey', 'private_key'];
+    const sensitiveKeys = ['authorization', 'api-key', 'apikey', 'secret', 'password', 'token', 'x-api-key', 'x_api_key', 'privatekey', 'private_key'];
 
     if (typeof message === 'string') {
       return message
-        .replace(/Bearer\s+[a-zA-Z0-9\-\._~+/]+=*/gi, 'Bearer [REDACTED]')
-        .replace(/(api[_-]?key|secret[_-]?key|password|token|private[_-]?key)["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_.]+)["']?/gi, '$1: [REDACTED]');
+        .replace(/Bearer\s+[a-zA-Z0-9\-._~+/]+=*/gi, 'Bearer [REDACTED]')
+        .replace(/(api[_-]?key|secret[_-]?key|password|token|private[_-]?key)["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_.]+)["']?/gi, '$1: [REDACTED]')
+        .replace(/(\bkey\b)\s*[:=]\s*([a-zA-Z0-9\-_.]+)/gi, '$1: [REDACTED]');
     }
 
     if (typeof message === 'object' && message !== null) {
@@ -111,7 +112,7 @@ export class Logger {
       console[consoleLevel](`[Axionvera][${logLevel}] ${redactedMessage}`, ...redactedArgs);
       
       // Send to CloudWatch asynchronously
-      this.sendToCloudWatch(logLevel, message, args.length > 0 ? args : undefined).catch(() => {});
+      void this.sendToCloudWatch(logLevel, message, args.length > 0 ? args : undefined).catch(() => undefined);
     }
   }
 

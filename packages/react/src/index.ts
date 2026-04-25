@@ -1,23 +1,26 @@
 import { useEffect, useState, useCallback } from 'react';
+import type { StellarClientOptions } from '@axionvera/core';
 import { StellarClient, EventFilter, SorobanEvent, CloudWatchConfig, WebSocketConfig } from '@axionvera/core';
 
 /**
  * Hook for managing StellarClient instance
  */
 export function useStellarClient(options?: {
-  network?: string;
-  rpcUrl?: string;
-  logLevel?: 'none' | 'error' | 'warn' | 'info' | 'debug';
+  network?: StellarClientOptions["network"];
+  rpcUrl?: StellarClientOptions["rpcUrl"];
+  logLevel?: StellarClientOptions["logLevel"];
   cloudWatchConfig?: CloudWatchConfig;
   webSocketConfig?: WebSocketConfig;
-}) {
+}): { client: StellarClient | null; isLoading: boolean; error: Error | null } {
   const [client, setClient] = useState<StellarClient | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    let created: StellarClient | null = null;
     try {
-      const stellarClient = new StellarClient(options);
+      const stellarClient = new StellarClient(options as StellarClientOptions | undefined);
+      created = stellarClient;
       setClient(stellarClient);
       setError(null);
     } catch (err) {
@@ -27,7 +30,7 @@ export function useStellarClient(options?: {
     }
 
     return () => {
-      client?.removeAllListeners();
+      created?.removeAllListeners();
     };
   }, []);
 
@@ -68,7 +71,7 @@ export function useEventSubscription(
   }, [client, subscriptionId]);
 
   useEffect(() => {
-    subscribe();
+    void subscribe();
     return unsubscribe;
   }, [subscribe, unsubscribe]);
 
@@ -79,7 +82,7 @@ export function useEventSubscription(
  * Hook for monitoring queue status
  */
 export function useQueueStatus(client: StellarClient | null) {
-  const [status, setStatus] = useState<any>(null);
+  const [status, setStatus] = useState<unknown>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const refreshStatus = useCallback(async () => {
@@ -97,7 +100,7 @@ export function useQueueStatus(client: StellarClient | null) {
   }, [client]);
 
   useEffect(() => {
-    refreshStatus();
+    void refreshStatus();
   }, [refreshStatus]);
 
   return { status, isLoading, refreshStatus };

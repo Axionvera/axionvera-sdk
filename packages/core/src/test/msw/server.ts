@@ -22,6 +22,6 @@ export const setupMswTest = () => {
 };
 
 // Helper to override handlers for specific tests
-export const overrideHandlers = (...newHandlers: any[]) => {
+export const overrideHandlers = (...newHandlers: Parameters<typeof server.use>) => {
   server.use(...newHandlers);
 };

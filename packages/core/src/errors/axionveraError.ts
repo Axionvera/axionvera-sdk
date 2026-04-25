@@ -24,9 +24,9 @@ export type AxionveraErrorOptions = {
 };
 
 export class AxionveraError extends Error {
-  readonly statusCode?: number;
-  readonly requestId?: string;
-  readonly originalError?: unknown;
+  readonly statusCode: number | undefined;
+  readonly requestId: string | undefined;
+  readonly originalError: unknown;
 
   constructor(message: string, options: AxionveraErrorOptions = {}) {
     super(message);
@@ -45,6 +45,8 @@ export class RateLimitError extends AxionveraError {}
 
 export class ValidationError extends AxionveraError {}
 
+export class InsecureNetworkError extends AxionveraError {}
+
 export class StellarRpcNetworkError extends AxionveraError {}
 
 export class StellarRpcResponseError extends AxionveraError {}
@@ -58,7 +60,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 function asErrorLike(error: unknown): ErrorLike {
-  return isObject(error) ? (error as ErrorLike) : {};
+  return isObject(error) ? error : {};
 }
 
 function getHeaderValue(headers: ErrorHeaderContainer | undefined, key: string): string | undefined {
@@ -176,11 +178,13 @@ export function toAxionveraError(error: unknown, fallbackMessage = "API request 
   const message = getErrorMessage(error, fallbackMessage);
   const errorLike = asErrorLike(error);
 
-  const options: AxionveraErrorOptions = {
-    statusCode,
-    requestId,
-    originalError: error
-  };
+  const options: AxionveraErrorOptions = { originalError: error };
+  if (statusCode !== undefined) {
+    options.statusCode = statusCode;
+  }
+  if (requestId !== undefined) {
+    options.requestId = requestId;
+  }
 
   if (errorLike.code === 'ETIMEDOUT') {
     return new StellarRpcTimeoutError(message, options);
