@@ -1,6 +1,7 @@
 // Client
 export { StellarClient } from './client/stellarClient';
 export { AxionveraClient } from './client/axionveraClient';
+export { FaucetClient } from './client/faucetClient';
 export type { StellarClientOptions } from './client/stellarClient';
 export type { AxionveraClientConfig } from './client/axionveraClient';
 
@@ -21,6 +22,21 @@ export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/con
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export { buildContractCallOperation, buildContractCallTransaction, buildContractAuthPayload, toScVal } from './utils/transactionBuilder';
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
+export { generateTransactionURI, generatePayURI } from './utils/sep7';
+
+// Errors
+export { 
+  AxionveraError, 
+  NetworkError, 
+  AuthenticationError, 
+  RateLimitError, 
+  ValidationError,
+  StellarRpcNetworkError,
+  StellarRpcResponseError,
+  StellarRpcTimeoutError,
+  FaucetRateLimitError,
+  toAxionveraError
+} from './errors/axionveraError';
 
 // Transaction Signing
 export { TransactionSigner, EnhancedTransactionBuilder, TransactionSimulator } from './transaction';
