@@ -5,7 +5,10 @@
   "plugin": ["typedoc-plugin-markdown"],
   "excludePrivate": true,
   "excludeProtected": true,
+  "excludeInternal": true,
   "hideGenerator": true,
   "name": "Axionvera SDK",
-  "includeVersion": true
+  "includeVersion": true,
+  "readme": "README.md",
+  "gitRevision": "main"
 }

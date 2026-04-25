@@ -1,4 +1,4 @@
-[**Axionvera SDK v0.1.0**](../README.md)
+[**Axionvera SDK v1.0.0**](../README.md)
 
 ***
 
@@ -8,7 +8,7 @@
 
 > **createHttpClientWithRetry**(`retryConfig?`): `AxiosInstance`
 
-Defined in: [utils/httpInterceptor.ts:56](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/utils/httpInterceptor.ts#L56)
+Defined in: [src/utils/httpInterceptor.ts:59](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/utils/httpInterceptor.ts#L59)
 
 Creates an Axios client with automatic retry interceptors.
 
@@ -16,7 +16,7 @@ Creates an Axios client with automatic retry interceptors.
 
 ### retryConfig?
 
-`Partial`\<[`RetryConfig`](../type-aliases/RetryConfig.md)\> = `{}`
+`Partial`\<`RetryConfig`\> = `{}`
 
 Configuration for retry behavior
 

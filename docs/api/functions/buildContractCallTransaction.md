@@ -1,4 +1,4 @@
-[**Axionvera SDK v0.1.0**](../README.md)
+[**Axionvera SDK v1.0.0**](../README.md)
 
 ***
 
@@ -8,7 +8,7 @@
 
 > **buildContractCallTransaction**(`params`): `Transaction`
 
-Defined in: [utils/transactionBuilder.ts:96](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/utils/transactionBuilder.ts#L96)
+Defined in: [src/utils/transactionBuilder.ts:96](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/utils/transactionBuilder.ts#L96)
 
 Builds a complete contract call transaction.
 
@@ -16,7 +16,7 @@ Builds a complete contract call transaction.
 
 ### params
 
-[`BuildContractCallParams`](../type-aliases/BuildContractCallParams.md)
+`BuildContractCallParams`
 
 The transaction parameters
 
