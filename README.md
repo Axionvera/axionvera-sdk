@@ -36,6 +36,8 @@ Building on Stellar's Soroban smart contract platform requires managing RPC conn
 - **Resilience**: Built-in HTTP interceptors with exponential backoff for robust RPC interactions, handling rate limits automatically.
 - **Configurable Logging**: Built-in logger with automatic sensitive data redaction for easier debugging.
 - **Vault Contract Module**: Out-of-the-box support for the Axionvera Vault contract (`deposit`, `withdraw`, `balance`, `claimRewards`).
+- **Faucet Client**: Automated account funding for Testnet and Futurenet environments.
+- **SEP-0007 Support**: Standardized URI generation for mobile wallet deep-linking and QR code payments.
 - **Wallet Integration**: Flexible `WalletConnector` interface, including a built-in `LocalKeypairWalletConnector` for server-side or automated signing.
 
 ---
@@ -147,6 +149,15 @@ A high-level abstraction for the Axionvera Vault smart contract.
 - `withdraw({ amount, from })`: Withdraws tokens from the vault.
 - `getBalance({ account })`: Retrieves the vault balance for a specific account.
 - `claimRewards({ from })`: Claims pending rewards for the caller.
+
+### `FaucetClient`
+Automated funding for Testnet and Futurenet.
+- `fundAccount(publicKey)`: Hits the correct Friendbot endpoint based on the client's network. Throws `FaucetRateLimitError` if throttled.
+
+### `SEP-0007 Utilities`
+Standardized URI generation for mobile wallet integration.
+- `generateTransactionURI(xdr, callbackUrl)`: Generates a `web+stellar:tx` URI.
+- `generatePayURI(destination, amount, assetCode, assetIssuer)`: Generates a `web+stellar:pay` URI.
 
 ### `WalletConnector` (Interface)
 Implement this interface to integrate browser extension wallets (like Freighter) or use the provided `LocalKeypairWalletConnector` for backend/scripting services.

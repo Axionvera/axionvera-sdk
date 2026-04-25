@@ -1,10 +1,14 @@
 import {
   Account,
+  Address,
+  Contract,
   FeeBumpTransaction,
   Keypair,
+  nativeToScVal,
   rpc,
   Transaction,
-  TransactionBuilder
+  TransactionBuilder,
+  xdr
 } from "@stellar/stellar-sdk";
 
 import {
@@ -207,6 +211,92 @@ export class StellarClient extends BaseStellarRpcClient {
   }
 
   /**
+   * Simulates a pure read-only contract call without requiring a source account or sequence number.
+   * This dramatically speeds up dashboard loading times because the SDK doesn't need to fetch 
+   * the user's ledger sequence number before checking a read-only balance.
+   * 
+   * @param contractId - The contract ID to call
+   * @param method - The method name to call
+   * @param args - The arguments to pass to the method (optional)
+   * @returns The unwrapped scVal result directly
+   */
+  async simulateRead(
+    contractId: string,
+    method: string,
+    args?: any[]
+  ): Promise<xdr.ScVal> {
+    this.logger.debug(`Simulating read-only call to ${contractId}.${method}`);
+
+    return this.executeWithErrorHandling(async () => {
+      // Create a dummy account with zeroed-out sequence for read-only simulation
+      const dummyAccount = new Account(
+        "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH", // All zeros public key
+        "0" // Zero sequence number
+      );
+
+      // Convert args to ScVal if provided
+      const scVals = args ? args.map(arg => {
+        if (typeof arg === 'string') {
+          try {
+            // Try to parse as address first
+            return Address.fromString(arg).toScVal();
+          } catch {
+            // Fall back to native conversion
+            return nativeToScVal(arg);
+          }
+        } else if (typeof arg === 'number' || typeof arg === 'bigint') {
+          return nativeToScVal(arg);
+        } else if (typeof arg === 'boolean') {
+          return nativeToScVal(arg);
+        } else if (arg === null || arg === undefined) {
+          return xdr.ScVal.scvVoid();
+        } else {
+          return nativeToScVal(arg);
+        }
+      }) : [];
+
+      // Create the contract call operation
+      const contract = new Contract(contractId);
+      const operation = contract.call(method, ...scVals);
+
+      // Build a minimal transaction for simulation
+      const tx = new TransactionBuilder(dummyAccount, {
+        fee: "100", // Minimal fee for simulation
+        networkPassphrase: this.networkPassphrase
+      })
+        .addOperation(operation)
+        .setTimeout(30) // Short timeout for read operations
+        .build();
+
+      // Simulate the transaction
+      const simulationResult = await this.rpc.simulateTransaction(tx);
+
+      // Check for simulation errors
+      if (simulationResult.error) {
+        throw new NetworkError(`Simulation failed: ${simulationResult.error}`);
+      }
+
+      // Extract the result from the simulation
+      if (!simulationResult.result) {
+        throw new NetworkError('No result returned from simulation');
+      }
+
+      // Return the first (and typically only) result
+      const results = simulationResult.result;
+      if (results.length === 0) {
+        throw new NetworkError('No results returned from simulation');
+      }
+
+      const firstResult = results[0];
+      if (!firstResult) {
+        throw new NetworkError('Empty result returned from simulation');
+      }
+
+      return firstResult;
+    }, `Failed to simulate read call to ${contractId}.${method}`);
+  }
+
+  /**
    * Prepares a transaction by fetching the current ledger sequence
    * and setting the correct min sequence age.
    * @param tx - The transaction to prepare
@@ -261,26 +351,45 @@ export class StellarClient extends BaseStellarRpcClient {
    */
   async pollTransaction(
     hash: string,
-    params?: { timeoutMs?: number; intervalMs?: number }
+    params?: {
+      timeoutMs?: number;
+      intervalMs?: number;
+      onProgress?: (status: string, ledger: number) => void | Promise<void>;
+    }
   ): Promise<unknown> {
     return this.executeWithErrorHandling(async () => {
       const timeoutMs = params?.timeoutMs ?? 30_000;
       const intervalMs = params?.intervalMs ?? 1_000;
+      const onProgress = params?.onProgress;
+
       const deadline = Date.now() + timeoutMs;
 
       while (Date.now() < deadline) {
         const res = await this.getTransaction(hash);
-        const status = (res as any)?.status;
+
+        const status = (res as any)?.status ?? "UNKNOWN";
+        const ledger = (res as any)?.ledger ?? 0;
+
+        // ✅ NON-BLOCKING progress callback
+        if (onProgress) {
+          Promise.resolve()
+            .then(() => onProgress(status, ledger))
+            .catch((err) => {
+              this.logger.warn("onProgress callback error", err);
+            });
+        }
+
+        // existing exit logic
         if (status && status !== "NOT_FOUND") {
           return res;
         }
+
         await new Promise((r) => setTimeout(r, intervalMs));
       }
 
       throw new NetworkError(`Timed out waiting for transaction ${hash}`);
     }, `Failed while polling transaction ${hash}`);
   }
-
   /**
    * Signs a transaction using a local Keypair.
    * This is a convenience method for local signing without a wallet connector.
@@ -304,6 +413,71 @@ export class StellarClient extends BaseStellarRpcClient {
     networkPassphrase: string
   ): Transaction | FeeBumpTransaction {
     return TransactionBuilder.fromXDR(transactionXdr, networkPassphrase);
+  }
+
+  /**
+   * Serializes an unsigned transaction to a Base64 JSON string for offline signing.
+   * This is critical for air-gapped signing workflows or hardware security module (HSM) integrations.
+   * @param tx - The transaction to serialize (Transaction or FeeBumpTransaction)
+   * @returns Base64-encoded JSON string containing transaction XDR, network passphrase, and timeout limits
+   */
+  serializeTransaction(tx: Transaction | FeeBumpTransaction): string {
+    const serializedData = {
+      xdr: tx.toXDR(),
+      networkPassphrase: this.networkPassphrase,
+      timeout: tx.timeBounds?.maxTime || null,
+      fee: tx.fee.toString(),
+      sourceAccount: tx.sourceAccount().accountId(),
+      sequence: tx.sequence,
+      memo: tx.memo ? tx.memo.value : null,
+      operations: tx.operations.map((op: any) => ({
+        type: op.type,
+        source: op.source ? op.source : null,
+        // Basic operation serialization - can be extended based on needs
+      }))
+    };
+
+    return Buffer.from(JSON.stringify(serializedData)).toString('base64');
+  }
+
+  /**
+   * Deserializes a transaction from a Base64 JSON string.
+   * Reconstructs the exact Transaction or FeeBumpTransaction object.
+   * @param jsonString - The Base64-encoded JSON string from serializeTransaction
+   * @returns The reconstructed Transaction or FeeBumpTransaction
+   */
+  deserializeTransaction(jsonString: string): Transaction | FeeBumpTransaction {
+    try {
+      const decodedJson = Buffer.from(jsonString, 'base64').toString('utf8');
+      const serializedData = JSON.parse(decodedJson);
+
+      // Validate required fields
+      if (!serializedData.xdr || !serializedData.networkPassphrase) {
+        throw new Error('Invalid serialized transaction: missing required fields');
+      }
+
+      // Parse the transaction from XDR
+      const tx = TransactionBuilder.fromXDR(serializedData.xdr, serializedData.networkPassphrase);
+
+      return tx;
+    } catch (error) {
+      throw new Error(`Failed to deserialize transaction: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Verifies that a deserialized transaction matches the hash of the original.
+   * @param originalTx - The original transaction
+   * @param deserializedTx - The deserialized transaction
+   * @returns True if the hashes match
+   */
+  static verifyTransactionHash(
+    originalTx: Transaction | FeeBumpTransaction,
+    deserializedTx: Transaction | FeeBumpTransaction
+  ): boolean {
+    const originalHash = originalTx.hash().toString('hex');
+    const deserializedHash = deserializedTx.hash().toString('hex');
+    return originalHash === deserializedHash;
   }
 
   /**
@@ -434,132 +608,18 @@ export class StellarClient extends BaseStellarRpcClient {
   }
 
   /**
-   * Fetches transaction history for a user account.
-   * 
-   * Queries the Horizon API for transactions involving the specified account
-   * and parses them to provide a clean, reverse-chronological list of interactions.
-   * 
-   * @param publicKey - The public key of the account
-   * @param options - Fetch options
-   * @returns Transaction history result with parsed transactions
+   * Alias for cleanup(). Removes all active subscriptions and listeners.
+   * Useful in React useEffect cleanup blocks.
    * 
    * @example
    * ```typescript
-   * const history = await client.fetchUserHistory('G...', {
-   *   limit: 20,
-   *   actionType: 'vault_deposit'
-   * });
-   * 
-   * history.transactions.forEach(tx => {
-   *   console.log(`${tx.action}: ${tx.amount} at ${tx.timestamp}`);
-   * });
+   * useEffect(() => {
+   *   return () => client.removeAllListeners();
+   * }, [client]);
    * ```
    */
-  async fetchUserHistory(
-    publicKey: string,
-    options?: FetchTransactionHistoryOptions
-  ): Promise<TransactionHistoryResult> {
-    return this.executeWithErrorHandling(async () => {
-      const limit = options?.limit ?? 50;
-      const cursor = options?.cursor;
-      const actionType = options?.actionType;
-
-      this.logger.debug(`Fetching transaction history for ${publicKey}`);
-
-      // If custom indexer URL is provided, use it for richer data
-      if (options?.customIndexerUrl) {
-        return this.fetchFromCustomIndexer(publicKey, options);
-      }
-
-      // Otherwise, use Horizon API
-      const horizonUrl = this.getHorizonUrl();
-      const params = new URLSearchParams({
-        limit: Math.min(limit, 200).toString(),
-        order: 'desc'
-      });
-
-      if (cursor) {
-        params.append('cursor', cursor);
-      }
-
-      const url = `${horizonUrl}/accounts/${publicKey}/transactions?${params.toString()}`;
-      const response = await this.httpClient.get(url);
-      const data = response.data;
-
-      // Parse transactions
-      const transactions = (data._embedded?.records || [])
-        .map((tx: any) => parseTransaction(tx))
-        .filter((tx: any) => tx.status !== 'pending');
-
-      // Sort by timestamp (newest first)
-      const sorted = sortByTimestamp(transactions);
-
-      // Filter by action type if specified
-      const filtered = actionType ? filterByActionType(sorted, actionType) : sorted;
-
-      return {
-        transactions: filtered,
-        nextCursor: data._links?.next?.href ? extractCursor(data._links.next.href) : undefined,
-        hasMore: filtered.length === limit
-      };
-    }, `Failed to fetch transaction history for ${publicKey}`);
-  }
-
-  /**
-   * Fetches transaction history from a custom indexer.
-   * @param publicKey - The public key of the account
-   * @param options - Fetch options including customIndexerUrl
-   * @returns Transaction history result
-   */
-  private async fetchFromCustomIndexer(
-    publicKey: string,
-    options: FetchTransactionHistoryOptions
-  ): Promise<TransactionHistoryResult> {
-    const limit = options.limit ?? 50;
-    const cursor = options.cursor;
-    const customIndexerUrl = options.customIndexerUrl!;
-
-    const params = new URLSearchParams({
-      publicKey,
-      limit: Math.min(limit, 200).toString(),
-      order: 'desc'
-    });
-
-    if (cursor) {
-      params.append('cursor', cursor);
-    }
-
-    const url = `${customIndexerUrl}/user-history?${params.toString()}`;
-    const response = await this.httpClient.get(url);
-    const data = response.data;
-
-    // Parse transactions from custom indexer response
-    const transactions = (data.transactions || [])
-      .map((tx: any) => parseTransaction(tx))
-      .filter((tx: any) => tx.status !== 'pending');
-
-    // Sort by timestamp (newest first)
-    const sorted = sortByTimestamp(transactions);
-
-    // Filter by action type if specified
-    const filtered = options.actionType ? filterByActionType(sorted, options.actionType) : sorted;
-
-    return {
-      transactions: filtered,
-      nextCursor: data.nextCursor,
-      hasMore: data.hasMore ?? (filtered.length === limit)
-    };
-  }
-
-  /**
-   * Gets the Horizon API URL for the current network.
-   * @returns The Horizon API URL
-   */
-  private getHorizonUrl(): string {
-    if (this.network === 'mainnet') {
-      return 'https://horizon.stellar.org';
-    }
-    return 'https://horizon-testnet.stellar.org';
+  public removeAllListeners(): void {
+    this.cleanup();
   }
 
   /**

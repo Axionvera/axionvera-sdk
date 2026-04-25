@@ -115,53 +115,45 @@ export function buildContractCallTransaction(
 }
 
 /**
- * Parameters for building a base transaction.
+ * Builds the exact byte-hash required for Soroban's native contract authorization.
+ * 
+ * This handles the "CONTRACT_ID" preimage type used in require_auth mechanics,
+ * which is essential for gasless transactions and sponsored contract calls.
+ * 
+ * @param networkPassphrase - The network passphrase (e.g., "Test SDF Network ; September 2015")
+ * @param contractId - The contract ID being authorized
+ * @param methodName - The method name being called
+ * @param args - The arguments for the method
+ * @returns The byte-hash (Buffer) that should be signed by the user
  */
-export type BuildBaseTransactionParams = {
-  /** The source account for the transaction */
-  sourceAccount: Account;
-  /** The network passphrase */
-  networkPassphrase: string;
-  /** The fee for the transaction (default: 100_000) */
-  fee?: number;
-  /** Transaction timeout in seconds (default: 60) */
-  timeoutInSeconds?: number;
-};
+export function buildContractAuthPayload(
+  networkPassphrase: string,
+  contractId: string,
+  methodName: string,
+  args: ContractCallArg[]
+): Buffer {
+  const networkId = hash(Buffer.from(networkPassphrase));
+  const contractIdBuffer = Address.fromString(contractId).toBuffer();
+  const scArgs = (args ?? []).map(toScVal);
+  
+  const preimage = xdr.HashIdPreimage.envelopeTypeContractId(
+    new xdr.HashIdPreimageContractId({
+      networkId,
+      contractId: contractIdBuffer,
+      functionName: methodName,
+      args: new xdr.ScVec(scArgs)
+    })
+  );
+
+  return hash(preimage.toXDR());
+}
 
 /**
- * Builds a base transaction that can be extended with additional operations.
- * This is useful for composing multiple contract calls into a single transaction.
- * 
- * @param params - The transaction parameters
- * @returns A TransactionBuilder instance ready for adding operations
- * 
- * @example
- * ```typescript
- * const builder = buildBaseTransaction({
- *   sourceAccount,
- *   networkPassphrase: "Test SDF Network ; September 2015"
- * });
- * 
- * // Add multiple operations
- * builder.addOperation(depositOperation);
- * builder.addOperation(stakingOperation);
- * 
- * const transaction = builder.setTimeout(60).build();
- * ```
+ * Helper to hash a buffer using SHA-256.
+ * @param data - The data to hash
+ * @returns The 32-byte hash buffer
  */
-export function buildBaseTransaction(
-  params: BuildBaseTransactionParams
-): TransactionBuilder {
-  const fee = (params.fee ?? 100_000).toString();
-  const timeoutInSeconds = params.timeoutInSeconds ?? 60;
-
-  const builder = new TransactionBuilder(params.sourceAccount, {
-    fee,
-    networkPassphrase: params.networkPassphrase
-  });
-
-  // Set timeout immediately so it's available for the builder
-  builder.setTimeout(timeoutInSeconds);
-
-  return builder;
+function hash(data: Buffer): Buffer {
+  const { createHash } = require('crypto');
+  return createHash('sha256').update(data).digest();
 }
