@@ -22,6 +22,13 @@ import { NetworkError, toAxionveraError } from "../errors/axionveraError";
 import { LogLevel, Logger } from "../utils/logger";
 import { WebSocketManager, EventFilter, SorobanEvent, WebSocketConfig } from "./websocket";
 import { CloudWatchConfig } from "../utils/logging/cloudwatch";
+import {
+  FetchTransactionHistoryOptions,
+  TransactionHistoryResult,
+  parseTransaction,
+  sortByTimestamp,
+  filterByActionType
+} from "../utils/transactionHistory";
 
 export type StellarClientOptions = {
   network?: AxionveraNetwork;
@@ -630,5 +637,19 @@ export class StellarClient extends BaseStellarRpcClient {
       this.logger.error(fallbackMessage, error);
       throw toAxionveraError(error, fallbackMessage);
     }
+  }
+}
+
+/**
+ * Extracts cursor parameter from a URL.
+ * @param url - The URL to extract cursor from
+ * @returns The cursor value or undefined
+ */
+function extractCursor(url: string): string | undefined {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.searchParams.get('cursor') ?? undefined;
+  } catch {
+    return undefined;
   }
 }

@@ -113,3 +113,55 @@ export function buildContractCallTransaction(
     .setTimeout(timeoutInSeconds)
     .build();
 }
+
+/**
+ * Parameters for building a base transaction.
+ */
+export type BuildBaseTransactionParams = {
+  /** The source account for the transaction */
+  sourceAccount: Account;
+  /** The network passphrase */
+  networkPassphrase: string;
+  /** The fee for the transaction (default: 100_000) */
+  fee?: number;
+  /** Transaction timeout in seconds (default: 60) */
+  timeoutInSeconds?: number;
+};
+
+/**
+ * Builds a base transaction that can be extended with additional operations.
+ * This is useful for composing multiple contract calls into a single transaction.
+ * 
+ * @param params - The transaction parameters
+ * @returns A TransactionBuilder instance ready for adding operations
+ * 
+ * @example
+ * ```typescript
+ * const builder = buildBaseTransaction({
+ *   sourceAccount,
+ *   networkPassphrase: "Test SDF Network ; September 2015"
+ * });
+ * 
+ * // Add multiple operations
+ * builder.addOperation(depositOperation);
+ * builder.addOperation(stakingOperation);
+ * 
+ * const transaction = builder.setTimeout(60).build();
+ * ```
+ */
+export function buildBaseTransaction(
+  params: BuildBaseTransactionParams
+): TransactionBuilder {
+  const fee = (params.fee ?? 100_000).toString();
+  const timeoutInSeconds = params.timeoutInSeconds ?? 60;
+
+  const builder = new TransactionBuilder(params.sourceAccount, {
+    fee,
+    networkPassphrase: params.networkPassphrase
+  });
+
+  // Set timeout immediately so it's available for the builder
+  builder.setTimeout(timeoutInSeconds);
+
+  return builder;
+}
