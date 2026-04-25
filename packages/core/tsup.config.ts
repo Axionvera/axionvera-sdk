@@ -7,6 +7,7 @@ export default defineConfig({
     client: 'src/client/index.ts',
     utils: 'src/utils/index.ts',
     wallet: 'src/wallet/index.ts',
+    codegen: 'src/codegen/index.ts',
   },
   format: ['cjs', 'esm'],
   dts: true,
