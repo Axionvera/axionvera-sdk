@@ -43,6 +43,7 @@ export class Logger {
       'password',
       'token',
       'x-api-key',
+      'x_api_key',
       'privatekey', 'private_key',
     ];
 
@@ -51,8 +52,9 @@ export class Logger {
 
     if (typeof message === 'string') {
       let redacted = message
-        .replace(/Bearer\s+[a-zA-Z0-9\-\._~+/]+=*/gi, 'Bearer [REDACTED]')
-        .replace(/(api[_-]?key|secret[_-]?key|password|token|private[_-]?key)["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_.]+)["']?/gi, '$1: [REDACTED]');
+        .replace(/Bearer\s+[a-zA-Z0-9\-._~+/]+=*/gi, 'Bearer [REDACTED]')
+        .replace(/(api[_-]?key|secret[_-]?key|password|token|private[_-]?key)["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_.]+)["']?/gi, '$1: [REDACTED]')
+        .replace(/(\bkey\b)\s*[:=]\s*([a-zA-Z0-9\-_.]+)/gi, '$1: [REDACTED]');
 
       // Truncate suspiciously large base64/XDR blobs to avoid log bloat
       if (redacted.length > XDR_TRUNCATE_LENGTH && /^[A-Za-z0-9+/=]+$/.test(redacted.trim())) {
@@ -130,7 +132,7 @@ export class Logger {
       console[consoleLevel](`[Axionvera][${logLevel}] ${redactedMessage}`, ...redactedArgs);
       
       // Send to CloudWatch asynchronously
-      this.sendToCloudWatch(logLevel, message, args.length > 0 ? args : undefined).catch(() => {});
+      void this.sendToCloudWatch(logLevel, message, args.length > 0 ? args : undefined).catch(() => undefined);
     }
   }
 

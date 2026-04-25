@@ -22,7 +22,7 @@ import {
 
 import { StellarClient } from "../client/stellarClient";
 import { WalletConnector } from "../wallet/walletConnector";
-import { ContractCallParams, TransactionSigner, TransactionBuildParams, ContractCallArg } from "./transactionSigner";
+import { ContractCallParams, TransactionSigner, TransactionBuildParams, TransactionResult } from "./transactionSigner";
 import { buildContractCallOperation, toScVal } from "../utils/transactionBuilder";
 
 /**
@@ -87,9 +87,13 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
       sourceAccount: params.sourceAccount,
       operations: params.steps,
       fee: totalFee,
-      timeoutInSeconds: params.timeoutInSeconds,
-      memo: params.memo
     };
+    if (params.timeoutInSeconds !== undefined) {
+      buildParams.timeoutInSeconds = params.timeoutInSeconds;
+    }
+    if (params.memo !== undefined) {
+      buildParams.memo = params.memo;
+    }
 
     return await this.buildAndSignTransaction(buildParams);
   }
@@ -160,7 +164,7 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
     sourceAccount: string,
     operations: Array<{
       operation: ContractCallParams;
-      condition?: (simulation: rpc.SimulateTransactionResponse) => boolean;
+      condition?: (simulation: rpc.Api.RawSimulateTransactionResponse) => boolean;
     }>
   ): Promise<Transaction> {
     // Build initial transaction
@@ -174,16 +178,13 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
     // Simulate to check conditions
     const simulation = await this.client.simulateTransaction(transaction);
     
-    if (!rpc.Api.isSimulationSuccess(simulation)) {
+    if (simulation.error) {
       throw new Error(`Conditional transaction simulation failed: ${simulation.error}`);
     }
 
     // Filter operations based on conditions
     const filteredOperations = operations.filter((op, index) => {
       if (!op.condition) return true;
-      
-      const operationResult = simulation.results?.[index];
-      if (!operationResult) return false;
       
       return op.condition(simulation);
     });
@@ -284,8 +285,10 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
     const buildParams: TransactionBuildParams = {
       sourceAccount,
       operations,
-      memo: memo.type === 'text' ? memo.value as string : undefined
     };
+    if (memo.type === "text") {
+      buildParams.memo = memo.value as string;
+    }
 
     const transaction = await this.buildTransaction(buildParams);
     
@@ -299,10 +302,10 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
           memoObj = Memo.id(memo.value.toString());
           break;
         case 'hash':
-          memoObj = Memo.hash(memo.value as Buffer);
+          memoObj = Memo.hash((memo.value as Buffer).toString("hex"));
           break;
         case 'return':
-          memoObj = Memo.return(memo.value as Buffer);
+          memoObj = Memo.return((memo.value as Buffer).toString("hex"));
           break;
         default:
           throw new Error(`Unsupported memo type: ${memo.type}`);
@@ -337,7 +340,7 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
       // Simulate the transaction
       const simulation = await this.client.simulateTransaction(transaction);
       
-      if (!rpc.Api.isSimulationSuccess(simulation)) {
+      if (simulation.error) {
         errors.push(`Simulation failed: ${simulation.error}`);
       }
 
@@ -353,7 +356,7 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
       }
 
       // Check timeout
-      if (transaction.timeBounds?.maxTime === 0) {
+      if (transaction.timeBounds && transaction.timeBounds.maxTime === "0") {
         warnings.push('Transaction has no timeout');
       }
 

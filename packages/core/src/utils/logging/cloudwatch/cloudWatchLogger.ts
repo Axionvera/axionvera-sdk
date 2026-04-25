@@ -1,13 +1,14 @@
 import { CloudWatchConfig, LogEntry } from './types';
 
-interface CloudWatchLogsClient {
-  createLogGroup(params: any): Promise<any>;
-  createLogStream(params: any): Promise<any>;
-  putLogEvents(params: any): Promise<any>;
-}
+type CloudWatchLogsClientLike = {
+  createLogGroup: (params: unknown) => Promise<unknown>;
+  createLogStream: (params: unknown) => Promise<unknown>;
+  putLogEvents: (params: unknown) => Promise<unknown>;
+  send: (command: unknown) => Promise<any>;
+};
 
 export class CloudWatchLogger {
-  private client: CloudWatchLogsClient | null = null;
+  private client: CloudWatchLogsClientLike | null = null;
   private logQueue: LogEntry[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
   private sequenceToken: string | null = null;
@@ -18,11 +19,11 @@ export class CloudWatchLogger {
 
   constructor(config: CloudWatchConfig) {
     this.config = {
-      logGroupName: config.logGroupName,
+      logGroupName: config.logGroupName ?? "axionvera-sdk",
       logStreamName: config.logStreamName || `axionvera-sdk-${Date.now()}`,
       region: config.region || 'us-east-1',
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
+      accessKeyId: config.accessKeyId ?? "",
+      secretAccessKey: config.secretAccessKey ?? "",
       batchSize: config.batchSize || 100,
       flushIntervalMs: config.flushIntervalMs || 5000,
       maxRetries: config.maxRetries || 3,
@@ -47,7 +48,7 @@ export class CloudWatchLogger {
         };
       }
 
-      this.client = new CloudWatchLogsClient(clientConfig);
+      this.client = new CloudWatchLogsClient(clientConfig) as unknown as CloudWatchLogsClientLike;
 
       // Ensure log group exists
       await this.ensureLogGroup();
@@ -134,9 +135,10 @@ export class CloudWatchLogger {
 
   private async ensureLogGroup(): Promise<void> {
     try {
-      await this.client!.createLogGroup({
-        logGroupName: this.config.logGroupName,
-      });
+      const { CreateLogGroupCommand } = await import("@aws-sdk/client-cloudwatch-logs");
+      await this.client!.send(
+        new CreateLogGroupCommand({ logGroupName: this.config.logGroupName })
+      );
     } catch (error: any) {
       // Log group already exists
       if (error.name !== 'ResourceAlreadyExistsException') {
@@ -147,10 +149,13 @@ export class CloudWatchLogger {
 
   private async ensureLogStream(): Promise<void> {
     try {
-      await this.client!.createLogStream({
-        logGroupName: this.config.logGroupName,
-        logStreamName: this.config.logStreamName,
-      });
+      const { CreateLogStreamCommand } = await import("@aws-sdk/client-cloudwatch-logs");
+      await this.client!.send(
+        new CreateLogStreamCommand({
+          logGroupName: this.config.logGroupName,
+          logStreamName: this.config.logStreamName,
+        })
+      );
     } catch (error: any) {
       // Log stream already exists
       if (error.name !== 'ResourceAlreadyExistsException') {
@@ -161,7 +166,8 @@ export class CloudWatchLogger {
 
   private async putLogEventsWithRetry(params: any, attempt = 1): Promise<any> {
     try {
-      return await this.client!.putLogEvents(params);
+      const { PutLogEventsCommand } = await import("@aws-sdk/client-cloudwatch-logs");
+      return await this.client!.send(new PutLogEventsCommand(params));
     } catch (error: any) {
       if (attempt >= this.config.maxRetries) {
         throw error;
@@ -176,7 +182,7 @@ export class CloudWatchLogger {
         });
         
         const response = await this.client!.send(command);
-        const stream = response.logStreams?.find(s => s.logStreamName === this.config.logStreamName);
+        const stream = response.logStreams?.find((s: any) => s.logStreamName === this.config.logStreamName);
         
         if (stream?.uploadSequenceToken) {
           params.sequenceToken = stream.uploadSequenceToken;

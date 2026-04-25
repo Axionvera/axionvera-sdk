@@ -228,26 +228,19 @@ export class VaultContract {
 
     // Simulate to get the result
     const simulation = await this.client.simulateTransaction(transaction);
-
-    if (!rpc.Api.isSimulationSuccess(simulation)) {
+    if (simulation.error) {
       throw new Error(`Failed to get balance: ${simulation.error}`);
     }
 
-    // Extract the return value from simulation
     const result = simulation.results?.[0];
     if (!result) {
       throw new Error("No result in simulation");
     }
 
-    // Decode only the return value of the first result; cache avoids redundant
-    // XDR parsing when the same account balance is queried multiple times.
-    const returnValue = result.xdr;
-    const scVal = decodeXdrBase64(returnValue);
-
-    // Convert ScVal to bigint (this is a simplified conversion)
+    const scVal = xdr.ScVal.fromXDR(result.xdr, "base64");
     if (scVal.switch() === xdr.ScValType.scvI128()) {
       const i128 = scVal.i128();
-      return BigInt(i128.low().toString()) + (BigInt(i128.high().toString()) << 64n);
+      return BigInt(i128.lo().toString()) + (BigInt(i128.hi().toString()) << 64n);
     }
 
     throw new Error("Unexpected return value type");
@@ -305,7 +298,7 @@ export class VaultContract {
 
     const simulation = await this.client.simulateTransaction(transaction);
 
-    if (!rpc.Api.isSimulationSuccess(simulation)) {
+    if (simulation.error) {
       throw new Error(`Failed to get vault info: ${simulation.error}`);
     }
 
@@ -314,11 +307,7 @@ export class VaultContract {
       throw new Error("No result in simulation");
     }
 
-    // Decode only the return value of the first result; cache avoids redundant
-    // XDR parsing when vault info is queried repeatedly.
-    const returnValue = result.xdr;
-    const _scVal = decodeXdrBase64(returnValue);
-
+    const _scVal = xdr.ScVal.fromXDR(result.xdr, "base64");
     // For now, return mock data - in practice, you'd parse the actual contract response
     return {
       totalAssets: 0n,

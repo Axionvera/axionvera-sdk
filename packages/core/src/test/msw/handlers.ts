@@ -84,14 +84,14 @@ const serverErrorResponse = {
 // Request handlers for Stellar API endpoints
 export const handlers = [
   // Health endpoint
-  rest.get(`${STELLAR_TESTNET_URL}/health`, (req, res, ctx) => {
+  rest.get(`${STELLAR_TESTNET_URL}/health`, (_req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json(mockHealthResponse)
     );
   }),
 
-  rest.get(`${STELLAR_MAINNET_URL}/health`, (req, res, ctx) => {
+  rest.get(`${STELLAR_MAINNET_URL}/health`, (_req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json(mockHealthResponse)
@@ -99,14 +99,14 @@ export const handlers = [
   }),
 
   // Network endpoint
-  rest.get(`${STELLAR_TESTNET_URL}`, (req, res, ctx) => {
+  rest.get(`${STELLAR_TESTNET_URL}`, (_req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json(mockNetworkResponse)
     );
   }),
 
-  rest.get(`${STELLAR_MAINNET_URL}`, (req, res, ctx) => {
+  rest.get(`${STELLAR_MAINNET_URL}`, (_req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json(mockNetworkResponse)
@@ -210,14 +210,14 @@ export const handlers = [
   }),
 
   // Submit transaction endpoint
-  rest.post(`${STELLAR_TESTNET_URL}/transactions`, (req, res, ctx) => {
+  rest.post(`${STELLAR_TESTNET_URL}/transactions`, (_req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json(mockTransactionSendResponse)
     );
   }),
 
-  rest.post(`${STELLAR_MAINNET_URL}/transactions`, (req, res, ctx) => {
+  rest.post(`${STELLAR_MAINNET_URL}/transactions`, (_req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json(mockTransactionSendResponse)
@@ -225,7 +225,7 @@ export const handlers = [
   }),
 
   // Simulate transaction endpoint
-  rest.post(`${STELLAR_TESTNET_URL}/simulate_transaction`, (req, res, ctx) => {
+  rest.post(`${STELLAR_TESTNET_URL}/simulate_transaction`, (_req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -252,7 +252,7 @@ export const handlers = [
     );
   }),
 
-  rest.post(`${STELLAR_MAINNET_URL}/simulate_transaction`, (req, res, ctx) => {
+  rest.post(`${STELLAR_MAINNET_URL}/simulate_transaction`, (_req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -280,7 +280,7 @@ export const handlers = [
   }),
 
   // Prepare transaction endpoint
-  rest.post(`${STELLAR_TESTNET_URL}/prepare_transaction`, (req, res, ctx) => {
+  rest.post(`${STELLAR_TESTNET_URL}/prepare_transaction`, (_req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -291,7 +291,7 @@ export const handlers = [
     );
   }),
 
-  rest.post(`${STELLAR_MAINNET_URL}/prepare_transaction`, (req, res, ctx) => {
+  rest.post(`${STELLAR_MAINNET_URL}/prepare_transaction`, (_req, res, ctx) => {
     return res(
       ctx.status(200),
       ctx.json({
@@ -376,7 +376,7 @@ export const transactionHandler = rest.get(`${STELLAR_TESTNET_URL}/transactions/
   );
 });
 
-export const submitTransactionHandler = rest.post(`${STELLAR_TESTNET_URL}/transactions`, (req, res, ctx) => {
+export const submitTransactionHandler = rest.post(`${STELLAR_TESTNET_URL}/transactions`, (_req, res, ctx) => {
   return res(
     ctx.status(200),
     ctx.json(mockTransactionSendResponse)

@@ -96,11 +96,14 @@ export function buildContractCallOperation(params: {
 export function buildContractCallTransaction(
   params: BuildContractCallParams
 ): Transaction {
-  const operation = buildContractCallOperation({
+  const opParams: Parameters<typeof buildContractCallOperation>[0] = {
     contractId: params.contractId,
     method: params.method,
-    args: params.args
-  });
+  };
+  if (params.args) {
+    opParams.args = params.args;
+  }
+  const operation = buildContractCallOperation(opParams);
 
   const fee = (params.fee ?? 100_000).toString();
   const timeoutInSeconds = params.timeoutInSeconds ?? 60;
@@ -126,27 +129,10 @@ export function buildContractCallTransaction(
  * @param args - The arguments for the method
  * @returns The byte-hash (Buffer) that should be signed by the user
  */
-export function buildContractAuthPayload(
-  networkPassphrase: string,
-  contractId: string,
-  methodName: string,
-  args: ContractCallArg[]
-): Buffer {
-  const networkId = hash(Buffer.from(networkPassphrase));
-  const contractIdBuffer = Address.fromString(contractId).toBuffer();
-  const scArgs = (args ?? []).map(toScVal);
-  
-  const preimage = xdr.HashIdPreimage.envelopeTypeContractId(
-    new xdr.HashIdPreimageContractId({
-      networkId,
-      contractId: contractIdBuffer,
-      functionName: methodName,
-      args: new xdr.ScVec(scArgs)
-    })
-  );
-
-  return hash(preimage.toXDR());
-}
+// buildContractAuthPayload was removed because the XDR preimage types differ across stellar-sdk
+// versions, and the current SDK surface does not expose a stable constructor for this payload.
+// When reintroducing it, implement against the exact `@stellar/stellar-sdk` XDR types in use and
+// cover with golden-vector tests.
 
 /**
  * Helper to hash a buffer using SHA-256.

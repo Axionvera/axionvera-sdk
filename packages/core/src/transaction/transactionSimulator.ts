@@ -80,13 +80,12 @@ export class TransactionSimulator {
   async detailedSimulation(transaction: Transaction): Promise<DetailedSimulationResult> {
     const basicSimulation = await this.client.simulateTransaction(transaction);
     
-    if (!rpc.Api.isSimulationSuccess(basicSimulation)) {
-      return {
+    if (basicSimulation.error) {
+      const fail: DetailedSimulationResult = {
         cpuInstructions: 0,
         memoryBytes: 0,
         recommendedFee: 0,
         success: false,
-        error: basicSimulation.error,
         raw: basicSimulation,
         analysis: {
           cpuEfficiency: 0,
@@ -102,26 +101,23 @@ export class TransactionSimulator {
         },
         perOperation: []
       };
+      if (basicSimulation.error) {
+        fail.error = basicSimulation.error;
+      }
+      return fail;
     }
 
-    // Extract detailed metrics
-    const results = basicSimulation.results || [];
-    const perOperation = results.map((result, index) => ({
-      operationIndex: index,
-      cpuInstructions: result.cpuInstructions || 0,
-      memoryBytes: result.memoryBytes || 0,
-      fee: 0 // Will be calculated based on resource usage
-    }));
-
-    const totalCpu = perOperation.reduce((sum, op) => sum + op.cpuInstructions, 0);
-    const totalMemory = perOperation.reduce((sum, op) => sum + op.memoryBytes, 0);
-    const resourceFee = basicSimulation.transactionData?.resourceFee || 0;
+    // Raw simulations don't expose CPU/memory metrics in the typed surface.
+    const perOperation: DetailedSimulationResult["perOperation"] = [];
+    const totalCpu = 0;
+    const totalMemory = 0;
+    const resourceFee = basicSimulation.minResourceFee ? Number.parseInt(basicSimulation.minResourceFee, 10) : 0;
     const baseFee = parseInt(transaction.fee);
 
     // Calculate efficiency metrics
     const analysis = this.calculateEfficiencyMetrics(totalCpu, totalMemory, baseFee, resourceFee);
     
-    // Generate optimization suggestions
+    // Generate optimization suggestions (no per-op data available)
     const suggestions = this.generateOptimizationSuggestions(analysis, perOperation);
     
     // Calculate cost breakdown
@@ -130,11 +126,6 @@ export class TransactionSimulator {
       resourceFee,
       totalFee: baseFee + resourceFee
     };
-
-    // Update per-operation fees
-    perOperation.forEach(op => {
-      op.fee = Math.ceil((op.cpuInstructions / totalCpu) * resourceFee);
-    });
 
     return {
       cpuInstructions: totalCpu,
@@ -260,12 +251,25 @@ export class TransactionSimulator {
         break;
     }
 
-    return {
-      optimized,
-      suggestions,
-      modifiedTransaction,
-      estimatedSavings
-    };
+    const res: {
+      optimized: boolean;
+      suggestions: string[];
+      modifiedTransaction?: Transaction;
+      estimatedSavings?: {
+        feeReduction: number;
+        cpuReduction: number;
+        memoryReduction: number;
+      };
+    } = { optimized, suggestions };
+
+    if (modifiedTransaction) {
+      res.modifiedTransaction = modifiedTransaction;
+    }
+    if (estimatedSavings) {
+      res.estimatedSavings = estimatedSavings;
+    }
+
+    return res;
   }
 
   /**

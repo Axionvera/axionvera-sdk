@@ -9,6 +9,12 @@ type FreighterApi = {
   ) => Promise<string | { signedTransaction: string }>;
 };
 
+function isFreighterApi(value: unknown): value is FreighterApi {
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  return typeof v.getPublicKey === "function" && typeof v.signTransaction === "function";
+}
+
 async function loadFreighter(): Promise<FreighterApi> {
   if (typeof window === 'undefined') {
     throw new WalletNotInstalledError(
@@ -26,17 +32,13 @@ async function loadFreighter(): Promise<FreighterApi> {
   }
 
   const provider = (freighterModule as any).default ?? freighterModule;
-  if (
-    !provider ||
-    typeof (provider as any).getPublicKey !== 'function' ||
-    typeof (provider as any).signTransaction !== 'function'
-  ) {
+  if (!isFreighterApi(provider)) {
     throw new WalletNotInstalledError(
       'Freighter extension is not detected. Please install the Freighter browser extension.'
     );
   }
 
-  return provider as FreighterApi;
+  return provider;
 }
 
 export class BrowserWalletConnector implements WalletConnector {
