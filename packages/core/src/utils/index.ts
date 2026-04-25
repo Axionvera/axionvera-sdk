@@ -4,3 +4,4 @@ export { buildContractCallOperation, buildContractCallTransaction, toScVal } fro
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './networkConfig';
 export { generateTransactionURI, generatePayURI } from './sep7';
 export { Logger } from './logger';
+export { decodeXdrBase64, clearXdrCache, getXdrCacheSize } from './xdrCache';

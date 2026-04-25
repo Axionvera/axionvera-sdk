@@ -23,6 +23,7 @@ export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export { buildContractCallOperation, buildContractCallTransaction, buildContractAuthPayload, toScVal } from './utils/transactionBuilder';
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
 export { generateTransactionURI, generatePayURI } from './utils/sep7';
+export { decodeXdrBase64, clearXdrCache, getXdrCacheSize } from './utils/xdrCache';
 
 // Errors
 export { 

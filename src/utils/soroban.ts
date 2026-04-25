@@ -1,4 +1,5 @@
 import { xdr } from "@stellar/stellar-sdk";
+import { decodeXdrBase64 } from "./xdrCache";
 
 /**
  * Decodes a Soroban Symbol ScVal into a JavaScript UTF-8 string.
@@ -35,7 +36,7 @@ export function parseEvents(events: any[]): any[] {
     if (Array.isArray(event.topic)) {
       parsedEvent.topicNames = event.topic.map((t: string) => {
         try {
-          const scVal = xdr.ScVal.fromXDR(t, "base64");
+          const scVal = decodeXdrBase64(t);
           const s = scVal as any;
           if (s.arm() === 'sym') {
             return decodeSorobanSymbol(scVal);
