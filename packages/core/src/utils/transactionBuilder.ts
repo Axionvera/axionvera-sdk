@@ -113,3 +113,47 @@ export function buildContractCallTransaction(
     .setTimeout(timeoutInSeconds)
     .build();
 }
+
+/**
+ * Builds the exact byte-hash required for Soroban's native contract authorization.
+ * 
+ * This handles the "CONTRACT_ID" preimage type used in require_auth mechanics,
+ * which is essential for gasless transactions and sponsored contract calls.
+ * 
+ * @param networkPassphrase - The network passphrase (e.g., "Test SDF Network ; September 2015")
+ * @param contractId - The contract ID being authorized
+ * @param methodName - The method name being called
+ * @param args - The arguments for the method
+ * @returns The byte-hash (Buffer) that should be signed by the user
+ */
+export function buildContractAuthPayload(
+  networkPassphrase: string,
+  contractId: string,
+  methodName: string,
+  args: ContractCallArg[]
+): Buffer {
+  const networkId = hash(Buffer.from(networkPassphrase));
+  const contractIdBuffer = Address.fromString(contractId).toBuffer();
+  const scArgs = (args ?? []).map(toScVal);
+  
+  const preimage = xdr.HashIdPreimage.envelopeTypeContractId(
+    new xdr.HashIdPreimageContractId({
+      networkId,
+      contractId: contractIdBuffer,
+      functionName: methodName,
+      args: new xdr.ScVec(scArgs)
+    })
+  );
+
+  return hash(preimage.toXDR());
+}
+
+/**
+ * Helper to hash a buffer using SHA-256.
+ * @param data - The data to hash
+ * @returns The 32-byte hash buffer
+ */
+function hash(data: Buffer): Buffer {
+  const { createHash } = require('crypto');
+  return createHash('sha256').update(data).digest();
+}

@@ -31,5 +31,7 @@ jobs:
       - run: npm test
       - name: Build SDK
         run: npm run build
+      - name: CSP Compliance Audit
+        run: npm run csp-audit
       - name: Check Bundle Size
         run: npm run size

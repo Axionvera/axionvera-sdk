@@ -135,6 +135,13 @@ describe('New error classes', () => {
     expect(error).toBeInstanceOf(SimulationError);
     expect(error.message).toBe('Simulation failed');
   });
+
+  it('FaucetRateLimitError extends AxionveraError', () => {
+    const error = new FaucetRateLimitError('Rate limit exceeded');
+    expect(error).toBeInstanceOf(AxionveraError);
+    expect(error).toBeInstanceOf(FaucetRateLimitError);
+    expect(error.message).toBe('Rate limit exceeded');
+  });
 });
 
 describe('Error normalization functions', () => {

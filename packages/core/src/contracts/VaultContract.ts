@@ -2,12 +2,14 @@ import {
   Address,
   rpc,
   nativeToScVal,
-  xdr
+  xdr,
+  TransactionBuilder
 } from "@stellar/stellar-sdk";
 
 import { StellarClient } from "../client/stellarClient";
 import { WalletConnector } from "../wallet/walletConnector";
 import { TransactionSigner, ContractCallParams } from "../transaction/transactionSigner";
+import { buildContractCallOperation } from "../utils/transactionBuilder";
 
 /**
  * Configuration for the Vault contract wrapper.
@@ -29,6 +31,8 @@ export type DepositParams = {
   amount: bigint;
   /** The source account (optional, defaults to wallet public key) */
   from?: string;
+  /** Optional transaction builder to append operation to existing transaction */
+  txBuilder?: TransactionBuilder;
 };
 
 /**
@@ -39,6 +43,16 @@ export type WithdrawParams = {
   amount: bigint;
   /** The destination account (optional, defaults to wallet public key) */
   to?: string;
+  /** Optional transaction builder to append operation to existing transaction */
+  txBuilder?: TransactionBuilder;
+};
+
+/**
+ * Parameters for claim rewards operations.
+ */
+export type ClaimRewardsParams = {
+  /** Optional transaction builder to append operation to existing transaction */
+  txBuilder?: TransactionBuilder;
 };
 
 /**
@@ -61,6 +75,9 @@ export type VaultInfo = {
  * This class provides a convenient interface for interacting with the Vault contract,
  * handling transaction building, signing, and submission automatically.
  * 
+ * Supports composing multiple operations into a single transaction via the optional
+ * txBuilder parameter, enabling atomic multi-operation transactions.
+ * 
  * @example
  * ```typescript
  * const vault = new VaultContract({
@@ -69,7 +86,22 @@ export type VaultInfo = {
  *   wallet
  * });
  * 
+ * // Simple deposit
  * const result = await vault.deposit({ amount: 1000n });
+ * 
+ * // Composite transaction: Deposit + Claim Rewards
+ * const { buildBaseTransaction } = await import('axionvera-sdk');
+ * const account = await client.rpc.getAccount(publicKey);
+ * const builder = buildBaseTransaction({
+ *   sourceAccount: account,
+ *   networkPassphrase: client.networkPassphrase
+ * });
+ * 
+ * await vault.deposit({ amount: 1000n, txBuilder: builder });
+ * await vault.claimRewards({ txBuilder: builder });
+ * 
+ * const tx = builder.build();
+ * // Now sign and submit the composite transaction
  * ```
  */
 export class VaultContract {
@@ -94,12 +126,29 @@ export class VaultContract {
 
   /**
    * Deposits tokens into the vault.
+   * 
    * @param params - Deposit parameters
-   * @returns The transaction result
+   * @returns The transaction result, or the transaction builder if txBuilder was provided
    */
   async deposit(params: DepositParams): Promise<any> {
     const from = params.from ?? await this.wallet.getPublicKey();
-    
+
+    const operation = buildContractCallOperation({
+      contractId: this.contractId,
+      method: "deposit",
+      args: [
+        nativeToScVal(params.amount, { type: "i128" }),
+        new Address(from).toScVal()
+      ]
+    });
+
+    // If txBuilder is provided, append operation and return the builder
+    if (params.txBuilder) {
+      params.txBuilder.addOperation(operation);
+      return params.txBuilder;
+    }
+
+    // Otherwise, build and sign the transaction normally
     const contractCall: ContractCallParams = {
       contractId: this.contractId,
       method: "deposit",
@@ -117,12 +166,30 @@ export class VaultContract {
 
   /**
    * Withdraws tokens from the vault.
+   * 
    * @param params - Withdraw parameters
-   * @returns The transaction result
+   * @returns The transaction result, or the transaction builder if txBuilder was provided
    */
   async withdraw(params: WithdrawParams): Promise<any> {
     const to = params.to ?? await this.wallet.getPublicKey();
-    
+    const sourceAccount = await this.wallet.getPublicKey();
+
+    const operation = buildContractCallOperation({
+      contractId: this.contractId,
+      method: "withdraw",
+      args: [
+        nativeToScVal(params.amount, { type: "i128" }),
+        new Address(to).toScVal()
+      ]
+    });
+
+    // If txBuilder is provided, append operation and return the builder
+    if (params.txBuilder) {
+      params.txBuilder.addOperation(operation);
+      return params.txBuilder;
+    }
+
+    // Otherwise, build and sign the transaction normally
     const contractCall: ContractCallParams = {
       contractId: this.contractId,
       method: "withdraw",
@@ -133,7 +200,7 @@ export class VaultContract {
     };
 
     return await this.transactionSigner.buildAndSignTransaction({
-      sourceAccount: await this.wallet.getPublicKey(),
+      sourceAccount,
       operations: [contractCall]
     });
   }
@@ -145,7 +212,7 @@ export class VaultContract {
    */
   async getBalance(account?: string): Promise<bigint> {
     const targetAccount = account ?? await this.wallet.getPublicKey();
-    
+
     const contractCall: ContractCallParams = {
       contractId: this.contractId,
       method: "balance",
@@ -160,7 +227,7 @@ export class VaultContract {
 
     // Simulate to get the result
     const simulation = await this.client.simulateTransaction(transaction);
-    
+
     if (!rpc.Api.isSimulationSuccess(simulation)) {
       throw new Error(`Failed to get balance: ${simulation.error}`);
     }
@@ -174,7 +241,7 @@ export class VaultContract {
     // Parse the return value (assuming it returns an i128)
     const returnValue = result.xdr;
     const scVal = xdr.ScVal.fromXDR(returnValue, 'base64');
-    
+
     // Convert ScVal to bigint (this is a simplified conversion)
     if (scVal.switch() === xdr.ScValType.scvI128()) {
       const i128 = scVal.i128();
@@ -186,9 +253,26 @@ export class VaultContract {
 
   /**
    * Claims pending rewards for the caller.
-   * @returns The transaction result
+   * 
+   * @param params - Claim rewards parameters (optional)
+   * @returns The transaction result, or the transaction builder if txBuilder was provided
    */
-  async claimRewards(): Promise<any> {
+  async claimRewards(params?: ClaimRewardsParams): Promise<any> {
+    const sourceAccount = await this.wallet.getPublicKey();
+
+    const operation = buildContractCallOperation({
+      contractId: this.contractId,
+      method: "claim_rewards",
+      args: []
+    });
+
+    // If txBuilder is provided, append operation and return the builder
+    if (params?.txBuilder) {
+      params.txBuilder.addOperation(operation);
+      return params.txBuilder;
+    }
+
+    // Otherwise, build and sign the transaction normally
     const contractCall: ContractCallParams = {
       contractId: this.contractId,
       method: "claim_rewards",
@@ -196,7 +280,7 @@ export class VaultContract {
     };
 
     return await this.transactionSigner.buildAndSignTransaction({
-      sourceAccount: await this.wallet.getPublicKey(),
+      sourceAccount,
       operations: [contractCall]
     });
   }
@@ -218,7 +302,7 @@ export class VaultContract {
     });
 
     const simulation = await this.client.simulateTransaction(transaction);
-    
+
     if (!rpc.Api.isSimulationSuccess(simulation)) {
       throw new Error(`Failed to get vault info: ${simulation.error}`);
     }
@@ -232,7 +316,7 @@ export class VaultContract {
     // This is a simplified implementation - actual parsing would depend on the contract's return structure
     const returnValue = result.xdr;
     const _scVal = xdr.ScVal.fromXDR(returnValue, 'base64');
-    
+
     // For now, return mock data - in practice, you'd parse the actual contract response
     return {
       totalAssets: 0n,

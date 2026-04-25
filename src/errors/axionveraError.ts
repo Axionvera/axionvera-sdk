@@ -59,7 +59,7 @@ export class InvalidSignatureError extends AxionveraError { }
 
 export class SimulationError extends AxionveraError { }
 
-export class InsecureNetworkError extends AxionveraError { }
+export class FaucetRateLimitError extends AxionveraError { }
 
 /**
  * Normalizes RPC errors from Stellar/Soroban RPC responses.
