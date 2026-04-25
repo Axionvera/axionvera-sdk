@@ -15,6 +15,7 @@ export type { ContractEvent, EventCallback } from './contracts/ContractEventEmit
 
 // Wallet
 export { LocalKeypairWalletConnector } from './wallet/localKeypairWalletConnector';
+export { BrowserWalletConnector } from './wallet/browserWalletConnector';
 export type { WalletConnector } from './wallet/walletConnector';
 
 // Utils
@@ -23,6 +24,7 @@ export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export { buildContractCallOperation, buildContractCallTransaction, buildContractAuthPayload, toScVal } from './utils/transactionBuilder';
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
 export { generateTransactionURI, generatePayURI } from './utils/sep7';
+export { decodeXdrBase64, clearXdrCache, getXdrCacheSize } from './utils/xdrCache';
 
 // Errors
 export { 
@@ -34,6 +36,7 @@ export {
   StellarRpcNetworkError,
   StellarRpcResponseError,
   StellarRpcTimeoutError,
+  WalletNotInstalledError,
   FaucetRateLimitError,
   toAxionveraError
 } from './errors/axionveraError';

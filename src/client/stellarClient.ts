@@ -11,7 +11,7 @@ import {
 import { AxionveraNetwork, resolveNetworkConfig } from "../utils/networkConfig";
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
-import { normalizeRpcError, normalizeTransactionError, normalizeSimulationError, TimeoutError, InsecureNetworkError, AxionveraError } from "../errors/axionveraError";
+import { normalizeRpcError, normalizeTransactionError, TimeoutError, InsecureNetworkError, AxionveraError, AxionveraRPCError, SimulationFailedError } from "../errors/axionveraError";
 import { WebSocketManager } from "./websocket/websocketManager";
 import { WebSocketConfig } from "./websocket/types";
 import { Logger } from "../utils/logger";
@@ -160,33 +160,35 @@ export class StellarClient {
     try {
       return await retry(() => this.rpc.getHealth(), this.retryConfig);
     } catch (error) {
-      throw normalizeRpcError(error, 'getHealth');
+      throw new AxionveraRPCError(
+        error instanceof Error ? error.message : 'RPC operation failed: getHealth',
+        'getHealth',
+        { originalError: error }
+      );
     }
   }
 
-  /**
-   * Retrieves the network configuration from the RPC server.
-   * Automatically retries on failure.
-   * @returns The network configuration
-   */
   async getNetwork(): Promise<rpc.Api.GetNetworkResponse> {
     try {
       return await retry(() => this.rpc.getNetwork(), this.retryConfig);
     } catch (error) {
-      throw normalizeRpcError(error, 'getNetwork');
+      throw new AxionveraRPCError(
+        error instanceof Error ? error.message : 'RPC operation failed: getNetwork',
+        'getNetwork',
+        { originalError: error }
+      );
     }
   }
 
-  /**
-   * Gets the latest ledger sequence number.
-   * Automatically retries on failure.
-   * @returns The latest ledger info
-   */
   async getLatestLedger(): Promise<rpc.Api.GetLatestLedgerResponse> {
     try {
       return await retry(() => this.rpc.getLatestLedger(), this.retryConfig);
     } catch (error) {
-      throw normalizeRpcError(error, 'getLatestLedger');
+      throw new AxionveraRPCError(
+        error instanceof Error ? error.message : 'RPC operation failed: getLatestLedger',
+        'getLatestLedger',
+        { originalError: error }
+      );
     }
   }
 
@@ -210,9 +212,17 @@ export class StellarClient {
     tx: Transaction | FeeBumpTransaction
   ): Promise<rpc.Api.SimulateTransactionResponse> {
     try {
-      return await this.rpc.simulateTransaction(tx);
+      const result = await this.rpc.simulateTransaction(tx);
+      if (rpc.Api.isSimulationError(result)) {
+        throw new SimulationFailedError(result.error, { simulationResult: result });
+      }
+      return result;
     } catch (error) {
-      throw normalizeSimulationError(error);
+      if (error instanceof SimulationFailedError) throw error;
+      throw new SimulationFailedError(
+        error instanceof Error ? error.message : 'Transaction simulation failed',
+        { originalError: error }
+      );
     }
   }
 
@@ -341,6 +351,8 @@ export class StellarClient {
         return Networks.TESTNET;
       case "mainnet":
         return Networks.PUBLIC;
+      default:
+        throw new AxionveraError(`Unknown network: ${network}`);
     }
   }
 

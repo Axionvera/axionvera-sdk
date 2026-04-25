@@ -11,6 +11,7 @@ import {
   InsufficientFundsError,
   InvalidSignatureError,
   SimulationError,
+  FaucetRateLimitError,
   toAxionveraError,
   normalizeRpcError,
   normalizeTransactionError,

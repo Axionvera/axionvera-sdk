@@ -16,9 +16,7 @@
 - [Prerequisites](#-prerequisites)
 - [Installation](#-installation)
 - [Quick Start](#-quick-start)
-- [Migration Guide](#-migration-guide)
 - [Usage Examples](#-usage-examples)
-- [Module Architecture](#-module-architecture)
 - [API Reference](#-api-reference)
 - [Troubleshooting](#-troubleshooting)
 - [Contributing](#-contributing)
@@ -56,38 +54,21 @@ Before using the Axionvera SDK, ensure you have the following installed:
 
 ## 📦 Installation
 
-The SDK requires Node.js 18+ and has `@stellar/stellar-sdk` as a peer dependency.
-
 Install the package using your preferred package manager:
 
 **Using npm:**
 ```bash
-npm install axionvera-sdk @stellar/stellar-sdk
+npm install axionvera-sdk
 ```
 
 **Using yarn:**
 ```bash
-yarn add axionvera-sdk @stellar/stellar-sdk
+yarn add axionvera-sdk
 ```
 
 **Using pnpm:**
 ```bash
-pnpm add axionvera-sdk @stellar/stellar-sdk
-```
-
-### TypeScript Configuration
-
-Ensure your `tsconfig.json` has `strict: true` for full type safety:
-
-```json
-{
-  "compilerOptions": {
-    "strict": true,
-    "target": "ES2020",
-    "module": "ESNext",
-    "moduleResolution": "bundler"
-  }
-}
+pnpm add axionvera-sdk
 ```
 
 ---
@@ -138,22 +119,7 @@ run();
 
 ---
 
-## � Migration Guide
-
-**Coming from Stellar Classic (stellar-sdk v10)?** 
-
-We've prepared a comprehensive [Migration Guide](./docs/MIGRATION_GUIDE.md) to help you transition from Classic operations to Soroban smart contracts. The guide covers:
-
-- **Paradigm shift**: Understanding the difference between Classic Operations and Soroban `InvokeHostFunction`
-- **Side-by-side examples**: Compare how you used to build transactions vs. the simplified Axionvera SDK approach
-- **Common scenarios**: Migrating payment services, data storage, and multi-signature workflows
-- **Best practices**: Error handling, resource estimation, and debugging in Soroban
-
-Whether you're migrating an existing dApp or starting fresh, the migration guide bridges the knowledge gap and gets you productive quickly.
-
----
-
-## �💻 Usage Examples
+## 💻 Usage Examples
 
 We provide detailed, runnable examples in the [`examples/`](./examples/) directory to help you understand specific workflows:
 
@@ -161,34 +127,6 @@ We provide detailed, runnable examples in the [`examples/`](./examples/) directo
 - 🏦 **Withdraw**: [withdrawExample.ts](./examples/withdrawExample.ts)
 - ⚖️ **Check Balance**: [balanceExample.ts](./examples/balanceExample.ts)
 - 🔄 **HTTP Retry Logic**: [retryExample.ts](./examples/retryExample.ts)
-
----
-
-## 🏗️ Module Architecture
-
-The SDK is organized into clear layers to keep concerns separated:
-
-### `src/client/`
-- **`StellarClient`**: Main entry point for Soroban RPC connections
-- **`FaucetClient`**: Automated account funding for test networks
-
-### `src/contracts/`
-- **`VaultContract`**: High-level wrapper for the Axionvera Vault contract
-
-### `src/wallet/`
-- **`WalletConnector`**: Interface for wallet signing
-- **`LocalKeypairWalletConnector`**: Built-in keypair signer for server-side use
-
-### `src/utils/`
-- **`networkConfig`**: Default RPC URLs and network passphrases
-- **`transactionBuilder`**: Helpers to build Soroban contract calls
-- **`concurrencyQueue`**: Rate limiting for high-volume apps
-- **`sep7`**: URI generation for wallet deep-linking
-- **`httpInterceptor`**: Retry logic with exponential backoff
-- **`logger`**: Built-in logging with sensitive data redaction
-
-### `src/errors/`
-- Typed error classes for different failure modes
 
 ---
 
@@ -249,20 +187,12 @@ Please read our [Contributing Guidelines](./CONTRIBUTING.md) for details on our 
 
 ### Development Setup
 To set up the project locally for development:
-
 ```bash
 git clone https://github.com/axionvera/axionvera-sdk.git
 cd axionvera-sdk
-npm ci
+npm install
 npm run build
-npm run test
-```
-
-For a faster feedback loop during development, run typecheck separately:
-
-```bash
-npm run typecheck
-npm run lint
+npm test
 ```
 
 ---
