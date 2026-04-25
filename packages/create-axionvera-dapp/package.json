@@ -1,0 +1,24 @@
+{
+  "name": "create-axionvera-dapp",
+  "version": "0.1.0",
+  "description": "Interactive scaffolding tool for Axionvera dApps.",
+  "license": "MIT",
+  "bin": {
+    "create-axionvera-dapp": "./bin/create-axionvera-dapp.js"
+  },
+  "files": [
+    "bin",
+    "template",
+    "README.md"
+  ],
+  "scripts": {
+    "clean": "node -e \"process.exit(0)\"",
+    "build": "node -e \"process.exit(0)\"",
+    "typecheck": "node -e \"process.exit(0)\"",
+    "lint": "node ../../node_modules/eslint/bin/eslint.js bin/**/*.js"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

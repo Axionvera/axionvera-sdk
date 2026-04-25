@@ -19,7 +19,8 @@ import {
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
 import { NetworkError, toAxionveraError, InsecureNetworkError, AxionveraError } from "../errors/axionveraError";
-import { LogLevel, Logger } from "../utils/logger";
+import { LogLevel, Logger, CustomLogger } from "../utils/logger";
+import { ContractEventEmitter } from "../contracts/ContractEventEmitter";
 import { WebSocketManager, EventFilter, SorobanEvent, WebSocketConfig } from "./websocket";
 import { CloudWatchConfig } from "../utils/logging/cloudwatch";
 import {
@@ -57,6 +58,7 @@ export type StellarClientOptions = {
   webSocketConfig?: WebSocketConfig;
   cloudWatchConfig?: CloudWatchConfig;
   customHeaders?: Record<string, string>;
+  logger?: CustomLogger;
   allowHttp?: boolean;
 };
 
@@ -105,6 +107,8 @@ export class StellarClient extends BaseStellarRpcClient {
   private readonly logger: Logger;
   /** WebSocket manager for real-time events. */
   private webSocketManager: WebSocketManager | null = null;
+  /** Active contract event emitters created by this client. */
+  private readonly eventEmitters = new Set<ContractEventEmitter>();
 
    /**
     * Creates a new StellarClient instance.
@@ -148,7 +152,7 @@ export class StellarClient extends BaseStellarRpcClient {
     this.concurrencyEnabled = !!options?.concurrencyConfig;
     this.retryConfig = options?.retryConfig ?? {};
     this.httpClient = createHttpClientWithRetry(this.retryConfig);
-    this.logger = new Logger(options?.logLevel ?? 'none', options?.cloudWatchConfig);
+    this.logger = new Logger(options?.logLevel ?? 'none', options?.cloudWatchConfig, options?.logger);
 
     this.logger.info(`Initializing StellarClient for ${this.network} at ${this.rpcUrl}`);
 
@@ -160,6 +164,7 @@ export class StellarClient extends BaseStellarRpcClient {
         {
           onEvent: (event) => this.logger.debug('WebSocket event received:', event),
           onConnectionChange: (connected) => this.logger.debug(`WebSocket connection changed: ${connected}`),
+          logger: this.logger,
         }
       );
     }
@@ -577,36 +582,61 @@ export class StellarClient extends BaseStellarRpcClient {
     return this.getConcurrencyStats();
   }
 
-  /**
-   * Subscribe to real-time events via WebSocket.
-   * @param filter - Event filter criteria
-   * @param callback - Callback function for received events
-   * @returns Subscription ID that can be used to unsubscribe
-   */
-  async subscribeToEvents(
+  subscribeToEvents(contractId: string, topics?: string[], pollingIntervalMs?: number): ContractEventEmitter;
+  subscribeToEvents(
     filter: EventFilter,
     callback: (event: SorobanEvent) => void
-  ): Promise<string> {
+  ): Promise<string>;
+  subscribeToEvents(
+    contractIdOrFilter: string | EventFilter,
+    topicsOrCallback: string[] | ((event: SorobanEvent) => void) = [],
+    pollingIntervalMs = 5000
+  ): string | ContractEventEmitter | Promise<string> {
+    if (typeof contractIdOrFilter === 'string') {
+      const contractId = contractIdOrFilter;
+      const topics = Array.isArray(topicsOrCallback) ? topicsOrCallback : [];
+      let emitter: ContractEventEmitter;
+      emitter = new ContractEventEmitter(
+        this,
+        contractId,
+        topics,
+        pollingIntervalMs,
+        () => {
+          this.eventEmitters.delete(emitter);
+        }
+      );
+
+      this.eventEmitters.add(emitter);
+      emitter.start();
+      return emitter;
+    }
+
     if (!this.webSocketManager) {
       throw new NetworkError('WebSocket manager not initialized. Please provide webSocketConfig in constructor.');
     }
 
-    // Connect WebSocket if not already connected
+    const callback = topicsOrCallback as (event: SorobanEvent) => void;
+
     if (!this.webSocketManager.isConnected()) {
-      await this.webSocketManager.connect();
+      return this.webSocketManager.connect().then(() => this.webSocketManager!.subscribe(contractIdOrFilter, callback));
     }
 
-    return this.webSocketManager.subscribe(filter, callback);
+    return this.webSocketManager.subscribe(contractIdOrFilter, callback);
   }
 
   /**
    * Unsubscribe from real-time events.
    * @param subscriptionId - The subscription ID returned by subscribeToEvents
    */
-  unsubscribeFromEvents(subscriptionId: string): void {
-    if (this.webSocketManager) {
-      this.webSocketManager.unsubscribe(subscriptionId);
+  unsubscribeFromEvents(subscriptionId: string | ContractEventEmitter): void {
+    if (typeof subscriptionId === 'string') {
+      if (this.webSocketManager) {
+        this.webSocketManager.unsubscribe(subscriptionId);
+      }
+      return;
     }
+
+    subscriptionId.close();
   }
 
   /**
@@ -657,13 +687,21 @@ export class StellarClient extends BaseStellarRpcClient {
    * ```
    */
   public removeAllListeners(): void {
-    this.cleanup();
+    for (const emitter of this.eventEmitters) {
+      emitter.close();
+    }
+    this.eventEmitters.clear();
+    this.disconnectWebSocket();
   }
 
   /**
    * Cleanup all async resources including WebSocket and CloudWatch.
    */
   async cleanup(): Promise<void> {
+    for (const emitter of this.eventEmitters) {
+      emitter.close();
+    }
+    this.eventEmitters.clear();
     this.disconnectWebSocket();
     await this.logger.destroy();
   }

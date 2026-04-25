@@ -7,7 +7,7 @@ interface CloudWatchLogsClient {
 }
 
 export class CloudWatchLogger {
-  private client: CloudWatchLogsClient | null = null;
+  private client: any = null;
   private logQueue: LogEntry[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
   private sequenceToken: string | null = null;
@@ -21,8 +21,8 @@ export class CloudWatchLogger {
       logGroupName: config.logGroupName,
       logStreamName: config.logStreamName || `axionvera-sdk-${Date.now()}`,
       region: config.region || 'us-east-1',
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
+      accessKeyId: config.accessKeyId as string,
+      secretAccessKey: config.secretAccessKey as string,
       batchSize: config.batchSize || 100,
       flushIntervalMs: config.flushIntervalMs || 5000,
       maxRetries: config.maxRetries || 3,
@@ -176,10 +176,10 @@ export class CloudWatchLogger {
         });
         
         const response = await this.client!.send(command);
-        const stream = response.logStreams?.find(s => s.logStreamName === this.config.logStreamName);
+        const stream = (response.logStreams as any[])?.find((s: any) => s.logStreamName === this.config.logStreamName);
         
-        if (stream?.uploadSequenceToken) {
-          params.sequenceToken = stream.uploadSequenceToken;
+        if (stream && (stream as any).uploadSequenceToken) {
+          params.sequenceToken = (stream as any).uploadSequenceToken;
         }
       }
 

@@ -1,5 +1,6 @@
 import { EventFilter, SorobanEvent, WebSocketEventSubscription, WebSocketConfig } from './types';
 import { parseEvents } from '../../utils/soroban';
+import { Logger } from '../../utils/logger';
 
 export class WebSocketManager {
   private ws: WebSocket | null = null;
@@ -14,6 +15,7 @@ export class WebSocketManager {
   private readonly rpcUrl: string;
   private readonly onEvent?: (event: SorobanEvent) => void;
   private readonly onConnectionChange?: (connected: boolean) => void;
+  private readonly logger?: Logger;
 
   constructor(
     rpcUrl: string,
@@ -21,6 +23,7 @@ export class WebSocketManager {
     callbacks?: {
       onEvent?: (event: SorobanEvent) => void;
       onConnectionChange?: (connected: boolean) => void;
+      logger?: Logger;
     }
   ) {
     this.rpcUrl = rpcUrl.replace(/^http/, 'ws');
@@ -32,6 +35,7 @@ export class WebSocketManager {
     };
     this.onEvent = callbacks?.onEvent;
     this.onConnectionChange = callbacks?.onConnectionChange;
+    this.logger = callbacks?.logger;
   }
 
   async connect(): Promise<void> {
@@ -43,7 +47,7 @@ export class WebSocketManager {
       this.ws = new WebSocket(this.rpcUrl);
       
       this.ws.onopen = () => {
-        console.log('WebSocket connected');
+        this.logger?.debug('WebSocket connected');
         this.isConnecting = false;
         this.reconnectAttempts = 0;
         this.startHeartbeat();
@@ -56,7 +60,7 @@ export class WebSocketManager {
       };
 
       this.ws.onclose = () => {
-        console.log('WebSocket disconnected');
+        this.logger?.debug('WebSocket disconnected');
         this.isConnecting = false;
         this.stopHeartbeat();
         this.onConnectionChange?.(false);
@@ -64,7 +68,7 @@ export class WebSocketManager {
       };
 
       this.ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
+        this.logger?.error('WebSocket error:', error);
         this.isConnecting = false;
       };
 
@@ -135,7 +139,7 @@ export class WebSocketManager {
         // Heartbeat response received
       }
     } catch (error) {
-      console.error('Error handling WebSocket message:', error);
+      this.logger?.error('Error handling WebSocket message:', error);
     }
   }
 
@@ -233,7 +237,7 @@ export class WebSocketManager {
 
     this.reconnectTimer = setTimeout(() => {
       this.reconnectAttempts++;
-      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.config.reconnectAttempts})`);
+      this.logger?.debug(`Attempting to reconnect (${this.reconnectAttempts}/${this.config.reconnectAttempts})`);
       this.connect();
     }, delay);
   }

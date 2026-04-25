@@ -1,4 +1,10 @@
 export type LogLevel = 'none' | 'error' | 'warn' | 'info' | 'debug';
+export interface CustomLogger {
+  info(message: string, ...args: any[]): void;
+  warn(message: string, ...args: any[]): void;
+  error(message: string, ...args: any[]): void;
+  debug(message: string, ...args: any[]): void;
+}
 
 import { CloudWatchLogger, CloudWatchConfig, LogEntry } from './logging/cloudwatch';
 
@@ -17,9 +23,11 @@ const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
 export class Logger {
   private level: LogLevel;
   private cloudWatchLogger: CloudWatchLogger | null = null;
+  private customLogger: CustomLogger | null = null;
 
-  constructor(level: LogLevel = 'none', cloudWatchConfig?: CloudWatchConfig) {
+  constructor(level: LogLevel = 'none', cloudWatchConfig?: CloudWatchConfig, customLogger?: CustomLogger) {
     this.level = level;
+    this.customLogger = customLogger || null;
     
     // Initialize CloudWatch logger if config is provided
     if (cloudWatchConfig) {
@@ -108,7 +116,11 @@ export class Logger {
       const redactedMessage = this.redact(message);
       const redactedArgs = args.map((a) => this.redact(a));
       
-      console[consoleLevel](`[Axionvera][${logLevel}] ${redactedMessage}`, ...redactedArgs);
+      if (this.customLogger) {
+        this.customLogger[consoleLevel](redactedMessage, ...redactedArgs);
+      } else {
+        console[consoleLevel](`[Axionvera][${logLevel}] ${redactedMessage}`, ...redactedArgs);
+      }
       
       // Send to CloudWatch asynchronously
       this.sendToCloudWatch(logLevel, message, args.length > 0 ? args : undefined).catch(() => {});
