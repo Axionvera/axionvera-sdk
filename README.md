@@ -16,6 +16,7 @@
 - [Prerequisites](#-prerequisites)
 - [Installation](#-installation)
 - [Quick Start](#-quick-start)
+- [Migration Guide](#-migration-guide)
 - [Usage Examples](#-usage-examples)
 - [API Reference](#-api-reference)
 - [Troubleshooting](#-troubleshooting)
@@ -119,7 +120,22 @@ run();
 
 ---
 
-## 💻 Usage Examples
+## � Migration Guide
+
+**Coming from Stellar Classic (stellar-sdk v10)?** 
+
+We've prepared a comprehensive [Migration Guide](./docs/MIGRATION_GUIDE.md) to help you transition from Classic operations to Soroban smart contracts. The guide covers:
+
+- **Paradigm shift**: Understanding the difference between Classic Operations and Soroban `InvokeHostFunction`
+- **Side-by-side examples**: Compare how you used to build transactions vs. the simplified Axionvera SDK approach
+- **Common scenarios**: Migrating payment services, data storage, and multi-signature workflows
+- **Best practices**: Error handling, resource estimation, and debugging in Soroban
+
+Whether you're migrating an existing dApp or starting fresh, the migration guide bridges the knowledge gap and gets you productive quickly.
+
+---
+
+## �💻 Usage Examples
 
 We provide detailed, runnable examples in the [`examples/`](./examples/) directory to help you understand specific workflows:
 
