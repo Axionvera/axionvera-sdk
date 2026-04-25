@@ -17,6 +17,7 @@
 - [Installation](#-installation)
 - [Quick Start](#-quick-start)
 - [Usage Examples](#-usage-examples)
+- [Module Architecture](#-module-architecture)
 - [API Reference](#-api-reference)
 - [Troubleshooting](#-troubleshooting)
 - [Contributing](#-contributing)
@@ -54,21 +55,38 @@ Before using the Axionvera SDK, ensure you have the following installed:
 
 ## 📦 Installation
 
+The SDK requires Node.js 18+ and has `@stellar/stellar-sdk` as a peer dependency.
+
 Install the package using your preferred package manager:
 
 **Using npm:**
 ```bash
-npm install axionvera-sdk
+npm install axionvera-sdk @stellar/stellar-sdk
 ```
 
 **Using yarn:**
 ```bash
-yarn add axionvera-sdk
+yarn add axionvera-sdk @stellar/stellar-sdk
 ```
 
 **Using pnpm:**
 ```bash
-pnpm add axionvera-sdk
+pnpm add axionvera-sdk @stellar/stellar-sdk
+```
+
+### TypeScript Configuration
+
+Ensure your `tsconfig.json` has `strict: true` for full type safety:
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  }
+}
 ```
 
 ---
@@ -130,6 +148,34 @@ We provide detailed, runnable examples in the [`examples/`](./examples/) directo
 
 ---
 
+## 🏗️ Module Architecture
+
+The SDK is organized into clear layers to keep concerns separated:
+
+### `src/client/`
+- **`StellarClient`**: Main entry point for Soroban RPC connections
+- **`FaucetClient`**: Automated account funding for test networks
+
+### `src/contracts/`
+- **`VaultContract`**: High-level wrapper for the Axionvera Vault contract
+
+### `src/wallet/`
+- **`WalletConnector`**: Interface for wallet signing
+- **`LocalKeypairWalletConnector`**: Built-in keypair signer for server-side use
+
+### `src/utils/`
+- **`networkConfig`**: Default RPC URLs and network passphrases
+- **`transactionBuilder`**: Helpers to build Soroban contract calls
+- **`concurrencyQueue`**: Rate limiting for high-volume apps
+- **`sep7`**: URI generation for wallet deep-linking
+- **`httpInterceptor`**: Retry logic with exponential backoff
+- **`logger`**: Built-in logging with sensitive data redaction
+
+### `src/errors/`
+- Typed error classes for different failure modes
+
+---
+
 ## 📚 API Reference
 
 For deep architectural details, see the [SDK Overview](./docs/sdk-overview.md) and [Usage Guide](./docs/usage-guide.md). Below is a summary of the core API classes:
@@ -187,12 +233,20 @@ Please read our [Contributing Guidelines](./CONTRIBUTING.md) for details on our 
 
 ### Development Setup
 To set up the project locally for development:
+
 ```bash
 git clone https://github.com/axionvera/axionvera-sdk.git
 cd axionvera-sdk
-npm install
+npm ci
 npm run build
-npm test
+npm run test
+```
+
+For a faster feedback loop during development, run typecheck separately:
+
+```bash
+npm run typecheck
+npm run lint
 ```
 
 ---
