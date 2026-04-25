@@ -171,4 +171,47 @@ describe('Logger', () => {
       expect(logged.length).toBeLessThan(xdrBlob.length + 50); // well shorter than original
     });
   });
+
+  describe('Custom Logger Support', () => {
+    let mockLogger: any;
+
+    beforeEach(() => {
+      mockLogger = {
+        debug: jest.fn(),
+        info: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
+    });
+
+    test('should forward logs to custom logger', () => {
+      const logger = new Logger('debug', undefined, mockLogger);
+      logger.info('test info');
+      logger.error('test error');
+
+      expect(mockLogger.info).toHaveBeenCalledWith('test info');
+      expect(mockLogger.error).toHaveBeenCalledWith('test error');
+      expect(console.info).not.toHaveBeenCalled();
+      expect(console.error).not.toHaveBeenCalled();
+    });
+
+    test('should redact sensitive information before forwarding to custom logger', () => {
+      const logger = new Logger('debug', undefined, mockLogger);
+      logger.debug('API Key: 12345-secret', { token: 'bearer-abc' });
+
+      expect(mockLogger.debug).toHaveBeenCalledWith(
+        'API Key: [REDACTED]',
+        { token: '[REDACTED]' }
+      );
+    });
+
+    test('should respect log level when using custom logger', () => {
+      const logger = new Logger('error', undefined, mockLogger);
+      logger.info('should not log');
+      logger.error('should log');
+
+      expect(mockLogger.info).not.toHaveBeenCalled();
+      expect(mockLogger.error).toHaveBeenCalledWith('should log');
+    });
+  });
 });

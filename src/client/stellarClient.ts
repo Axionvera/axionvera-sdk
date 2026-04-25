@@ -14,7 +14,7 @@ import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInte
 import { normalizeRpcError, normalizeTransactionError, TimeoutError, InsecureNetworkError, AxionveraError, AxionveraRPCError, SimulationFailedError } from "../errors/axionveraError";
 import { WebSocketManager } from "./websocket/websocketManager";
 import { WebSocketConfig } from "./websocket/types";
-import { Logger } from "../utils/logger";
+import { Logger, CustomLogger } from "../utils/logger";
 
 /**
  * Checks if a URL points to a localhost address.
@@ -40,7 +40,8 @@ export type StellarClientOptions = {
   concurrencyConfig?: Partial<ConcurrencyConfig>;
   retryConfig?: Partial<RetryConfig>;
   webSocketConfig?: WebSocketConfig;
-  logger?: Logger;
+  logger?: CustomLogger;
+  logLevel?: 'none' | 'error' | 'warn' | 'info' | 'debug';
   allowHttp?: boolean;
 };
 
@@ -122,7 +123,9 @@ export class StellarClient {
     this.concurrencyEnabled = !!options?.concurrencyConfig;
     this.retryConfig = options?.retryConfig ?? {};
     this.httpClient = createHttpClientWithRetry(this.retryConfig);
-    this.logger = options?.logger ?? new Logger();
+    const level = options?.logLevel ?? (process.env.NODE_ENV === 'test' ? 'debug' : 'info');
+    this.logger = new Logger(level, undefined, options?.logger);
+    this.logger.info(`Initializing StellarClient for ${this.network} at ${this.rpcUrl}`);
 
     // Initialize WebSocket manager if configuration is provided
     if (options?.webSocketConfig) {
@@ -132,6 +135,7 @@ export class StellarClient {
         {
           onEvent: (event) => this.logger.debug('WebSocket event received:', event),
           onConnectionChange: (connected) => this.logger.debug(`WebSocket connection changed: ${connected}`),
+          logger: this.logger,
         }
       );
     }

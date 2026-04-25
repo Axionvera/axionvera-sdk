@@ -19,7 +19,7 @@ import {
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
 import { NetworkError, toAxionveraError, InsecureNetworkError, AxionveraError } from "../errors/axionveraError";
-import { LogLevel, Logger } from "../utils/logger";
+import { LogLevel, Logger, CustomLogger } from "../utils/logger";
 import { WebSocketManager, EventFilter, SorobanEvent, WebSocketConfig } from "./websocket";
 import { CloudWatchConfig } from "../utils/logging/cloudwatch";
 import {
@@ -57,6 +57,7 @@ export type StellarClientOptions = {
   webSocketConfig?: WebSocketConfig;
   cloudWatchConfig?: CloudWatchConfig;
   customHeaders?: Record<string, string>;
+  logger?: CustomLogger;
   allowHttp?: boolean;
 };
 
@@ -148,7 +149,7 @@ export class StellarClient extends BaseStellarRpcClient {
     this.concurrencyEnabled = !!options?.concurrencyConfig;
     this.retryConfig = options?.retryConfig ?? {};
     this.httpClient = createHttpClientWithRetry(this.retryConfig);
-    this.logger = new Logger(options?.logLevel ?? 'none', options?.cloudWatchConfig);
+    this.logger = new Logger(options?.logLevel ?? 'none', options?.cloudWatchConfig, options?.logger);
 
     this.logger.info(`Initializing StellarClient for ${this.network} at ${this.rpcUrl}`);
 
@@ -160,6 +161,7 @@ export class StellarClient extends BaseStellarRpcClient {
         {
           onEvent: (event) => this.logger.debug('WebSocket event received:', event),
           onConnectionChange: (connected) => this.logger.debug(`WebSocket connection changed: ${connected}`),
+          logger: this.logger,
         }
       );
     }
