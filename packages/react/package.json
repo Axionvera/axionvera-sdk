@@ -1,6 +1,6 @@
 {
   "name": "@axionvera/react",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "React hooks for Axionvera SDK.",
   "license": "MIT",
   "main": "./dist/index.js",
@@ -32,7 +32,7 @@
     "react": ">=16.8.0"
   },
   "dependencies": {
-    "@axionvera/core": "workspace:*"
+    "@axionvera/core": "*"
   },
   "devDependencies": {
     "@size-limit/preset-small-lib": "^11.1.6",

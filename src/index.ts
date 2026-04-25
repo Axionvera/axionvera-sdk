@@ -12,6 +12,7 @@ export {
     InsufficientFundsError,
     InvalidSignatureError,
     SimulationError,
+    FaucetRateLimitError,
     toAxionveraError,
     normalizeRpcError,
     normalizeTransactionError,
@@ -21,6 +22,7 @@ export {
 
 // Client
 export { StellarClient } from './client/stellarClient';
+export { FaucetClient } from './client/faucetClient';
 export type { StellarClientOptions } from './client/stellarClient';
 
 // Contracts
@@ -36,9 +38,10 @@ export type { WalletConnector } from './wallet/walletConnector';
 // Utils
 export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
-export { buildContractCallOperation, buildContractCallTransaction, toScVal } from './utils/transactionBuilder';
-export { decodeSorobanSymbol, parseEvents } from './utils/soroban';
+export { buildContractCallOperation, buildContractCallTransaction, buildBaseTransaction, toScVal } from './utils/transactionBuilder';
+export type { BuildBaseTransactionParams } from './utils/transactionBuilder';
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
+export { generateTransactionURI, generatePayURI } from './utils/sep7';
 
 // Testing & MSW
 export * from './test/msw/setup';

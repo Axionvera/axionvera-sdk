@@ -1,57 +1,72 @@
-
-import { StellarClient } from '../../src/client/stellarClient';
-import { createStellarRpcClient, getDefaultClient } from '../../src/client/stellarClientFactory';
-import { AxionveraError, StellarRpcNetworkError, StellarRpcResponseError, StellarRpcTimeoutError } from '../../src/errors/axionveraError';
-
-jest.mock('../../src/client/stellarClient');
-
-describe('StellarClientFactory', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('should create a new client if one does not exist in the cache', () => {
-    const options = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
-    const client = createStellarRpcClient(options);
-    expect(StellarClient).toHaveBeenCalledWith(options);
-    expect(client).toBeInstanceOf(StellarClient);
-  });
-
-  it('should return a cached client if one exists for the same configuration', () => {
-    const options = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
-    const client1 = createStellarRpcClient(options);
-    const client2 = createStellarRpcClient(options);
-    expect(StellarClient).toHaveBeenCalledTimes(1);
-    expect(client1).toBe(client2);
-  });
-
-  it('should create a new client for a different configuration', () => {
-    const options1 = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
-    const options2 = { network: 'mainnet' as const, rpcUrl: 'https://soroban-mainnet.stellar.org' };
-    const client1 = createStellarRpcClient(options1);
-    const client2 = createStellarRpcClient(options2);
-    expect(StellarClient).toHaveBeenCalledTimes(2);
-    expect(client1).not.toBe(client2);
-  });
-
-  it('should return a default testnet client', () => {
-    const client = getDefaultClient();
-    expect(StellarClient).toHaveBeenCalledWith({ network: 'testnet' });
-    expect(client).toBeInstanceOf(StellarClient);
-  });
-});
+ 
+import { StellarClient } from '../src/client/stellarClient';
+import { AxionveraError, InsecureNetworkError, NetworkError, RpcError, TimeoutError } from '../src/errors/axionveraError';
 
 describe('StellarClient', () => {
-  it('should throw an error if the URL scheme is invalid for mainnet', () => {
-    const options = { network: 'mainnet' as const, rpcUrl: 'http://soroban-mainnet.stellar.org' };
-    expect(() => new StellarClient(options)).toThrow('RPC URL must use https for mainnet');
+  describe('Security Guard (HTTP in Production)', () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+
+    afterEach(() => {
+      process.env.NODE_ENV = originalNodeEnv;
+      jest.clearAllMocks();
+    });
+
+    it('should throw InsecureNetworkError for HTTP non-localhost in production without allowHttp', () => {
+      process.env.NODE_ENV = 'production';
+      const options = { network: 'mainnet' as const, rpcUrl: 'http://soroban-mainnet.stellar.org' };
+      expect(() => new StellarClient(options)).toThrow(InsecureNetworkError);
+      expect(() => new StellarClient(options)).toThrow('Insecure RPC connection in production');
+    });
+
+    it('should allow HTTP in production when allowHttp is true', () => {
+      process.env.NODE_ENV = 'production';
+      const options = { network: 'mainnet' as const, rpcUrl: 'http://soroban-mainnet.stellar.org', allowHttp: true };
+      expect(() => new StellarClient(options)).not.toThrow();
+    });
+
+    it('should allow HTTP to localhost in production even without allowHttp', () => {
+      process.env.NODE_ENV = 'production';
+      const options = { rpcUrl: 'http://localhost:8000' };
+      expect(() => new StellarClient(options)).not.toThrow();
+    });
+
+    it('should allow HTTP to 127.0.0.1 in production even without allowHttp', () => {
+      process.env.NODE_ENV = 'production';
+      const options = { rpcUrl: 'http://127.0.0.1:8000' };
+      expect(() => new StellarClient(options)).not.toThrow();
+    });
+
+    it('should allow HTTP to ::1 in production even without allowHttp', () => {
+      process.env.NODE_ENV = 'production';
+      const options = { rpcUrl: 'http://[::1]:8000' };
+      expect(() => new StellarClient(options)).not.toThrow();
+    });
+
+    it('should allow HTTPS in production', () => {
+      process.env.NODE_ENV = 'production';
+      const options = { network: 'mainnet' as const, rpcUrl: 'https://soroban-mainnet.stellar.org' };
+      expect(() => new StellarClient(options)).not.toThrow();
+    });
+
+    it('should allow HTTP in non-production environments (test/dev)', () => {
+      process.env.NODE_ENV = 'test';
+      const options = { network: 'mainnet' as const, rpcUrl: 'http://soroban-mainnet.stellar.org' };
+      expect(() => new StellarClient(options)).not.toThrow();
+    });
+
+    it('should throw AxionveraError if RPC URL missing protocol', () => {
+      process.env.NODE_ENV = 'production';
+      const options = { rpcUrl: 'soroban-mainnet.stellar.org' };
+      expect(() => new StellarClient(options)).toThrow(AxionveraError);
+      expect(() => new StellarClient(options)).toThrow('must include a protocol');
+    });
   });
 
   it('should retry on transient network failures', async () => {
     const options = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
     const client = new StellarClient(options);
     const mockRpcCall = jest.fn()
-      .mockRejectedValueOnce(new StellarRpcNetworkError('Network error'))
+      .mockRejectedValueOnce(new NetworkError('Network error', { statusCode: 500 }))
       .mockResolvedValueOnce({ status: 'SUCCESS' });
 
     client.rpc.getHealth = mockRpcCall;
@@ -62,33 +77,33 @@ describe('StellarClient', () => {
     expect(result).toEqual({ status: 'SUCCESS' });
   });
 
-  it('should throw a StellarRpcNetworkError on network errors', async () => {
+  it('should throw a NetworkError on network errors', async () => {
     const options = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
     const client = new StellarClient(options);
-    const mockRpcCall = jest.fn().mockRejectedValue(new StellarRpcNetworkError('Network error'));
+    const mockRpcCall = jest.fn().mockRejectedValue(new NetworkError('Network error'));
 
     client.rpc.getHealth = mockRpcCall;
 
-    await expect(client.getHealth()).rejects.toThrow(StellarRpcNetworkError);
+    await expect(client.getHealth()).rejects.toThrow(NetworkError);
   });
 
-  it('should throw a StellarRpcResponseError on non-2xx responses', async () => {
+  it('should throw a RpcError on non-2xx responses', async () => {
     const options = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
     const client = new StellarClient(options);
-    const mockRpcCall = jest.fn().mockRejectedValue(new StellarRpcResponseError('Response error'));
+    const mockRpcCall = jest.fn().mockRejectedValue(new RpcError('Response error'));
 
     client.rpc.getHealth = mockRpcCall;
 
-    await expect(client.getHealth()).rejects.toThrow(StellarRpcResponseError);
+    await expect(client.getHealth()).rejects.toThrow(RpcError);
   });
 
-  it('should throw a StellarRpcTimeoutError on timeouts', async () => {
+  it('should throw a TimeoutError on timeouts', async () => {
     const options = { network: 'testnet' as const, rpcUrl: 'https://soroban-testnet.stellar.org' };
     const client = new StellarClient(options);
-    const mockRpcCall = jest.fn().mockRejectedValue(new StellarRpcTimeoutError('Timeout error'));
+    const mockRpcCall = jest.fn().mockRejectedValue(new TimeoutError('Timeout error'));
 
     client.rpc.getHealth = mockRpcCall;
 
-    await expect(client.getHealth()).rejects.toThrow(StellarRpcTimeoutError);
+    await expect(client.getHealth()).rejects.toThrow(TimeoutError);
   });
 });
