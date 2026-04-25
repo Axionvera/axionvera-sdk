@@ -1,6 +1,6 @@
 {
   "name": "axionvera-sdk-monorepo",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "TypeScript SDK for interacting with Axionvera smart contracts on Stellar (Soroban).",
   "license": "MIT",
   "repository": {
