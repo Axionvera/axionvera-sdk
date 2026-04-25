@@ -4,10 +4,61 @@ const fs = require('fs');
 const { build } = require('esbuild');
 const { chromium } = require('playwright');
 
+const repoRoot = path.resolve(__dirname, '..');
 const distPath = path.resolve(__dirname, '../dist/csp-audit');
 const entryPoint = path.resolve(__dirname, '../src/index.ts');
 const port = process.env.CSP_AUDIT_PORT ? Number(process.env.CSP_AUDIT_PORT) : 4321;
 const host = '127.0.0.1';
+
+const unsafePatterns = [
+  { label: 'eval()', regex: /\beval\s*\(/ },
+  { label: 'new Function()', regex: /new Function\s*\(/ },
+  { label: 'Function constructor', regex: /\bFunction\s*\(/ },
+  { label: 'string-based setTimeout()', regex: /\bsetTimeout\s*\(\s*['"`]/ },
+  { label: 'string-based setInterval()', regex: /\bsetInterval\s*\(\s*['"`]/ },
+];
+
+async function collectSourceFiles(dir) {
+  const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+  const files = [];
+
+  for (const entry of entries) {
+    const entryPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      if (['node_modules', 'dist', '.git', '.cache', 'out'].includes(entry.name) || entry.name.startsWith('.')) {
+        continue;
+      }
+      files.push(...await collectSourceFiles(entryPath));
+    } else if (entry.isFile() && /\.(mjs|cjs|js|ts|tsx)$/.test(entry.name)) {
+      files.push(entryPath);
+    }
+  }
+
+  return files;
+}
+
+async function auditUnsafeJsPatterns() {
+  const sourceFiles = await collectSourceFiles(repoRoot);
+  const violations = [];
+
+  for (const file of sourceFiles) {
+    const contents = await fs.promises.readFile(file, 'utf8');
+
+    for (const pattern of unsafePatterns) {
+      if (pattern.regex.test(contents)) {
+        violations.push({ file, rule: pattern.label });
+      }
+    }
+  }
+
+  if (violations.length > 0) {
+    const details = violations
+      .map(v => `- ${v.file}: ${v.rule}`)
+      .join('\n');
+    throw new Error(`Unsafe JavaScript patterns detected:\n${details}`);
+  }
+}
 
 async function buildBundle() {
   await fs.promises.rm(distPath, { recursive: true, force: true });
@@ -107,6 +158,7 @@ function createServer() {
 }
 
 async function runAudit() {
+  await auditUnsafeJsPatterns();
   await buildBundle();
 
   const server = createServer();

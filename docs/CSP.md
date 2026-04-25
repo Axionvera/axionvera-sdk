@@ -10,6 +10,11 @@ Axionvera SDK is designed to be safe for use in high-security banking and fintec
 - The SDK is audited for unsafe JavaScript execution patterns in the repository source.
 - A strict browser-based CSP audit is included in CI to prove runtime compliance.
 
+## How this is audited
+
+1. A static repository scan looks for common unsafe dynamic execution patterns such as `eval()`, `new Function()`, `Function(...)`, and string-based `setTimeout()` / `setInterval()` calls.
+2. The SDK is then built and loaded in a headless Chromium browser under a strict `Content-Security-Policy` that only allows same-origin scripts and approved RPC endpoints.
+
 ## Tested policy
 
 The SDK is verified under a strict Content Security Policy that includes:
