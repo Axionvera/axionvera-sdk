@@ -33,14 +33,33 @@ export class Logger {
 
   /**
    * Recursively redacts sensitive information from messages and objects.
+   * Also truncates large XDR strings to prevent log bloat.
    */
   private redact(message: any): any {
-    const sensitiveKeys = ['authorization', 'api-key', 'apikey', 'secret', 'password', 'token', 'x-api-key', 'privatekey', 'private_key'];
+    const sensitiveKeys = [
+      'authorization', 'api-key', 'apikey',
+      'secret', 'secretkey', 'secret_key', 'secretaccesskey',
+      'passphrase', 'networkpassphrase',
+      'password',
+      'token',
+      'x-api-key',
+      'privatekey', 'private_key',
+    ];
+
+    /** Maximum length before an XDR-like base64 string is truncated in logs. */
+    const XDR_TRUNCATE_LENGTH = 200;
 
     if (typeof message === 'string') {
-      return message
+      let redacted = message
         .replace(/Bearer\s+[a-zA-Z0-9\-\._~+/]+=*/gi, 'Bearer [REDACTED]')
         .replace(/(api[_-]?key|secret[_-]?key|password|token|private[_-]?key)["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_.]+)["']?/gi, '$1: [REDACTED]');
+
+      // Truncate suspiciously large base64/XDR blobs to avoid log bloat
+      if (redacted.length > XDR_TRUNCATE_LENGTH && /^[A-Za-z0-9+/=]+$/.test(redacted.trim())) {
+        redacted = `${redacted.slice(0, XDR_TRUNCATE_LENGTH)}…[TRUNCATED]`;
+      }
+
+      return redacted;
     }
 
     if (typeof message === 'object' && message !== null) {
