@@ -10,6 +10,7 @@ import { StellarClient } from "../client/stellarClient";
 import { WalletConnector } from "../wallet/walletConnector";
 import { TransactionSigner, ContractCallParams } from "../transaction/transactionSigner";
 import { buildContractCallOperation } from "../utils/transactionBuilder";
+import { decodeXdrBase64 } from "../utils/xdrCache";
 
 /**
  * Configuration for the Vault contract wrapper.
@@ -238,9 +239,10 @@ export class VaultContract {
       throw new Error("No result in simulation");
     }
 
-    // Parse the return value (assuming it returns an i128)
+    // Decode only the return value of the first result; cache avoids redundant
+    // XDR parsing when the same account balance is queried multiple times.
     const returnValue = result.xdr;
-    const scVal = xdr.ScVal.fromXDR(returnValue, 'base64');
+    const scVal = decodeXdrBase64(returnValue);
 
     // Convert ScVal to bigint (this is a simplified conversion)
     if (scVal.switch() === xdr.ScValType.scvI128()) {
@@ -312,10 +314,10 @@ export class VaultContract {
       throw new Error("No result in simulation");
     }
 
-    // Parse the complex return value
-    // This is a simplified implementation - actual parsing would depend on the contract's return structure
+    // Decode only the return value of the first result; cache avoids redundant
+    // XDR parsing when vault info is queried repeatedly.
     const returnValue = result.xdr;
-    const _scVal = xdr.ScVal.fromXDR(returnValue, 'base64');
+    const _scVal = decodeXdrBase64(returnValue);
 
     // For now, return mock data - in practice, you'd parse the actual contract response
     return {
