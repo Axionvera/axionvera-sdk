@@ -1,0 +1,98 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: |
+        npm ci
+        cd benchmarks && npm ci
+        
+    - name: Run performance benchmarks
+      run: |
+        cd benchmarks
+        npm run benchmark:ci
+      continue-on-error: true
+      
+    - name: Extract benchmark results
+      id: extract
+      run: |
+        cd benchmarks
+        npm run benchmark:ci > benchmark_output.txt 2>&1 || true
+        
+        # Extract the main parsing benchmark result
+        PARSE_RESULT=$(grep "benchmark_Transaction_fromXDR___Complex_Transactions=" benchmark_output.txt | cut -d'=' -f2 || echo "0")
+        echo "parse_result=$PARSE_RESULT" >> $GITHUB_OUTPUT
+        
+        # Extract total time
+        TOTAL_TIME=$(grep "Total benchmark time:" benchmark_output.txt | grep -o '[0-9.]*' || echo "0")
+        echo "total_time=$TOTAL_TIME" >> $GITHUB_OUTPUT
+        
+        # Check for performance warning
+        if grep -q "WARNING: Transaction parsing below threshold" benchmark_output.txt; then
+          echo "performance_warning=true" >> $GITHUB_OUTPUT
+        else
+          echo "performance_warning=false" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const parseResult = '${{ steps.extract.outputs.parse_result }}';
+          const totalTime = '${{ steps.extract.outputs.total_time }}';
+          const hasWarning = '${{ steps.extract.outputs.performance_warning }}' === 'true';
+          
+          const comment = `
+          ## 🚀 Performance Benchmark Results
+          
+          **Transaction Parsing Performance:** ${parseResult} ops/sec
+          **Total Benchmark Time:** ${totalTime}ms
+          **Performance Status:** ${hasWarning ? '⚠️ **WARNING** - Below threshold' : '✅ **PASS** - Acceptable'}
+          
+          ${hasWarning ? 
+            '### 🚨 Performance Regression Detected!\n\nThis PR may have introduced a performance regression in XDR parsing. Please review the changes and consider optimizing before merging.' : 
+            '### ✅ Performance is acceptable\n\nNo significant performance regression detected.'
+          }
+          
+          ---
+          *This automated benchmark tests XDR parsing performance with 1,000 complex Soroban transactions. If parsing time increases by more than 10%, please review for performance issues.*
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+          
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: benchmark-results
+        path: benchmarks/benchmark_output.txt
+        
+    - name: Fail on performance regression
+      if: steps.extract.outputs.performance_warning == 'true'
+      run: |
+        echo "::error::Performance regression detected! Transaction parsing below threshold."
+        exit 1

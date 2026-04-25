@@ -17,6 +17,7 @@ export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/con
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export { buildContractCallOperation, buildContractCallTransaction, toScVal } from './utils/transactionBuilder';
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
+export * from './utils/xdr-types';
 
 // Transaction Signing
 export { TransactionSigner, EnhancedTransactionBuilder, TransactionSimulator } from './transaction';
