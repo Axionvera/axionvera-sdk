@@ -5,6 +5,9 @@ on:
     branches: [main]
   release:
     types: [published]
+  # Trigger on PRs so the dApp team can install and test a fix before it merges.
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write # To allow semantic-release to create tags/releases
@@ -58,3 +61,42 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npx semantic-release
+
+  # Publishes a canary build on every PR so the dApp team can validate a fix
+  # before it merges.  Install with:  npm install axionvera-sdk@canary
+  # The --tag canary flag prevents it from becoming the default `latest` version.
+  canary-publish:
+    name: Canary Publish (PR #${{ github.event.pull_request.number }})
+    needs: validate
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Stamp canary version
+        # Sets a unique pre-release version derived from the PR number so each
+        # canary is addressable and never collides with a production release.
+        run: |
+          CANARY_VERSION="0.0.0-pr-${{ github.event.pull_request.number }}"
+          echo "Canary version: $CANARY_VERSION"
+          cd packages/core
+          npm version "$CANARY_VERSION" --no-git-tag-version
+
+      - name: Publish canary to NPM
+        # --tag canary  → does NOT update the `latest` dist-tag
+        # --access public → required for scoped packages on the free plan
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd packages/core
+          npm publish --tag canary --access public

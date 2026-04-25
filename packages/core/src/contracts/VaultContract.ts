@@ -8,9 +8,39 @@ import {
 
 import { StellarClient } from "../client/stellarClient";
 import { WalletConnector } from "../wallet/walletConnector";
-import { TransactionSigner, ContractCallParams } from "../transaction/transactionSigner";
-import { buildContractCallOperation } from "../utils/transactionBuilder";
+import { ContractCallParams } from "../transaction/transactionSigner";
 import { decodeXdrBase64 } from "../utils/xdrCache";
+import { SorobanAuthEntry } from "../utils/sorobanAuth";
+import { BaseContract, BaseContractConfig } from "./BaseContract";
+
+// Re-export so consumers never need to import BaseContract separately.
+export { BaseContractConfig };
+
+// ─── Strict argument interfaces ───────────────────────────────────────────────
+// These are the precise shapes passed to the underlying contract methods.
+// Using them (instead of a generic Record) means typos like { amout: 1n }
+// are caught at compile time in the consumer's IDE.
+
+/** Core arguments for the vault `deposit` contract call. */
+export type DepositArgs = {
+  /** Amount of tokens to deposit (i128). */
+  readonly amount: bigint;
+  /** Depositing address; defaults to the wallet's public key when omitted. */
+  readonly from?: string;
+};
+
+/** Core arguments for the vault `withdraw` contract call. */
+export type WithdrawArgs = {
+  /** Amount of tokens to withdraw (i128). */
+  readonly amount: bigint;
+  /** Destination address; defaults to the wallet's public key when omitted. */
+  readonly to?: string;
+};
+
+/** Core arguments for the vault `claim_rewards` contract call (no required fields). */
+export type ClaimArgs = Record<string, never>;
+
+// ─── Extended param types (args + SDK plumbing) ───────────────────────────────
 
 /**
  * Configuration for the Vault contract wrapper.
@@ -27,25 +57,21 @@ export type VaultConfig = {
 /**
  * Parameters for deposit operations.
  */
-export type DepositParams = {
-  /** The amount to deposit */
-  amount: bigint;
-  /** The source account (optional, defaults to wallet public key) */
-  from?: string;
+export type DepositParams = DepositArgs & {
   /** Optional transaction builder to append operation to existing transaction */
   txBuilder?: TransactionBuilder;
+  /** Additional Soroban auth entries for multisig / delegation flows. */
+  authEntries?: SorobanAuthEntry[];
 };
 
 /**
  * Parameters for withdraw operations.
  */
-export type WithdrawParams = {
-  /** The amount to withdraw */
-  amount: bigint;
-  /** The destination account (optional, defaults to wallet public key) */
-  to?: string;
+export type WithdrawParams = WithdrawArgs & {
   /** Optional transaction builder to append operation to existing transaction */
   txBuilder?: TransactionBuilder;
+  /** Additional Soroban auth entries for multisig / delegation flows. */
+  authEntries?: SorobanAuthEntry[];
 };
 
 /**
@@ -54,6 +80,8 @@ export type WithdrawParams = {
 export type ClaimRewardsParams = {
   /** Optional transaction builder to append operation to existing transaction */
   txBuilder?: TransactionBuilder;
+  /** Additional Soroban auth entries for multisig / delegation flows. */
+  authEntries?: SorobanAuthEntry[];
 };
 
 /**
@@ -72,13 +100,19 @@ export type VaultInfo = {
 
 /**
  * High-level wrapper for the Axionvera Vault smart contract.
- * 
- * This class provides a convenient interface for interacting with the Vault contract,
- * handling transaction building, signing, and submission automatically.
- * 
- * Supports composing multiple operations into a single transaction via the optional
- * txBuilder parameter, enabling atomic multi-operation transactions.
- * 
+ *
+ * Extends {@link BaseContract} to inherit the strongly-typed generic
+ * `invokeMethod` helper, which enforces that callers pass the exact
+ * {@link DepositArgs} / {@link WithdrawArgs} / {@link ClaimArgs} shapes —
+ * a typo such as `{ amout: 1n }` is a compile-time error.
+ *
+ * Also supports injecting custom Soroban authorization entries (e.g. for
+ * multisig or delegated-authority dApps) via the `authEntries` option on
+ * every mutating method.
+ *
+ * Supports composing multiple operations into a single transaction via the
+ * optional `txBuilder` parameter, enabling atomic multi-operation transactions.
+ *
  * @example
  * ```typescript
  * const vault = new VaultContract({
@@ -86,124 +120,98 @@ export type VaultInfo = {
  *   contractId: "C...",
  *   wallet
  * });
- * 
+ *
  * // Simple deposit
  * const result = await vault.deposit({ amount: 1000n });
- * 
+ *
+ * // Deposit with a custom admin auth entry (multisig)
+ * const adminAuth = buildSorobanAddressAuthEntry({ ... });
+ * const result = await vault.deposit({ amount: 1000n, authEntries: [adminAuth] });
+ *
  * // Composite transaction: Deposit + Claim Rewards
- * const { buildBaseTransaction } = await import('axionvera-sdk');
- * const account = await client.rpc.getAccount(publicKey);
- * const builder = buildBaseTransaction({
- *   sourceAccount: account,
- *   networkPassphrase: client.networkPassphrase
- * });
- * 
+ * const builder = buildBaseTransaction({ sourceAccount: account, networkPassphrase });
  * await vault.deposit({ amount: 1000n, txBuilder: builder });
  * await vault.claimRewards({ txBuilder: builder });
- * 
  * const tx = builder.build();
- * // Now sign and submit the composite transaction
  * ```
  */
-export class VaultContract {
-  private readonly client: StellarClient;
-  private readonly contractId: string;
-  private readonly wallet: WalletConnector;
-  private readonly transactionSigner: TransactionSigner;
-
+export class VaultContract extends BaseContract {
   /**
    * Creates a new VaultContract instance.
    * @param config - Configuration for the vault contract
    */
   constructor(config: VaultConfig) {
-    this.client = config.client;
-    this.contractId = config.contractId;
-    this.wallet = config.wallet;
-    this.transactionSigner = new TransactionSigner({
-      client: this.client,
-      wallet: this.wallet
-    });
+    super(config);
   }
 
   /**
    * Deposits tokens into the vault.
-   * 
-   * @param params - Deposit parameters
-   * @returns The transaction result, or the transaction builder if txBuilder was provided
+   *
+   * @param params - Deposit parameters (see {@link DepositParams}).
+   * @returns The transaction result, or the transaction builder if txBuilder was provided.
    */
   async deposit(params: DepositParams): Promise<any> {
     const from = params.from ?? await this.wallet.getPublicKey();
 
-    const operation = buildContractCallOperation({
-      contractId: this.contractId,
-      method: "deposit",
-      args: [
-        nativeToScVal(params.amount, { type: "i128" }),
-        new Address(from).toScVal()
-      ]
-    });
-
-    // If txBuilder is provided, append operation and return the builder
-    if (params.txBuilder) {
-      params.txBuilder.addOperation(operation);
-      return params.txBuilder;
-    }
-
-    // Otherwise, build and sign the transaction normally
-    const contractCall: ContractCallParams = {
-      contractId: this.contractId,
-      method: "deposit",
-      args: [
-        nativeToScVal(params.amount, { type: "i128" }),
-        new Address(from).toScVal()
-      ]
-    };
-
-    return await this.transactionSigner.buildAndSignTransaction({
-      sourceAccount: from,
-      operations: [contractCall]
-    });
+    return this.invokeMethod<DepositArgs>(
+      'deposit',
+      { amount: params.amount, from },
+      (args) => [
+        nativeToScVal(args.amount, { type: 'i128' }),
+        new Address(args.from!).toScVal(),
+      ],
+      {
+        txBuilder: params.txBuilder,
+        authEntries: params.authEntries,
+        sourceAccount: from,
+      },
+    );
   }
 
   /**
    * Withdraws tokens from the vault.
-   * 
-   * @param params - Withdraw parameters
-   * @returns The transaction result, or the transaction builder if txBuilder was provided
+   *
+   * @param params - Withdraw parameters (see {@link WithdrawParams}).
+   * @returns The transaction result, or the transaction builder if txBuilder was provided.
    */
   async withdraw(params: WithdrawParams): Promise<any> {
     const to = params.to ?? await this.wallet.getPublicKey();
     const sourceAccount = await this.wallet.getPublicKey();
 
-    const operation = buildContractCallOperation({
-      contractId: this.contractId,
-      method: "withdraw",
-      args: [
-        nativeToScVal(params.amount, { type: "i128" }),
-        new Address(to).toScVal()
-      ]
-    });
+    return this.invokeMethod<WithdrawArgs>(
+      'withdraw',
+      { amount: params.amount, to },
+      (args) => [
+        nativeToScVal(args.amount, { type: 'i128' }),
+        new Address(args.to!).toScVal(),
+      ],
+      {
+        txBuilder: params.txBuilder,
+        authEntries: params.authEntries,
+        sourceAccount,
+      },
+    );
+  }
 
-    // If txBuilder is provided, append operation and return the builder
-    if (params.txBuilder) {
-      params.txBuilder.addOperation(operation);
-      return params.txBuilder;
-    }
+  /**
+   * Claims pending rewards for the caller.
+   *
+   * @param params - Claim rewards parameters (optional).
+   * @returns The transaction result, or the transaction builder if txBuilder was provided.
+   */
+  async claimRewards(params?: ClaimRewardsParams): Promise<any> {
+    const sourceAccount = await this.wallet.getPublicKey();
 
-    // Otherwise, build and sign the transaction normally
-    const contractCall: ContractCallParams = {
-      contractId: this.contractId,
-      method: "withdraw",
-      args: [
-        nativeToScVal(params.amount, { type: "i128" }),
-        new Address(to).toScVal()
-      ]
-    };
-
-    return await this.transactionSigner.buildAndSignTransaction({
-      sourceAccount,
-      operations: [contractCall]
-    });
+    return this.invokeMethod<ClaimArgs>(
+      'claim_rewards',
+      {},
+      () => [],
+      {
+        txBuilder: params?.txBuilder,
+        authEntries: params?.authEntries,
+        sourceAccount,
+      },
+    );
   }
 
   /**
@@ -251,40 +259,6 @@ export class VaultContract {
     }
 
     throw new Error("Unexpected return value type");
-  }
-
-  /**
-   * Claims pending rewards for the caller.
-   * 
-   * @param params - Claim rewards parameters (optional)
-   * @returns The transaction result, or the transaction builder if txBuilder was provided
-   */
-  async claimRewards(params?: ClaimRewardsParams): Promise<any> {
-    const sourceAccount = await this.wallet.getPublicKey();
-
-    const operation = buildContractCallOperation({
-      contractId: this.contractId,
-      method: "claim_rewards",
-      args: []
-    });
-
-    // If txBuilder is provided, append operation and return the builder
-    if (params?.txBuilder) {
-      params.txBuilder.addOperation(operation);
-      return params.txBuilder;
-    }
-
-    // Otherwise, build and sign the transaction normally
-    const contractCall: ContractCallParams = {
-      contractId: this.contractId,
-      method: "claim_rewards",
-      args: []
-    };
-
-    return await this.transactionSigner.buildAndSignTransaction({
-      sourceAccount,
-      operations: [contractCall]
-    });
   }
 
   /**
