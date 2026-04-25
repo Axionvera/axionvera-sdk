@@ -1,7 +1,7 @@
 import { TransactionSigner, SimulationResult, TransactionResult } from '../src/transaction';
 import { StellarClient } from '../src/client/stellarClient';
 import { LocalKeypairWalletConnector } from '../src/wallet/localKeypairWalletConnector';
-import { Keypair } from '@stellar/stellar-sdk';
+import { Account, FeeBumpTransaction, Keypair, Networks, TransactionBuilder } from '@stellar/stellar-sdk';
 
 // Mock dependencies for testing
 jest.mock('../src/client/stellarClient');
@@ -194,21 +194,40 @@ describe('TransactionSigner', () => {
 
   describe('createFeeBumpTransaction', () => {
     it('should create and sign a fee bump transaction', async () => {
-      const mockFeeSourceAccount = {
-        accountId: 'GFEE123456789',
-        sequence: '1'
-      };
+      const source = Keypair.random();
+      const sponsor = Keypair.random();
+      const innerTransaction = new TransactionBuilder(
+        new Account(source.publicKey(), '1'),
+        {
+          fee: '100',
+          networkPassphrase: Networks.TESTNET
+        }
+      )
+        .setTimeout(30)
+        .build();
 
-      mockClient.rpc!.getAccount = jest.fn().mockResolvedValue(mockFeeSourceAccount);
+      innerTransaction.sign(source);
 
       const result = await transactionSigner.createFeeBumpTransaction({
-        innerTransaction: 'inner-xdr',
-        feeSource: 'GFEE123456789',
+        innerTransaction: innerTransaction.toXDR(),
+        feeSource: sponsor.publicKey(),
         baseFee: 100
       });
 
-      expect(result).toBeDefined();
-      expect(mockWallet.signTransaction).toHaveBeenCalled();
+      expect(result).toBe('signed-xdr');
+      expect(mockWallet.signTransaction).toHaveBeenCalledWith(
+        expect.any(String),
+        Networks.TESTNET
+      );
+
+      const [feeBumpEnvelopeXdr] = mockWallet.signTransaction.mock.calls[0];
+      const parsed = TransactionBuilder.fromXDR(feeBumpEnvelopeXdr, Networks.TESTNET);
+      expect(parsed).toBeInstanceOf(FeeBumpTransaction);
+
+      const feeBumpTx = parsed as FeeBumpTransaction;
+      expect(feeBumpTx.feeSource).toBe(sponsor.publicKey());
+      expect(feeBumpTx.signatures).toHaveLength(0);
+      expect(feeBumpTx.innerTransaction.signatures).toHaveLength(1);
     });
   });
 

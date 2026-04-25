@@ -21,7 +21,8 @@ export type { WalletConnector } from './wallet/walletConnector';
 // Utils
 export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
-export { buildContractCallOperation, buildContractCallTransaction, buildContractAuthPayload, toScVal } from './utils/transactionBuilder';
+export { buildContractCallOperation, buildContractCallTransaction, buildContractAuthPayload, bumpTransactionFee, toScVal } from './utils/transactionBuilder';
+export type { BumpTransactionFeeOptions } from './utils/transactionBuilder';
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
 export { generateTransactionURI, generatePayURI } from './utils/sep7';
 export { decodeXdrBase64, clearXdrCache, getXdrCacheSize } from './utils/xdrCache';
