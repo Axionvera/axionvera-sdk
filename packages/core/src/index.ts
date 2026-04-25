@@ -36,6 +36,7 @@ export {
   StellarRpcNetworkError,
   StellarRpcResponseError,
   StellarRpcTimeoutError,
+  TransactionTimeoutError,
   WalletNotInstalledError,
   FaucetRateLimitError,
   toAxionveraError

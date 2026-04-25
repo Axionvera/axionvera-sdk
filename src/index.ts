@@ -9,6 +9,7 @@ export {
     RpcError,
     ContractError,
     TimeoutError,
+    TransactionTimeoutError,
     InsufficientFundsError,
     InvalidSignatureError,
     SimulationError,

@@ -12,7 +12,7 @@ import {
 import { AxionveraNetwork, resolveNetworkConfig } from "../utils/networkConfig";
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
-import { normalizeRpcError, normalizeTransactionError, TimeoutError, InsecureNetworkError, AxionveraError, AxionveraRPCError, SimulationFailedError, ValidationError, toAxionveraError } from "../errors/axionveraError";
+import { normalizeRpcError, normalizeTransactionError, TransactionTimeoutError, InsecureNetworkError, AxionveraError, AxionveraRPCError, SimulationFailedError, ValidationError, toAxionveraError } from "../errors/axionveraError";
 import { WebSocketManager } from "./websocket/websocketManager";
 import { WebSocketConfig } from "./websocket/types";
 import { Logger } from "../utils/logger";
@@ -55,6 +55,13 @@ export type TransactionSendResult = {
   hash: string;
   status: string;
   raw: unknown;
+};
+
+type TransactionResponseRecord = Record<string, unknown>;
+
+export type TransactionPollResult = TransactionResponseRecord & {
+  status: string;
+  ledger: number | null;
 };
 
 /**
@@ -335,26 +342,84 @@ export class StellarClient {
    * @param params.timeoutMs - Maximum time to wait in milliseconds (default: 30000)
    * @param params.intervalMs - Time between polls in milliseconds (default: 1000)
    * @returns The transaction result when it reaches a final state
-   * @throws TimeoutError if the transaction times out
+   * @throws TransactionTimeoutError if the transaction does not reach a final status in time
    */
   async pollTransaction(
     hash: string,
     params?: { timeoutMs?: number; intervalMs?: number }
-  ): Promise<unknown> {
+  ): Promise<TransactionPollResult> {
     const timeoutMs = params?.timeoutMs ?? 30_000;
     const intervalMs = params?.intervalMs ?? 1_000;
-    const deadline = Date.now() + timeoutMs;
 
-    while (Date.now() < deadline) {
-      const res = await this.getTransaction(hash);
-      const status = (res as any)?.status;
-      if (status && status !== "NOT_FOUND") {
-        return res;
-      }
-      await new Promise((r) => setTimeout(r, intervalMs));
-    }
+    validatePollingInterval(timeoutMs, "timeoutMs", true);
+    validatePollingInterval(intervalMs, "intervalMs", false);
 
-    throw new TimeoutError(`Timed out waiting for transaction ${hash} after ${timeoutMs}ms`);
+    return new Promise<TransactionPollResult>((resolve, reject) => {
+      let settled = false;
+      let pollTimer: ReturnType<typeof setTimeout> | undefined;
+
+      const clearTimers = () => {
+        clearTimeout(timeoutTimer);
+        if (pollTimer) {
+          clearTimeout(pollTimer);
+        }
+      };
+
+      const settle = (callback: () => void) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimers();
+        callback();
+      };
+
+      const scheduleNextPoll = () => {
+        if (settled) {
+          return;
+        }
+
+        pollTimer = setTimeout(() => {
+          void pollOnce();
+        }, intervalMs);
+      };
+
+      const timeoutTimer = setTimeout(() => {
+        settle(() => {
+          reject(
+            new TransactionTimeoutError(
+              `Timed out waiting for transaction ${hash} after ${timeoutMs}ms`
+            )
+          );
+        });
+      }, timeoutMs);
+
+      const pollOnce = async () => {
+        try {
+          const res = await this.getTransaction(hash);
+          if (settled) {
+            return;
+          }
+
+          const parsed = parseTransactionPollResult(res);
+          if (parsed.status === "SUCCESS" || parsed.status === "FAILED") {
+            settle(() => resolve(parsed));
+            return;
+          }
+
+          scheduleNextPoll();
+        } catch (error) {
+          if (settled) {
+            return;
+          }
+
+          settle(() => reject(error));
+        }
+      };
+
+      void pollOnce();
+    });
   }
 
   private applyFeeBuffer(tx: Transaction): Transaction {
@@ -504,4 +569,41 @@ function toFraction(multiplier: number): { numerator: bigint; denominator: bigin
     numerator,
     denominator: denominator === BigInt(0) ? BigInt(1) : denominator
   };
+}
+
+function validatePollingInterval(value: number, fieldName: string, allowZero: boolean): void {
+  const valid = Number.isFinite(value) && (allowZero ? value >= 0 : value > 0);
+  if (!valid) {
+    throw new ValidationError(`${fieldName} must be a finite ${allowZero ? "non-negative" : "positive"} number`);
+  }
+}
+
+function parseTransactionPollResult(response: unknown): TransactionPollResult {
+  const record = isRecord(response) ? response : {};
+  const status = typeof record.status === "string" ? record.status : "UNKNOWN";
+
+  return {
+    ...record,
+    status,
+    ledger: normalizeLedger(record.ledger)
+  };
+}
+
+function normalizeLedger(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function isRecord(value: unknown): value is TransactionResponseRecord {
+  return typeof value === "object" && value !== null;
 }
