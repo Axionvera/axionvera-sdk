@@ -57,6 +57,8 @@ export type TransactionBuildParams = {
   timeoutInSeconds?: number;
   /** Memo for the transaction */
   memo?: string;
+
+  onProgress?: (status: string, ledger: number) => void | Promise<void>;
 };
 
 /**
@@ -164,14 +166,14 @@ export class TransactionSigner {
     let simulation: rpc.SimulateTransactionResponse | undefined;
     if (this.autoSimulate) {
       simulation = await this.client.simulateTransaction(transaction);
-      
+
       if (!rpc.Api.isSimulationSuccess(simulation)) {
         throw new Error(`Transaction simulation failed: ${simulation.error}`);
       }
     }
 
     // Prepare the transaction with simulation results
-    const preparedTransaction = simulation 
+    const preparedTransaction = simulation
       ? await this.client.prepareTransaction(transaction, simulation)
       : transaction;
 
@@ -185,7 +187,9 @@ export class TransactionSigner {
     const result = await this.client.sendTransaction(signedXdr);
 
     // Poll for completion
-    const finalResult = await this.client.pollTransaction(result.hash);
+    const finalResult = await this.client.pollTransaction(result.hash, {
+      onProgress: params.onProgress,
+    });
 
     return {
       hash: result.hash,
@@ -205,9 +209,9 @@ export class TransactionSigner {
   async buildTransaction(params: TransactionBuildParams): Promise<Transaction> {
     // Get account information
     const account = await this.client.rpc.getAccount(params.sourceAccount);
-    
+
     // Build operations
-    const operations: Operation[] = params.operations.map(op => 
+    const operations: Operation[] = params.operations.map(op =>
       buildContractCallOperation({
         contractId: op.contractId,
         method: op.method,
@@ -303,9 +307,17 @@ export class TransactionSigner {
    * @param signedXdr - The signed transaction XDR
    * @returns The transaction result
    */
-  async submitSignedTransaction(signedXdr: string): Promise<TransactionResult> {
+  async submitSignedTransaction(
+    signedXdr: string,
+    options?: {
+      onProgress?: (status: string, ledger: number) => void | Promise<void>;
+    }
+  ): Promise<TransactionResult> {
     const result = await this.client.sendTransaction(signedXdr);
-    const finalResult = await this.client.pollTransaction(result.hash);
+
+    const finalResult = await this.client.pollTransaction(result.hash, {
+      onProgress: options?.onProgress,
+    });
 
     return {
       hash: result.hash,
@@ -331,7 +343,7 @@ export class TransactionSigner {
    */
   async estimateOptimalFee(params: TransactionBuildParams): Promise<number> {
     const simulation = await this.simulateTransaction(params);
-    
+
     if (!simulation.success) {
       throw new Error(`Fee estimation failed: ${simulation.error}`);
     }
