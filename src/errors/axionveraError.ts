@@ -61,6 +61,38 @@ export class SimulationError extends AxionveraError { }
 
 export class FaucetRateLimitError extends AxionveraError { }
 
+export class InsecureNetworkError extends AxionveraError { }
+
+export class AxionveraRPCError extends AxionveraError {
+  readonly rpcMethod: string;
+
+  constructor(message: string, rpcMethod: string, options: AxionveraErrorOptions = {}) {
+    super(message, options);
+    this.name = 'AxionveraRPCError';
+    this.rpcMethod = rpcMethod;
+  }
+}
+
+export class SimulationFailedError extends AxionveraError {
+  readonly simulationResult?: unknown;
+
+  constructor(message: string, options: AxionveraErrorOptions & { simulationResult?: unknown } = {}) {
+    super(message, options);
+    this.name = 'SimulationFailedError';
+    this.simulationResult = options.simulationResult;
+  }
+}
+
+export class WalletConnectionError extends AxionveraError {
+  readonly walletType?: string;
+
+  constructor(message: string, options: AxionveraErrorOptions & { walletType?: string } = {}) {
+    super(message, options);
+    this.name = 'WalletConnectionError';
+    this.walletType = options.walletType;
+  }
+}
+
 /**
  * Normalizes RPC errors from Stellar/Soroban RPC responses.
  * @param error - The raw error from RPC call
@@ -78,12 +110,12 @@ export function normalizeRpcError(error: unknown, operation: string): AxionveraE
   // Check for specific RPC error patterns
   if (typeof errorLike.code === 'string') {
     if (errorLike.code.includes('TIMEOUT') || message.toLowerCase().includes('timeout')) {
-      return new TimeoutError(`RPC timeout during ${operation}`, {
+      return new TimeoutError(message, {
         originalError: error
       });
     }
     if (errorLike.code.includes('NETWORK') || message.toLowerCase().includes('network')) {
-      return new NetworkError(`Network error during ${operation}`, {
+      return new NetworkError(message, {
         originalError: error
       });
     }
@@ -143,9 +175,7 @@ export function normalizeContractError(error: unknown, contractId: string, metho
     return error;
   }
 
-  const message = getErrorMessage(error, `Contract call failed: ${method} on ${contractId}`);
-
-  return new ContractError(message, {
+  return new ContractError(`Contract call failed: ${method} on ${contractId}`, {
     originalError: error
   });
 }
