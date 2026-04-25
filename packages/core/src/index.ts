@@ -2,7 +2,7 @@
 export { StellarClient } from './client/stellarClient';
 export { AxionveraClient } from './client/axionveraClient';
 export { FaucetClient } from './client/faucetClient';
-export type { StellarClientOptions } from './client/stellarClient';
+export type { StellarClientOptions, GetContractEventsOptions, GetContractEventsResult, ContractEventResult } from './client/stellarClient';
 export type { AxionveraClientConfig } from './client/axionveraClient';
 
 // Contracts

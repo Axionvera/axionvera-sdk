@@ -4,8 +4,10 @@ import {
   Keypair,
   Networks,
   rpc,
+  scValToNative,
   Transaction,
-  TransactionBuilder
+  TransactionBuilder,
+  xdr
 } from "@stellar/stellar-sdk";
 
 import { AxionveraNetwork, resolveNetworkConfig } from "../utils/networkConfig";
@@ -48,6 +50,25 @@ export type TransactionSendResult = {
   hash: string;
   status: string;
   raw: unknown;
+};
+
+export type GetContractEventsOptions = {
+  startLedger?: number;
+  endLedger?: number;
+  limit?: number;
+  cursor?: string;
+  fetchAll?: boolean;
+  startTime?: Date | string | number | "last24Hours";
+};
+
+export type ContractEventResult = Omit<rpc.Api.EventResponse, "topic" | "value"> & {
+  topic: unknown[];
+  value: unknown;
+};
+
+export type GetContractEventsResult = {
+  events: ContractEventResult[];
+  pagingToken?: string;
 };
 
 /**
@@ -187,6 +208,35 @@ export class StellarClient {
       throw new AxionveraRPCError(
         error instanceof Error ? error.message : 'RPC operation failed: getLatestLedger',
         'getLatestLedger',
+        { originalError: error }
+      );
+    }
+  }
+
+  async getContractEvents(
+    contractId: string,
+    topicFilters?: string[][],
+    options: GetContractEventsOptions = {}
+  ): Promise<GetContractEventsResult> {
+    try {
+      const endLedger = await this.resolveEndLedger(options.endLedger);
+      const startLedger = this.resolveStartLedger(options, endLedger);
+      const normalizedStartLedger = Math.min(startLedger, endLedger);
+      const normalizedEndLedger = Math.max(startLedger, endLedger);
+
+      return await this.fetchContractEventsRange({
+        contractId,
+        topicFilters,
+        startLedger: normalizedStartLedger,
+        endLedger: normalizedEndLedger,
+        limit: options.limit,
+        cursor: options.cursor,
+        fetchAll: options.fetchAll ?? false
+      });
+    } catch (error) {
+      throw new AxionveraRPCError(
+        error instanceof Error ? error.message : 'RPC operation failed: getEvents',
+        'getEvents',
         { originalError: error }
       );
     }
@@ -381,5 +431,199 @@ export class StellarClient {
       queueTimeout: this.concurrencyConfig.queueTimeout,
       message: 'Stats not available from wrapped client'
     };
+  }
+
+  private async resolveEndLedger(providedEndLedger?: number): Promise<number> {
+    if (providedEndLedger !== undefined) {
+      return Math.max(1, providedEndLedger);
+    }
+
+    const latestLedger = await this.getLatestLedger();
+    const sequence = Number((latestLedger as any).sequence);
+    return Number.isFinite(sequence) && sequence > 0 ? sequence : 1;
+  }
+
+  private resolveStartLedger(options: GetContractEventsOptions, endLedger: number): number {
+    if (options.startLedger !== undefined) {
+      return Math.max(1, options.startLedger);
+    }
+
+    if (options.startTime === undefined) {
+      return endLedger;
+    }
+
+    const nowMs = Date.now();
+    const timestampMs = this.resolveStartTimeMs(options.startTime, nowMs);
+    const elapsedMs = Math.max(0, nowMs - timestampMs);
+    const ledgersToRewind = Math.ceil(elapsedMs / 5_000);
+    return Math.max(1, endLedger - ledgersToRewind);
+  }
+
+  private resolveStartTimeMs(startTime: Date | string | number | "last24Hours", nowMs: number): number {
+    if (startTime === 'last24Hours') {
+      return nowMs - 24 * 60 * 60 * 1_000;
+    }
+
+    if (startTime instanceof Date) {
+      return startTime.getTime();
+    }
+
+    if (typeof startTime === 'number') {
+      return startTime;
+    }
+
+    const parsed = Date.parse(startTime);
+    if (!Number.isFinite(parsed)) {
+      throw new AxionveraError(`Invalid startTime value: ${startTime}`);
+    }
+
+    return parsed;
+  }
+
+  private async fetchContractEventsRange(params: {
+    contractId: string;
+    topicFilters?: string[][];
+    startLedger: number;
+    endLedger: number;
+    limit?: number;
+    cursor?: string;
+    fetchAll: boolean;
+  }): Promise<GetContractEventsResult> {
+    let cursor = params.cursor;
+    const events: ContractEventResult[] = [];
+    let pagingToken: string | undefined;
+    const seenPagingTokens = new Set<string>();
+
+    while (true) {
+      try {
+        const response = await retry(() => this.rpc.getEvents(this.buildGetEventsRequest(params, cursor)), this.retryConfig);
+        const pageEvents = Array.isArray((response as any).events)
+          ? ((response as any).events as rpc.Api.EventResponse[])
+          : [];
+
+        events.push(...pageEvents.map((event) => this.decodeContractEvent(event)));
+
+        pagingToken = this.extractPagingToken(response, pageEvents);
+        if (!params.fetchAll || !pagingToken) {
+          return { events, pagingToken };
+        }
+
+        if (seenPagingTokens.has(pagingToken)) {
+          return { events, pagingToken };
+        }
+
+        seenPagingTokens.add(pagingToken);
+
+        cursor = pagingToken;
+      } catch (error) {
+        if (this.isPayloadTooLarge(error) && params.startLedger < params.endLedger) {
+          const midpoint = Math.floor((params.startLedger + params.endLedger) / 2);
+          const firstHalf = await this.fetchContractEventsRange({
+            ...params,
+            endLedger: midpoint,
+            cursor
+          });
+
+          if (!params.fetchAll) {
+            return firstHalf;
+          }
+
+          const secondHalf = await this.fetchContractEventsRange({
+            ...params,
+            startLedger: midpoint + 1,
+            cursor: undefined
+          });
+
+          return {
+            events: [...firstHalf.events, ...secondHalf.events],
+            pagingToken: secondHalf.pagingToken ?? firstHalf.pagingToken
+          };
+        }
+
+        throw error;
+      }
+    }
+  }
+
+  private buildGetEventsRequest(
+    params: {
+      contractId: string;
+      topicFilters?: string[][];
+      startLedger: number;
+      endLedger: number;
+      limit?: number;
+    },
+    cursor?: string
+  ): any {
+    const filter: any = {
+      type: 'contract',
+      contractIds: [params.contractId]
+    };
+
+    if (params.topicFilters && params.topicFilters.length > 0) {
+      filter.topics = params.topicFilters;
+    }
+
+    const request: any = {
+      startLedger: params.startLedger,
+      endLedger: params.endLedger,
+      filters: [filter]
+    };
+
+    if (params.limit !== undefined || cursor !== undefined) {
+      request.pagination = {};
+      if (params.limit !== undefined) {
+        request.pagination.limit = params.limit;
+      }
+      if (cursor !== undefined) {
+        request.pagination.cursor = cursor;
+      }
+    }
+
+    return request;
+  }
+
+  private decodeContractEvent(event: rpc.Api.EventResponse): ContractEventResult {
+    const decodedTopic = Array.isArray((event as any).topic)
+      ? ((event as any).topic as string[]).map((entry) => this.decodeScVal(entry))
+      : [];
+    const decodedValue = typeof (event as any).value === 'string'
+      ? this.decodeScVal((event as any).value)
+      : (event as any).value;
+
+    return {
+      ...(event as any),
+      topic: decodedTopic,
+      value: decodedValue
+    };
+  }
+
+  private decodeScVal(encodedScVal: string): unknown {
+    try {
+      return scValToNative(xdr.ScVal.fromXDR(encodedScVal, 'base64'));
+    } catch {
+      return encodedScVal;
+    }
+  }
+
+  private extractPagingToken(response: unknown, events: rpc.Api.EventResponse[]): string | undefined {
+    const responseToken = (response as any).pagingToken;
+    if (typeof responseToken === 'string' && responseToken.length > 0) {
+      return responseToken;
+    }
+
+    const lastEvent = events[events.length - 1] as any;
+    const eventToken = lastEvent?.pagingToken;
+    if (typeof eventToken === 'string' && eventToken.length > 0) {
+      return eventToken;
+    }
+
+    return undefined;
+  }
+
+  private isPayloadTooLarge(error: unknown): boolean {
+    const statusCode = (error as any)?.response?.status ?? (error as any)?.status;
+    const message = typeof (error as any)?.message === 'string' ? (error as any).message : '';
+    return statusCode === 413 || /payload too large|request entity too large|413/i.test(message);
   }
 }
