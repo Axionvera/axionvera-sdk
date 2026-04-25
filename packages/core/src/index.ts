@@ -14,6 +14,7 @@ export type { ContractEvent, EventCallback } from './contracts/ContractEventEmit
 
 // Wallet
 export { LocalKeypairWalletConnector } from './wallet/localKeypairWalletConnector';
+export { LedgerWalletConnector } from './wallet/ledgerWalletConnector';
 export type { WalletConnector } from './wallet/walletConnector';
 
 // Utils
