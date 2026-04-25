@@ -12,6 +12,7 @@ export {
     InsufficientFundsError,
     InvalidSignatureError,
     SimulationError,
+    WalletNotInstalledError,
     FaucetRateLimitError,
     toAxionveraError,
     normalizeRpcError,
@@ -33,6 +34,7 @@ export type { VaultConfig, DepositParams, WithdrawParams, VaultInfo } from './co
 
 // Wallet
 export { LocalKeypairWalletConnector } from './wallet/localKeypairWalletConnector';
+export { BrowserWalletConnector } from './wallet/browserWalletConnector';
 export type { WalletConnector } from './wallet/walletConnector';
 
 // Utils
