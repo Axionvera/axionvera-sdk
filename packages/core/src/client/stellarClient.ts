@@ -254,26 +254,45 @@ export class StellarClient extends BaseStellarRpcClient {
    */
   async pollTransaction(
     hash: string,
-    params?: { timeoutMs?: number; intervalMs?: number }
+    params?: {
+      timeoutMs?: number;
+      intervalMs?: number;
+      onProgress?: (status: string, ledger: number) => void | Promise<void>;
+    }
   ): Promise<unknown> {
     return this.executeWithErrorHandling(async () => {
       const timeoutMs = params?.timeoutMs ?? 30_000;
       const intervalMs = params?.intervalMs ?? 1_000;
+      const onProgress = params?.onProgress;
+
       const deadline = Date.now() + timeoutMs;
 
       while (Date.now() < deadline) {
         const res = await this.getTransaction(hash);
-        const status = (res as any)?.status;
+
+        const status = (res as any)?.status ?? "UNKNOWN";
+        const ledger = (res as any)?.ledger ?? 0;
+
+        // ✅ NON-BLOCKING progress callback
+        if (onProgress) {
+          Promise.resolve()
+            .then(() => onProgress(status, ledger))
+            .catch((err) => {
+              this.logger.warn("onProgress callback error", err);
+            });
+        }
+
+        // existing exit logic
         if (status && status !== "NOT_FOUND") {
           return res;
         }
+
         await new Promise((r) => setTimeout(r, intervalMs));
       }
 
       throw new NetworkError(`Timed out waiting for transaction ${hash}`);
     }, `Failed while polling transaction ${hash}`);
   }
-
   /**
    * Signs a transaction using a local Keypair.
    * This is a convenience method for local signing without a wallet connector.
