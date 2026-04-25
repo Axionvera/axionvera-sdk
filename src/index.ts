@@ -28,7 +28,7 @@ export {
 // Client
 export { StellarClient } from './client/stellarClient';
 export { FaucetClient } from './client/faucetClient';
-export type { StellarClientOptions } from './client/stellarClient';
+export type { StellarClientOptions, GetContractEventsOptions, GetContractEventsResult, ContractEventResult } from './client/stellarClient';
 
 // Contracts
 export { VaultContract } from './contracts/VaultContract';
