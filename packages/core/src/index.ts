@@ -15,6 +15,7 @@ export type { ContractEvent, EventCallback } from './contracts/ContractEventEmit
 
 // Wallet
 export { LocalKeypairWalletConnector } from './wallet/localKeypairWalletConnector';
+export { BrowserWalletConnector } from './wallet/browserWalletConnector';
 export type { WalletConnector } from './wallet/walletConnector';
 
 // Utils
@@ -35,6 +36,7 @@ export {
   StellarRpcNetworkError,
   StellarRpcResponseError,
   StellarRpcTimeoutError,
+  WalletNotInstalledError,
   FaucetRateLimitError,
   toAxionveraError
 } from './errors/axionveraError';

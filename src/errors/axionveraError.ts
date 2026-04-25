@@ -59,6 +59,8 @@ export class InvalidSignatureError extends AxionveraError { }
 
 export class SimulationError extends AxionveraError { }
 
+export class WalletNotInstalledError extends AxionveraError { }
+
 export class FaucetRateLimitError extends AxionveraError { }
 
 export class InsecureNetworkError extends AxionveraError { }
