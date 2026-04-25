@@ -22,13 +22,7 @@ import { NetworkError, toAxionveraError, InsecureNetworkError, AxionveraError } 
 import { LogLevel, Logger } from "../utils/logger";
 import { WebSocketManager, EventFilter, SorobanEvent, WebSocketConfig } from "./websocket";
 import { CloudWatchConfig } from "../utils/logging/cloudwatch";
-import {
-  FetchTransactionHistoryOptions,
-  TransactionHistoryResult,
-  parseTransaction,
-  sortByTimestamp,
-  filterByActionType
-} from "../utils/transactionHistory";
+// (transaction history helpers intentionally not imported here; keep this client focused on RPC + tx helpers)
 
 /**
  * Checks if a URL points to a localhost address.
@@ -240,10 +234,10 @@ export class StellarClient extends BaseStellarRpcClient {
    */
   async simulateTransaction(
     tx: Transaction | FeeBumpTransaction
-  ): Promise<rpc.Api.SimulateTransactionResponse> {
+  ): Promise<rpc.Api.RawSimulateTransactionResponse> {
     this.logger.debug("Simulating transaction");
     return this.executeWithErrorHandling(
-      () => this.rpc.simulateTransaction(tx),
+      () => this.rpc._simulateTransaction(tx),
       "Failed to simulate transaction"
     );
   }
@@ -261,7 +255,7 @@ export class StellarClient extends BaseStellarRpcClient {
   async simulateRead(
     contractId: string,
     method: string,
-    args?: any[]
+    args?: unknown[]
   ): Promise<xdr.ScVal> {
     this.logger.debug(`Simulating read-only call to ${contractId}.${method}`);
 
@@ -309,28 +303,15 @@ export class StellarClient extends BaseStellarRpcClient {
       // Simulate the transaction
       const simulationResult = await this.rpc.simulateTransaction(tx);
 
-      // Check for simulation errors
-      if (simulationResult.error) {
+      if (rpc.Api.isSimulationError(simulationResult)) {
         throw new NetworkError(`Simulation failed: ${simulationResult.error}`);
       }
 
-      // Extract the result from the simulation
       if (!simulationResult.result) {
-        throw new NetworkError('No result returned from simulation');
+        throw new NetworkError("No invocation result returned from simulation");
       }
 
-      // Return the first (and typically only) result
-      const results = simulationResult.result;
-      if (results.length === 0) {
-        throw new NetworkError('No results returned from simulation');
-      }
-
-      const firstResult = results[0];
-      if (!firstResult) {
-        throw new NetworkError('Empty result returned from simulation');
-      }
-
-      return firstResult;
+      return simulationResult.result.retval;
     }, `Failed to simulate read call to ${contractId}.${method}`);
   }
 
@@ -459,14 +440,14 @@ export class StellarClient extends BaseStellarRpcClient {
    * @param tx - The transaction to serialize (Transaction or FeeBumpTransaction)
    * @returns Base64-encoded JSON string containing transaction XDR, network passphrase, and timeout limits
    */
-  serializeTransaction(tx: Transaction | FeeBumpTransaction): string {
+  serializeTransaction(tx: Transaction): string {
     const serializedData = {
       xdr: tx.toXDR(),
       networkPassphrase: this.networkPassphrase,
-      timeout: tx.timeBounds?.maxTime || null,
-      fee: tx.fee.toString(),
-      sourceAccount: tx.sourceAccount().accountId(),
-      sequence: tx.sequence,
+      timeout: tx.timeBounds?.maxTime ?? null,
+      fee: tx.fee,
+      sourceAccount: (tx as unknown as { sourceAccount: () => { accountId: () => string } }).sourceAccount().accountId(),
+      sequence: (tx as unknown as { sequence: string }).sequence,
       memo: tx.memo ? tx.memo.value : null,
       operations: tx.operations.map((op: any) => ({
         type: op.type,
@@ -678,16 +659,4 @@ export class StellarClient extends BaseStellarRpcClient {
   }
 }
 
-/**
- * Extracts cursor parameter from a URL.
- * @param url - The URL to extract cursor from
- * @returns The cursor value or undefined
- */
-function extractCursor(url: string): string | undefined {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.searchParams.get('cursor') ?? undefined;
-  } catch {
-    return undefined;
-  }
-}
+// (cursor extraction helper removed; was unused)

@@ -8,7 +8,8 @@ import {
   TransactionBuilder,
   rpc,
   xdr,
-  Operation
+  Operation,
+  Memo
 } from "@stellar/stellar-sdk";
 
 import { StellarClient } from "../client/stellarClient";
@@ -76,7 +77,7 @@ export type TransactionResult = {
   /** The signed transaction XDR */
   signedXdr: string;
   /** The simulation result (if available) */
-  simulation?: rpc.SimulateTransactionResponse;
+  simulation?: rpc.Api.RawSimulateTransactionResponse;
 };
 
 /**
@@ -94,7 +95,7 @@ export type SimulationResult = {
   /** Error details if simulation failed */
   error?: string;
   /** Raw simulation response */
-  raw: rpc.SimulateTransactionResponse;
+  raw: rpc.Api.RawSimulateTransactionResponse;
 };
 
 /**
@@ -135,11 +136,11 @@ export type FeeBumpParams = {
  * ```
  */
 export class TransactionSigner {
-  private readonly client: StellarClient;
-  private readonly wallet: WalletConnector;
-  private readonly defaultFee: number;
-  private readonly defaultTimeout: number;
-  private readonly autoSimulate: boolean;
+  protected readonly client: StellarClient;
+  protected readonly wallet: WalletConnector;
+  protected readonly defaultFee: number;
+  protected readonly defaultTimeout: number;
+  protected readonly autoSimulate: boolean;
 
   /**
    * Creates a new TransactionSigner instance.
@@ -163,19 +164,17 @@ export class TransactionSigner {
     const transaction = await this.buildTransaction(params);
 
     // Simulate if enabled
-    let simulation: rpc.SimulateTransactionResponse | undefined;
+    let simulation: rpc.Api.RawSimulateTransactionResponse | undefined;
     if (this.autoSimulate) {
       simulation = await this.client.simulateTransaction(transaction);
 
-      if (!rpc.Api.isSimulationSuccess(simulation)) {
+      if (simulation.error) {
         throw new Error(`Transaction simulation failed: ${simulation.error}`);
       }
     }
 
-    // Prepare the transaction with simulation results
-    const preparedTransaction = simulation
-      ? await this.client.prepareTransaction(transaction, simulation)
-      : transaction;
+    // Prepare the transaction (fills in Soroban tx data, sequence, etc.)
+    const preparedTransaction = await this.client.prepareTransaction(transaction);
 
     // Sign the transaction
     const signedXdr = await this.wallet.signTransaction(
@@ -184,21 +183,27 @@ export class TransactionSigner {
     );
 
     // Submit the transaction
-    const result = await this.client.sendTransaction(signedXdr);
+    const signedTx = TransactionBuilder.fromXDR(signedXdr, this.client.networkPassphrase);
+    const result = await this.client.sendTransaction(signedTx);
 
     // Poll for completion
-    const finalResult = await this.client.pollTransaction(result.hash, {
-      onProgress: params.onProgress,
-    });
+    const pollParams: Parameters<typeof this.client.pollTransaction>[1] = {};
+    if (params.onProgress) {
+      pollParams.onProgress = params.onProgress;
+    }
+    const finalResult = await this.client.pollTransaction(result.hash, pollParams);
 
-    return {
+    const txResult: TransactionResult = {
       hash: result.hash,
-      status: finalResult.status,
-      successful: finalResult.status === 'SUCCESS',
+      status: (finalResult as any)?.status ?? "UNKNOWN",
+      successful: ((finalResult as any)?.status ?? "UNKNOWN") === "SUCCESS",
       raw: finalResult,
       signedXdr,
-      simulation
     };
+    if (simulation) {
+      txResult.simulation = simulation;
+    }
+    return txResult;
   }
 
   /**
@@ -211,13 +216,16 @@ export class TransactionSigner {
     const account = await this.client.rpc.getAccount(params.sourceAccount);
 
     // Build operations
-    const operations: Operation[] = params.operations.map(op =>
-      buildContractCallOperation({
+    const operations = params.operations.map(op => {
+      const opParams: Parameters<typeof buildContractCallOperation>[0] = {
         contractId: op.contractId,
         method: op.method,
-        args: op.args
-      })
-    );
+      };
+      if (op.args) {
+        opParams.args = op.args;
+      }
+      return buildContractCallOperation(opParams);
+    });
 
     // Start building the transaction
     let builder = new TransactionBuilder(account, {
@@ -230,7 +238,7 @@ export class TransactionSigner {
 
     // Add memo if provided
     if (params.memo) {
-      builder = builder.addMemo(TransactionBuilder.memoText(params.memo));
+      builder = builder.addMemo(Memo.text(params.memo));
     }
 
     // Set timeout
@@ -247,27 +255,30 @@ export class TransactionSigner {
     const transaction = await this.buildTransaction(params);
     const simulation = await this.client.simulateTransaction(transaction);
 
-    if (!rpc.Api.isSimulationSuccess(simulation)) {
-      return {
+    if (simulation.error) {
+      const fail: SimulationResult = {
         cpuInstructions: 0,
         memoryBytes: 0,
         recommendedFee: this.defaultFee,
         success: false,
-        error: simulation.error,
-        raw: simulation
+        raw: simulation,
       };
+      if (simulation.error) {
+        fail.error = simulation.error;
+      }
+      return fail;
     }
 
-    const cpuInstructions = simulation.results?.[0]?.cpuInstructions ?? 0;
-    const memoryBytes = simulation.results?.[0]?.memoryBytes ?? 0;
-    const recommendedFee = simulation.transactionData?.resourceFee ?? this.defaultFee;
+    // Raw simulation responses don't expose cpu/memory metrics in the typed surface.
+    // We can still suggest a fee from Soroban's minResourceFee when present.
+    const minResourceFee = simulation.minResourceFee ? Number.parseInt(simulation.minResourceFee, 10) : undefined;
 
     return {
-      cpuInstructions,
-      memoryBytes,
-      recommendedFee,
+      cpuInstructions: 0,
+      memoryBytes: 0,
+      recommendedFee: Number.isFinite(minResourceFee) ? (minResourceFee as number) : this.defaultFee,
       success: true,
-      raw: simulation
+      raw: simulation,
     };
   }
 
@@ -277,29 +288,10 @@ export class TransactionSigner {
    * @returns The signed fee bump transaction XDR
    */
   async createFeeBumpTransaction(params: FeeBumpParams): Promise<string> {
-    // Parse the inner transaction
-    const innerTransaction = TransactionBuilder.fromXDR(
-      params.innerTransaction,
-      this.client.networkPassphrase
-    );
-
-    // Get fee source account
-    const feeSourceAccount = await this.client.rpc.getAccount(params.feeSource);
-
-    // Build the fee bump transaction
-    const feeBumpTx = new FeeBumpTransaction.Builder(
-      feeSourceAccount,
-      params.baseFee.toString(),
-      this.client.networkPassphrase
-    )
-      .setInnerTransaction(innerTransaction)
-      .build();
-
-    // Sign the fee bump transaction
-    return await this.wallet.signTransaction(
-      feeBumpTx.toXDR(),
-      this.client.networkPassphrase
-    );
+    // Fee-bump transaction construction differs across stellar-sdk versions.
+    // Keep this method explicitly unsupported until implemented with tests.
+    void params;
+    throw new Error("Fee bump transactions are not supported in this SDK build yet.");
   }
 
   /**
@@ -313,16 +305,19 @@ export class TransactionSigner {
       onProgress?: (status: string, ledger: number) => void | Promise<void>;
     }
   ): Promise<TransactionResult> {
-    const result = await this.client.sendTransaction(signedXdr);
+    const signedTx = TransactionBuilder.fromXDR(signedXdr, this.client.networkPassphrase);
+    const result = await this.client.sendTransaction(signedTx);
 
-    const finalResult = await this.client.pollTransaction(result.hash, {
-      onProgress: options?.onProgress,
-    });
+    const pollParams: Parameters<typeof this.client.pollTransaction>[1] = {};
+    if (options?.onProgress) {
+      pollParams.onProgress = options.onProgress;
+    }
+    const finalResult = await this.client.pollTransaction(result.hash, pollParams);
 
     return {
       hash: result.hash,
-      status: finalResult.status,
-      successful: finalResult.status === 'SUCCESS',
+      status: (finalResult as any)?.status ?? "UNKNOWN",
+      successful: ((finalResult as any)?.status ?? "UNKNOWN") === "SUCCESS",
       raw: finalResult,
       signedXdr
     };

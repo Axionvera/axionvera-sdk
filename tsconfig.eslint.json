@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "packages/*/dist"
+  ],
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "packages/*/src/**/*.ts",
+    "packages/*/src/**/*.test.ts",
+    "packages/*/src/**/*.spec.ts",
+    "packages/*/tests/**/*.ts",
+    "packages/*/*.ts",
+    ".eslintrc.cjs",
+    "tsup.config.ts",
+    "packages/*/tsup.config.ts"
+  ]
+}
+
