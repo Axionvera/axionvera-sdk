@@ -1,4 +1,4 @@
-[**Axionvera SDK v0.1.0**](../README.md)
+[**Axionvera SDK v1.0.0**](../README.md)
 
 ***
 
@@ -6,7 +6,7 @@
 
 # Class: StellarClient
 
-Defined in: [client/stellarClient.ts:42](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L42)
+Defined in: [src/client/stellarClient.ts:67](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L67)
 
 RPC gateway for interacting with Soroban networks.
 
@@ -28,7 +28,7 @@ const health = await client.getHealth();
 
 > **new StellarClient**(`options?`): `StellarClient`
 
-Defined in: [client/stellarClient.ts:60](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L60)
+Defined in: [src/client/stellarClient.ts:93](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L93)
 
 Creates a new StellarClient instance.
 
@@ -36,7 +36,7 @@ Creates a new StellarClient instance.
 
 ##### options?
 
-`StellarClientOptions`
+[`StellarClientOptions`](../type-aliases/StellarClientOptions.md)
 
 Configuration options
 
@@ -46,21 +46,51 @@ Configuration options
 
 ## Properties
 
+### concurrencyConfig
+
+> `readonly` **concurrencyConfig**: `ConcurrencyConfig`
+
+Defined in: [src/client/stellarClient.ts:81](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L81)
+
+The effective concurrency configuration after merging with defaults.
+
+***
+
+### concurrencyEnabled
+
+> `readonly` **concurrencyEnabled**: `boolean`
+
+Defined in: [src/client/stellarClient.ts:83](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L83)
+
+Whether concurrency control is enabled.
+
+***
+
 ### httpClient
 
 > `readonly` **httpClient**: `AxiosInstance`
 
-Defined in: [client/stellarClient.ts:52](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L52)
+Defined in: [src/client/stellarClient.ts:77](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L77)
 
 The HTTP client with retry interceptors.
 
 ***
 
+### logger
+
+> `readonly` **logger**: `Logger`
+
+Defined in: [src/client/stellarClient.ts:87](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L87)
+
+Logger instance for debugging and monitoring.
+
+***
+
 ### network
 
-> `readonly` **network**: [`AxionveraNetwork`](../type-aliases/AxionveraNetwork.md)
+> `readonly` **network**: `AxionveraNetwork`
 
-Defined in: [client/stellarClient.ts:44](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L44)
+Defined in: [src/client/stellarClient.ts:69](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L69)
 
 The network this client is connected to.
 
@@ -70,7 +100,7 @@ The network this client is connected to.
 
 > `readonly` **networkPassphrase**: `string`
 
-Defined in: [client/stellarClient.ts:48](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L48)
+Defined in: [src/client/stellarClient.ts:73](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L73)
 
 The network passphrase for transaction signing.
 
@@ -78,9 +108,9 @@ The network passphrase for transaction signing.
 
 ### retryConfig
 
-> `readonly` **retryConfig**: `Partial`\<[`RetryConfig`](../type-aliases/RetryConfig.md)\>
+> `readonly` **retryConfig**: `Partial`\<`RetryConfig`\>
 
-Defined in: [client/stellarClient.ts:54](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L54)
+Defined in: [src/client/stellarClient.ts:79](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L79)
 
 The effective retry configuration after merging with defaults.
 
@@ -90,7 +120,7 @@ The effective retry configuration after merging with defaults.
 
 > `readonly` **rpc**: `RpcServer`
 
-Defined in: [client/stellarClient.ts:50](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L50)
+Defined in: [src/client/stellarClient.ts:75](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L75)
 
 The underlying RPC server instance.
 
@@ -100,9 +130,19 @@ The underlying RPC server instance.
 
 > `readonly` **rpcUrl**: `string`
 
-Defined in: [client/stellarClient.ts:46](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L46)
+Defined in: [src/client/stellarClient.ts:71](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L71)
 
 The RPC URL this client uses.
+
+***
+
+### webSocketManager?
+
+> `readonly` `optional` **webSocketManager?**: `WebSocketManager`
+
+Defined in: [src/client/stellarClient.ts:85](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L85)
+
+WebSocket manager for real-time event subscriptions.
 
 ## Methods
 
@@ -110,7 +150,7 @@ The RPC URL this client uses.
 
 > **getAccount**(`publicKey`): `Promise`\<`Account`\>
 
-Defined in: [client/stellarClient.ts:109](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L109)
+Defined in: [src/client/stellarClient.ts:201](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L201)
 
 Retrieves an account's information from the network.
 Automatically retries on failure.
@@ -131,18 +171,32 @@ The account information
 
 ***
 
+### getConcurrencyStats()
+
+> **getConcurrencyStats**(): `any`
+
+Defined in: [src/client/stellarClient.ts:362](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L362)
+
+Get concurrency control statistics
+
+#### Returns
+
+`any`
+
+***
+
 ### getHealth()
 
-> **getHealth**(): `Promise`\<`unknown`\>
+> **getHealth**(): `Promise`\<`GetHealthResponse`\>
 
-Defined in: [client/stellarClient.ts:81](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L81)
+Defined in: [src/client/stellarClient.ts:159](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L159)
 
 Checks the health of the RPC server.
 Automatically retries on failure.
 
 #### Returns
 
-`Promise`\<`unknown`\>
+`Promise`\<`GetHealthResponse`\>
 
 The health check response
 
@@ -150,35 +204,25 @@ The health check response
 
 ### getLatestLedger()
 
-> **getLatestLedger**(): `Promise`\<`unknown`\>
+> **getLatestLedger**(): `Promise`\<`GetLatestLedgerResponse`\>
 
-Defined in: [client/stellarClient.ts:99](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L99)
-
-Gets the latest ledger sequence number.
-Automatically retries on failure.
+Defined in: [src/client/stellarClient.ts:183](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L183)
 
 #### Returns
 
-`Promise`\<`unknown`\>
-
-The latest ledger info
+`Promise`\<`GetLatestLedgerResponse`\>
 
 ***
 
 ### getNetwork()
 
-> **getNetwork**(): `Promise`\<`unknown`\>
+> **getNetwork**(): `Promise`\<`GetNetworkResponse`\>
 
-Defined in: [client/stellarClient.ts:90](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L90)
-
-Retrieves the network configuration from the RPC server.
-Automatically retries on failure.
+Defined in: [src/client/stellarClient.ts:171](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L171)
 
 #### Returns
 
-`Promise`\<`unknown`\>
-
-The network configuration
+`Promise`\<`GetNetworkResponse`\>
 
 ***
 
@@ -186,7 +230,7 @@ The network configuration
 
 > **getTransaction**(`hash`): `Promise`\<`unknown`\>
 
-Defined in: [client/stellarClient.ts:153](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L153)
+Defined in: [src/client/stellarClient.ts:285](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L285)
 
 Retrieves the status of a submitted transaction.
 Automatically retries on failure.
@@ -211,7 +255,7 @@ The transaction status response
 
 > **pollTransaction**(`hash`, `params?`): `Promise`\<`unknown`\>
 
-Defined in: [client/stellarClient.ts:166](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L166)
+Defined in: [src/client/stellarClient.ts:298](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L298)
 
 Polls for a transaction to be confirmed or rejected.
 
@@ -247,7 +291,7 @@ The transaction result when it reaches a final state
 
 #### Throws
 
-Error if the transaction times out
+TimeoutError if the transaction times out
 
 ***
 
@@ -255,7 +299,7 @@ Error if the transaction times out
 
 > **prepareTransaction**(`tx`): `Promise`\<`Transaction`\<`Memo`\<`MemoType`\>, `Operation`[]\>\>
 
-Defined in: [client/stellarClient.ts:131](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L131)
+Defined in: [src/client/stellarClient.ts:235](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L235)
 
 Prepares a transaction by fetching the current ledger sequence
 and setting the correct min sequence age.
@@ -280,7 +324,7 @@ The prepared transaction
 
 > **sendTransaction**(`tx`): `Promise`\<`TransactionSendResult`\>
 
-Defined in: [client/stellarClient.ts:140](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L140)
+Defined in: [src/client/stellarClient.ts:244](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L244)
 
 Submits a signed transaction to the network.
 
@@ -304,7 +348,7 @@ The submission result containing hash and status
 
 > **signWithKeypair**(`tx`, `keypair`): `Promise`\<`Transaction`\<`Memo`\<`MemoType`\>, `Operation`[]\>\>
 
-Defined in: [client/stellarClient.ts:193](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L193)
+Defined in: [src/client/stellarClient.ts:325](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L325)
 
 Signs a transaction using a local Keypair.
 This is a convenience method for local signing without a wallet connector.
@@ -335,7 +379,7 @@ The signed transaction
 
 > **simulateTransaction**(`tx`): `Promise`\<`SimulateTransactionResponse`\>
 
-Defined in: [client/stellarClient.ts:119](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L119)
+Defined in: [src/client/stellarClient.ts:211](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L211)
 
 Simulates a transaction without submitting it.
 This is useful for testing transaction validity and getting expected costs.
@@ -360,7 +404,7 @@ The simulation result
 
 > `static` **getDefaultNetworkPassphrase**(`network`): `string`
 
-Defined in: [client/stellarClient.ts:216](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L216)
+Defined in: [src/client/stellarClient.ts:348](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L348)
 
 Gets the default network passphrase for a given network.
 
@@ -368,7 +412,7 @@ Gets the default network passphrase for a given network.
 
 ##### network
 
-[`AxionveraNetwork`](../type-aliases/AxionveraNetwork.md)
+`AxionveraNetwork`
 
 The network ("testnet" or "mainnet")
 
@@ -384,7 +428,7 @@ The corresponding network passphrase
 
 > `static` **parseTransactionXdr**(`transactionXdr`, `networkPassphrase`): `Transaction`\<`Memo`\<`MemoType`\>, `Operation`[]\> \| `FeeBumpTransaction`
 
-Defined in: [client/stellarClient.ts:204](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/client/stellarClient.ts#L204)
+Defined in: [src/client/stellarClient.ts:336](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/client/stellarClient.ts#L336)
 
 Parses a base64-encoded transaction XDR string.
 

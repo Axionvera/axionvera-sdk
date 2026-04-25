@@ -194,6 +194,11 @@ The SDK is organized into clear layers to keep concerns separated:
 
 ## 📚 API Reference
 
+The SDK's API documentation is automatically generated from JSDoc comments using TypeDoc and deployed to GitHub Pages on every push to the main branch.
+
+- **Live API Docs**: [https://axionvera.github.io/axionvera-sdk/](https://axionvera.github.io/axionvera-sdk/)
+- **Generate Locally**: Run `npm run docs` to generate documentation in the `docs/api` directory
+
 For deep architectural details, see the [SDK Overview](./docs/sdk-overview.md) and [Usage Guide](./docs/usage-guide.md). Below is a summary of the core API classes:
 
 ### `StellarClient`

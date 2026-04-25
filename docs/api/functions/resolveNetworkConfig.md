@@ -1,4 +1,4 @@
-[**Axionvera SDK v0.1.0**](../README.md)
+[**Axionvera SDK v1.0.0**](../README.md)
 
 ***
 
@@ -6,9 +6,9 @@
 
 # Function: resolveNetworkConfig()
 
-> **resolveNetworkConfig**(`input?`): [`NetworkConfig`](../type-aliases/NetworkConfig.md)
+> **resolveNetworkConfig**(`input?`): `NetworkConfig`
 
-Defined in: [utils/networkConfig.ts:54](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/utils/networkConfig.ts#L54)
+Defined in: [src/utils/networkConfig.ts:57](https://github.com/1sraeliteX/axionvera-sdk/blob/main/src/utils/networkConfig.ts#L57)
 
 Resolves network configuration from input options.
 Fills in defaults for any missing values.
@@ -21,7 +21,7 @@ Optional network configuration overrides
 
 #### network?
 
-[`AxionveraNetwork`](../type-aliases/AxionveraNetwork.md)
+`AxionveraNetwork`
 
 #### networkPassphrase?
 
@@ -33,6 +33,6 @@ Optional network configuration overrides
 
 ## Returns
 
-[`NetworkConfig`](../type-aliases/NetworkConfig.md)
+`NetworkConfig`
 
 The resolved network configuration

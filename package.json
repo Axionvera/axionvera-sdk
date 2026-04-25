@@ -34,7 +34,7 @@
     "typecheck": "npm run typecheck --workspaces",
     "lint": "npm run lint --workspaces",
     "test": "jest",
-    "docs": "typedoc",
+    "docs": "node_modules/.bin/typedoc --skipErrorChecking",
     "start": "npm run build --workspaces",
     "size": "size-limit",
     "release:dry-run": "semantic-release --dry-run",    "csp-audit": "node ./scripts/csp-audit.js",    "dev": "npm run build --workspaces -- --watch"
