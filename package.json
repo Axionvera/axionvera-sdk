@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "TypeScript SDK for interacting with Axionvera smart contracts on Stellar (Soroban).",
   "license": "MIT",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/axionvera/axionvera-sdk.git"
