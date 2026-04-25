@@ -12,6 +12,7 @@ import { AxionveraNetwork, resolveNetworkConfig } from "../utils/networkConfig";
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
 import { normalizeRpcError, normalizeTransactionError, TimeoutError, InsecureNetworkError, AxionveraError, AxionveraRPCError, SimulationFailedError } from "../errors/axionveraError";
+import { ContractEventEmitter } from "../contracts/ContractEventEmitter";
 import { WebSocketManager } from "./websocket/websocketManager";
 import { WebSocketConfig } from "./websocket/types";
 import { Logger, CustomLogger } from "../utils/logger";
@@ -86,6 +87,8 @@ export class StellarClient {
   readonly webSocketManager?: WebSocketManager;
   /** Logger instance for debugging and monitoring. */
   readonly logger: Logger;
+  /** Active contract event emitters created by this client. */
+  private readonly eventEmitters = new Set<ContractEventEmitter>();
 
   /**
    * Creates a new StellarClient instance.
@@ -385,5 +388,54 @@ export class StellarClient {
       queueTimeout: this.concurrencyConfig.queueTimeout,
       message: 'Stats not available from wrapped client'
     };
+  }
+
+  /**
+   * Subscribe to contract events by polling Soroban RPC.
+   * Returned emitters should be closed when no longer needed.
+   */
+  subscribeToEvents(
+    contractId: string,
+    topics: string[] = [],
+    pollingIntervalMs = 5000
+  ): ContractEventEmitter {
+    let emitter: ContractEventEmitter;
+    emitter = new ContractEventEmitter(
+      this,
+      contractId,
+      topics,
+      pollingIntervalMs,
+      () => {
+        this.eventEmitters.delete(emitter);
+      }
+    );
+
+    this.eventEmitters.add(emitter);
+    emitter.start();
+    return emitter;
+  }
+
+  /**
+   * Stop and release all contract event emitters created by this client.
+   */
+  removeAllListeners(): void {
+    for (const emitter of this.eventEmitters) {
+      emitter.close();
+    }
+    this.eventEmitters.clear();
+    if (this.webSocketManager) {
+      this.webSocketManager.disconnect();
+    }
+  }
+
+  /**
+   * Cleanup all asynchronous resources owned by this client.
+   */
+  async cleanup(): Promise<void> {
+    this.removeAllListeners();
+    if (this.webSocketManager) {
+      this.webSocketManager.disconnect();
+    }
+    await this.logger.destroy();
   }
 }

@@ -33,9 +33,12 @@ export type { LogLevel, CustomLogger } from './utils/logger';
 
 // Contracts
 export { VaultContract } from './contracts/VaultContract';
+export { ContractEventEmitter } from './contracts/ContractEventEmitter';
 export { Vault } from './contracts/Vault';
 export { VaultABI } from './contracts/abis/VaultABI';
 export type { VaultConfig, DepositParams, WithdrawParams, VaultInfo } from './contracts/Vault';
+export type { ContractEvent, ContractEventCallback } from './contracts/ContractEventEmitter';
+export type { ContractEventCallback as EventCallback } from './contracts/ContractEventEmitter';
 
 // Wallet
 export { LocalKeypairWalletConnector } from './wallet/localKeypairWalletConnector';
