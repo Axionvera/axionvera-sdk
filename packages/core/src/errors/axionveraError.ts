@@ -55,6 +55,16 @@ export class WalletNotInstalledError extends AxionveraError {}
 
 export class FaucetRateLimitError extends AxionveraError {}
 
+export class InvalidSignatureError extends AxionveraError {
+  constructor(
+    message: string = 'Webhook signature verification failed',
+    options: AxionveraErrorOptions = {}
+  ) {
+    super(message, options);
+    this.name = 'InvalidSignatureError';
+  }
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
