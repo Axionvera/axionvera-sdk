@@ -25,6 +25,7 @@ export { buildContractCallOperation, buildContractCallTransaction, buildContract
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
 export { generateTransactionURI, generatePayURI } from './utils/sep7';
 export { decodeXdrBase64, clearXdrCache, getXdrCacheSize } from './utils/xdrCache';
+export { verifyWebhookSignature } from './utils/webhooks';
 
 // Errors
 export { 
@@ -38,6 +39,7 @@ export {
   StellarRpcTimeoutError,
   WalletNotInstalledError,
   FaucetRateLimitError,
+  InvalidSignatureError,
   toAxionveraError
 } from './errors/axionveraError';
 
