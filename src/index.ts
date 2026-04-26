@@ -17,6 +17,7 @@ export {
     InsecureNetworkError,
     AxionveraRPCError,
     SimulationFailedError,
+    SlippageToleranceExceededError,
     WalletConnectionError,
     toAxionveraError,
     normalizeRpcError,

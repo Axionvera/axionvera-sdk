@@ -85,6 +85,29 @@ export class SimulationFailedError extends AxionveraError {
   }
 }
 
+export class SlippageToleranceExceededError extends AxionveraError {
+  readonly expected: bigint;
+  readonly actual: bigint;
+  readonly tolerance: bigint;
+
+  constructor(
+    expected: bigint,
+    actual: bigint,
+    tolerance: bigint,
+    options: AxionveraErrorOptions = {}
+  ) {
+    super(
+      `Slippage tolerance exceeded: expected at least ${expected} shares, ` +
+      `but simulation returned ${actual}. Tolerance was ${tolerance}.`,
+      options
+    );
+    this.name = 'SlippageToleranceExceededError';
+    this.expected = expected;
+    this.actual = actual;
+    this.tolerance = tolerance;
+  }
+}
+
 export class WalletConnectionError extends AxionveraError {
   readonly walletType?: string;
 

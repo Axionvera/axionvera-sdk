@@ -38,6 +38,7 @@ export {
   StellarRpcTimeoutError,
   WalletNotInstalledError,
   FaucetRateLimitError,
+  SlippageToleranceExceededError,
   toAxionveraError
 } from './errors/axionveraError';
 
