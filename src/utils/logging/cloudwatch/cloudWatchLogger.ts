@@ -4,6 +4,7 @@ interface CloudWatchLogsClient {
   createLogGroup(params: any): Promise<any>;
   createLogStream(params: any): Promise<any>;
   putLogEvents(params: any): Promise<any>;
+  send(command: any): Promise<any>;
 }
 
 export class CloudWatchLogger {
@@ -21,8 +22,8 @@ export class CloudWatchLogger {
       logGroupName: config.logGroupName,
       logStreamName: config.logStreamName || `axionvera-sdk-${Date.now()}`,
       region: config.region || 'us-east-1',
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
+      accessKeyId: config.accessKeyId || '',
+      secretAccessKey: config.secretAccessKey || '',
       batchSize: config.batchSize || 100,
       flushIntervalMs: config.flushIntervalMs || 5000,
       maxRetries: config.maxRetries || 3,
@@ -47,7 +48,7 @@ export class CloudWatchLogger {
         };
       }
 
-      this.client = new CloudWatchLogsClient(clientConfig);
+      this.client = new CloudWatchLogsClient(clientConfig) as any;
 
       // Ensure log group exists
       await this.ensureLogGroup();
@@ -176,7 +177,7 @@ export class CloudWatchLogger {
         });
         
         const response = await this.client!.send(command);
-        const stream = response.logStreams?.find(s => s.logStreamName === this.config.logStreamName);
+        const stream = response.logStreams?.find((s: any) => s.logStreamName === this.config.logStreamName);
         
         if (stream?.uploadSequenceToken) {
           params.sequenceToken = stream.uploadSequenceToken;

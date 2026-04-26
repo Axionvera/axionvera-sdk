@@ -33,7 +33,7 @@
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "lint": "npm run lint --workspaces",
-    "test": "jest",
+    "test": "jest --config jest.config.js",
     "docs": "typedoc",
     "start": "npm run build --workspaces",
     "size": "size-limit",
@@ -100,3 +100,4 @@
     "@aws-sdk/client-cloudwatch-logs": "^3.1037.0"
   }
 }
+

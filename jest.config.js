@@ -15,5 +15,6 @@ module.exports = {
       lines: 85
     }
   },
+  setupFilesAfterEnv: ['<rootDir>/tests/mocks/setup.ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/']
 };
