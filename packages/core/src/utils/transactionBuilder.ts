@@ -1,4 +1,14 @@
-import { createHash } from 'crypto';
+// Node.js core module imports
+// Note: In React Native, these must be polyfilled. See REACT_NATIVE.md for instructions.
+let createHash: any;
+try {
+  // Use dynamic require to prevent instant crash on some bundlers
+  // if 'crypto' is not available at load time.
+  createHash = require('crypto').createHash;
+} catch (e) {
+  // Fallback will be handled in the hash() function
+}
+
 import {
   Account,
   Address,
@@ -154,5 +164,18 @@ export function buildContractAuthPayload(
  * @returns The 32-byte hash buffer
  */
 function hash(data: Buffer): Buffer {
-  return createHash('sha256').update(data).digest();
+  if (typeof createHash === 'function') {
+    return createHash('sha256').update(data).digest();
+  }
+  
+  // Fallback for environments where crypto might be global but not requireable
+  if (typeof global !== 'undefined' && (global as any).crypto && (global as any).crypto.createHash) {
+    return (global as any).crypto.createHash('sha256').update(data).digest();
+  }
+
+  throw new Error(
+    "Crypto implementation not found. If you are using React Native, " +
+    "please follow the polyfill instructions in REACT_NATIVE.md to enable Node.js core modules."
+  );
 }
+
