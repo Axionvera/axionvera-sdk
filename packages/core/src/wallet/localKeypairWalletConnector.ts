@@ -17,17 +17,17 @@ export class LocalKeypairWalletConnector implements WalletConnector {
   }
 
   /** @inheritdoc */
-  async getPublicKey(): Promise<string> {
-    return this.keypair.publicKey();
+  getPublicKey(): Promise<string> {
+    return Promise.resolve(this.keypair.publicKey());
   }
 
   /** @inheritdoc */
-  async signTransaction(
+  signTransaction(
     transactionXdr: string,
     networkPassphrase: string
   ): Promise<string> {
     const tx = TransactionBuilder.fromXDR(transactionXdr, networkPassphrase);
     tx.sign(this.keypair);
-    return tx.toXDR();
+    return Promise.resolve(tx.toXDR());
   }
 }

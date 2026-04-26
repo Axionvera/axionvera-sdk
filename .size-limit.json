@@ -1,6 +1,10 @@
 [
   {
-    "path": "dist/index.mjs",
-    "limit": "50 kb"
+    "path": "packages/core/dist/index.mjs",
+    "limit": "50 KB"
+  },
+  {
+    "path": "packages/react/dist/index.mjs",
+    "limit": "10 KB"
   }
 ]
