@@ -72,7 +72,8 @@
   "sideEffects": false,
   "dependencies": {
     "@stellar/stellar-sdk": "^14.6.1",
-    "axios": "^1.7.9"
+    "axios": "^1.7.9",
+    "valibot": "^1.3.1"
   },
   "peerDependencies": {
     "@stellar/freighter-api": "^6.0.1"
@@ -84,7 +85,6 @@
   },
   "devDependencies": {
     "@size-limit/preset-small-lib": "^11.1.6",
-    "size-limit": "^11.1.6",
     "@types/jest": "^29.5.12",
     "@types/node": "^22.13.5",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
@@ -95,8 +95,9 @@
     "jest-environment-jsdom": "^29.7.0",
     "msw": "^1.3.5",
     "rimraf": "^6.0.1",
-    "tsup": "^8.3.6",
+    "size-limit": "^11.1.6",
     "ts-jest": "^29.2.5",
+    "tsup": "^8.3.6",
     "typedoc": "^0.28.18",
     "typedoc-plugin-markdown": "^4.11.0",
     "typescript": "^5.5.4"
