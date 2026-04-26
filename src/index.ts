@@ -48,6 +48,7 @@ export { buildContractCallOperation, buildContractCallTransaction, buildBaseTran
 export type { BuildBaseTransactionParams } from './utils/transactionBuilder';
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
 export { generateTransactionURI, generatePayURI } from './utils/sep7';
+export { getRequiredSigners } from './utils/getRequiredSigners';
 
 // Testing & MSW
 export * from './test/msw/setup';
