@@ -54,6 +54,8 @@ export class StellarRpcTimeoutError extends AxionveraError {}
 export class WalletNotInstalledError extends AxionveraError {}
 
 export class FaucetRateLimitError extends AxionveraError {}
+export class DeviceLockedError extends AxionveraError {}
+export class UserRejectedError extends AxionveraError {}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

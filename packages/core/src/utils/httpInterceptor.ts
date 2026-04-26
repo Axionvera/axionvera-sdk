@@ -4,7 +4,7 @@ import { getErrorStatusCode, toAxionveraError } from '../errors/axionveraError';
 /**
  * Configuration for retry behavior.
  */
-export type RetryConfig = {
+export interface RetryConfig {
   /** Whether retries are enabled */
   enabled: boolean;
   /** Maximum number of retry attempts */
@@ -17,7 +17,7 @@ export type RetryConfig = {
   retryableMethods: string[];
   /** HTTP status codes that should trigger a retry */
   retryableStatusCodes: number[];
-};
+}
 
 export const DEFAULT_RETRY_CONFIG: RetryConfig = {
   enabled: true,
@@ -75,11 +75,11 @@ export function createHttpClientWithRetry(
     async (error: AxiosError) => {
       const originalRequest = error.config as AxiosRequestConfig & { _retryCount?: number };
 
-      if (!originalRequest || !isRetryableRequest(originalRequest, config) || !isRetryableError(error, config)) {
+      if (!isRetryableRequest(originalRequest, config) || !isRetryableError(error, config)) {
         return Promise.reject(toAxionveraError(error));
       }
 
-      originalRequest._retryCount = originalRequest._retryCount || 0;
+      originalRequest._retryCount = originalRequest._retryCount ?? 0;
 
       if (originalRequest._retryCount >= config.maxRetries) {
         return Promise.reject(toAxionveraError(error));
