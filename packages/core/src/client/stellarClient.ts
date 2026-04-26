@@ -428,6 +428,84 @@ export class StellarClient extends BaseStellarRpcClient {
       throw new NetworkError(`Timed out waiting for transaction ${hash}`);
     }, `Failed while polling transaction ${hash}`);
   }
+
+  /**
+   * Waits for a transaction to be confirmed or rejected with a Promise-based API.
+   * 
+   * This is a convenience wrapper around pollTransaction that provides a simpler,
+   * more intuitive API for the common use case of waiting for a transaction to complete.
+   * It resolves when the transaction reaches a final state (SUCCESS or FAILED),
+   * or rejects if the transaction times out.
+   * 
+   * Similar to waitForTransactionReceipt in EVM libraries like viem, making it easier
+   * for developers moving from Ethereum to Stellar/Soroban.
+   * 
+   * @param hash - The transaction hash to wait for
+   * @param params - Wait parameters
+   * @param params.timeoutMs - Maximum time to wait in milliseconds (default: 30_000)
+   * @param params.intervalMs - Time between polls in milliseconds (default: 1_000)
+   * @param params.onProgress - Optional callback to track polling progress
+   * @returns Promise that resolves with the transaction result when confirmed, or rejects on timeout
+   * @throws NetworkError if the transaction doesn't reach a final state within timeoutMs
+   * 
+   * @example
+   * ```typescript
+   * // Simple usage - wait for transaction with defaults (30 seconds)
+   * const result = await client.waitForTransaction(txHash);
+   * console.log('Transaction confirmed:', result);
+   * 
+   * // With custom timeout and polling interval
+   * const result = await client.waitForTransaction(txHash, {
+   *   timeoutMs: 60_000,     // Wait up to 60 seconds
+   *   intervalMs: 500        // Poll every 500ms
+   * });
+   * 
+   * // With progress tracking
+   * const result = await client.waitForTransaction(txHash, {
+   *   onProgress: (status, ledger) => {
+   *     console.log(`Status: ${status}, Ledger: ${ledger}`);
+   *   }
+   * });
+   * 
+   * // In a typical usage flow
+   * const signed = await client.sendTransaction(tx);
+   * try {
+   *   const confirmed = await client.waitForTransaction(signed.hash);
+   *   console.log('Success:', confirmed);
+   * } catch (error) {
+   *   if (error instanceof NetworkError) {
+   *     console.log('Transaction took too long to confirm');
+   *   } else {
+   *     console.log('Transaction failed or errored:', error);
+   *   }
+   * }
+   * ```
+   */
+  async waitForTransaction(
+    hash: string,
+    params?: {
+      timeoutMs?: number;
+      intervalMs?: number;
+      onProgress?: (status: string, ledger: number) => void | Promise<void>;
+    }
+  ): Promise<unknown> {
+    return this.pollTransaction(hash, params);
+  }
+
+  /**
+   * Retrieves the status of a transaction.
+   * Alias for getTransaction() - provided for compatibility and clarity.
+   * @param hash - The transaction hash
+   * @returns The transaction status
+   * @deprecated Use getTransaction() instead
+   */
+  async getTransactionStatus(hash: string): Promise<unknown> {
+    this.logger.debug(`Fetching transaction status for ${hash}`);
+    return this.executeWithErrorHandling(
+      () => retry(() => this.rpc.getTransaction(hash), this.retryConfig),
+      `Failed to fetch transaction ${hash}`
+    );
+  }
   /**
    * Signs a transaction using a local Keypair.
    * This is a convenience method for local signing without a wallet connector.

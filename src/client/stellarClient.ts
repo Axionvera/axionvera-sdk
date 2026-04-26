@@ -316,6 +316,57 @@ export class StellarClient {
   }
 
   /**
+   * Waits for a transaction to be confirmed or rejected with a Promise-based API.
+   * 
+   * This is a convenience wrapper around pollTransaction that provides a simpler,
+   * more intuitive API for the common use case of waiting for a transaction to complete.
+   * It resolves when the transaction reaches a final state (SUCCESS or FAILED),
+   * or rejects if the transaction times out.
+   * 
+   * Similar to waitForTransactionReceipt in EVM libraries like viem, making it easier
+   * for developers moving from Ethereum to Stellar/Soroban.
+   * 
+   * @param hash - The transaction hash to wait for
+   * @param params - Wait parameters
+   * @param params.timeoutMs - Maximum time to wait in milliseconds (default: 30_000)
+   * @param params.intervalMs - Time between polls in milliseconds (default: 1_000)
+   * @returns Promise that resolves with the transaction result when confirmed, or rejects on timeout/failure
+   * @throws TimeoutError if the transaction doesn't reach a final state within timeoutMs
+   * 
+   * @example
+   * ```typescript
+   * // Simple usage - wait for transaction with defaults (30 seconds)
+   * const result = await client.waitForTransaction(txHash);
+   * console.log('Transaction confirmed:', result);
+   * 
+   * // With custom timeout and polling interval
+   * const result = await client.waitForTransaction(txHash, {
+   *   timeoutMs: 60_000,     // Wait up to 60 seconds
+   *   intervalMs: 500        // Poll every 500ms
+   * });
+   * 
+   * // In a typical usage flow
+   * const signed = await client.sendTransaction(tx);
+   * try {
+   *   const confirmed = await client.waitForTransaction(signed.hash);
+   *   console.log('Success:', confirmed);
+   * } catch (error) {
+   *   if (error instanceof TimeoutError) {
+   *     console.log('Transaction took too long to confirm');
+   *   } else {
+   *     console.log('Transaction failed:', error);
+   *   }
+   * }
+   * ```
+   */
+  async waitForTransaction(
+    hash: string,
+    params?: { timeoutMs?: number; intervalMs?: number }
+  ): Promise<unknown> {
+    return this.pollTransaction(hash, params);
+  }
+
+  /**
    * Signs a transaction using a local Keypair.
    * This is a convenience method for local signing without a wallet connector.
    * @param tx - The transaction to sign
