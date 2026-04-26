@@ -5,7 +5,8 @@ import {
   Networks,
   rpc,
   Transaction,
-  TransactionBuilder
+  TransactionBuilder,
+  xdr
 } from "@stellar/stellar-sdk";
 
 import { AxionveraNetwork, resolveNetworkConfig } from "../utils/networkConfig";
@@ -221,6 +222,113 @@ export class StellarClient {
       if (error instanceof SimulationFailedError) throw error;
       throw new SimulationFailedError(
         error instanceof Error ? error.message : 'Transaction simulation failed',
+        { originalError: error }
+      );
+    }
+  }
+
+  /**
+   * Simulates multiple operations in a single batch transaction.
+   * This is more efficient than simulating operations one by one, especially when
+   * a user wants to perform multiple actions (e.g., deposit into 3 vaults).
+   *
+   * All operations are combined into a single transaction and sent to the Soroban RPC
+   * simulateTransaction endpoint, which returns results for each operation.
+   *
+   * Note: Be aware of Soroban transaction limits. A large batch may fail if it exceeds
+   * the maximum CPU/RAM limits for a single transaction.
+   *
+   * @param params - Batch simulation parameters
+   * @param params.operations - Array of XDR operations to simulate
+   * @param params.sourceAccount - The source account for the transaction
+   * @param params.fee - The fee per operation (default: 100_000)
+   * @param params.timeoutInSeconds - Transaction timeout in seconds (default: 60)
+   * @returns Array of simulation results, one for each operation
+   * @throws SimulationFailedError if the batch simulation fails
+   * @throws AxionveraError if the transaction building fails
+   *
+   * @example
+   * ```typescript
+   * const client = new StellarClient({ network: "testnet" });
+   * const account = await client.getAccount(publicKey);
+   *
+   * // Build three deposit operations
+   * const op1 = buildContractCallOperation({
+   *   contractId: vault1,
+   *   method: "deposit",
+   *   args: [amount1]
+   * });
+   * const op2 = buildContractCallOperation({
+   *   contractId: vault2,
+   *   method: "deposit",
+   *   args: [amount2]
+   * });
+   * const op3 = buildContractCallOperation({
+   *   contractId: vault3,
+   *   method: "deposit",
+   *   args: [amount3]
+   * });
+   *
+   * // Simulate all three in one call
+   * const results = await client.simulateBatch({
+   *   operations: [op1, op2, op3],
+   *   sourceAccount: account
+   * });
+   *
+   * // results[0], results[1], results[2] contain the individual results
+   * ```
+   */
+  async simulateBatch(params: {
+    operations: xdr.Operation[];
+    sourceAccount: Account;
+    fee?: number;
+    timeoutInSeconds?: number;
+  }): Promise<rpc.Api.SimulateTransactionResponse['result']> {
+    try {
+      if (!params.operations || params.operations.length === 0) {
+        throw new AxionveraError('At least one operation is required for batch simulation');
+      }
+
+      // Calculate fee: multiply by number of operations
+      const operationCount = params.operations.length;
+      const feePerOperation = params.fee ?? 100_000;
+      const totalFee = (feePerOperation * operationCount).toString();
+      const timeoutInSeconds = params.timeoutInSeconds ?? 60;
+
+      // Build a transaction with all operations
+      const builder = new TransactionBuilder(params.sourceAccount, {
+        fee: totalFee,
+        networkPassphrase: this.networkPassphrase
+      });
+
+      // Add all operations to the transaction
+      for (const operation of params.operations) {
+        builder.addOperation(operation);
+      }
+
+      const tx = builder.setTimeout(timeoutInSeconds).build();
+
+      // Simulate the combined transaction
+      const result = await this.rpc.simulateTransaction(tx);
+
+      if (rpc.Api.isSimulationError(result)) {
+        throw new SimulationFailedError(result.error, { simulationResult: result });
+      }
+
+      // Return only the results array
+      if (!result.result) {
+        throw new SimulationFailedError(
+          'No results returned from batch simulation',
+          { simulationResult: result }
+        );
+      }
+
+      return result.result;
+    } catch (error) {
+      if (error instanceof SimulationFailedError) throw error;
+      if (error instanceof AxionveraError) throw error;
+      throw new SimulationFailedError(
+        error instanceof Error ? error.message : 'Batch simulation failed',
         { originalError: error }
       );
     }
