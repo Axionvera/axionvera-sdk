@@ -51,9 +51,27 @@ export class StellarRpcResponseError extends AxionveraError {}
 
 export class StellarRpcTimeoutError extends AxionveraError {}
 
+export class InsecureNetworkError extends AxionveraError {}
+
 export class WalletNotInstalledError extends AxionveraError {}
 
 export class FaucetRateLimitError extends AxionveraError {}
+
+export type RPCValidationMismatchErrorOptions = AxionveraErrorOptions & {
+  rpcMethod: string;
+  receivedShape: unknown;
+};
+
+export class RPCValidationMismatchError extends AxionveraError {
+  readonly rpcMethod: string;
+  readonly receivedShape: unknown;
+
+  constructor(message: string, options: RPCValidationMismatchErrorOptions) {
+    super(message, options);
+    this.rpcMethod = options.rpcMethod;
+    this.receivedShape = options.receivedShape;
+  }
+}
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

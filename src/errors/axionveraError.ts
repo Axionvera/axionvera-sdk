@@ -95,6 +95,22 @@ export class WalletConnectionError extends AxionveraError {
   }
 }
 
+export type RPCValidationMismatchErrorOptions = AxionveraErrorOptions & {
+  rpcMethod: string;
+  receivedShape: unknown;
+};
+
+export class RPCValidationMismatchError extends AxionveraError {
+  readonly rpcMethod: string;
+  readonly receivedShape: unknown;
+
+  constructor(message: string, options: RPCValidationMismatchErrorOptions) {
+    super(message, options);
+    this.rpcMethod = options.rpcMethod;
+    this.receivedShape = options.receivedShape;
+  }
+}
+
 /**
  * Normalizes RPC errors from Stellar/Soroban RPC responses.
  * @param error - The raw error from RPC call
