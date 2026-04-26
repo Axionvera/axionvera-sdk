@@ -26,6 +26,8 @@ export { buildContractCallOperation, buildContractCallTransaction, buildContract
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
 export { generateTransactionURI, generatePayURI } from './utils/sep7';
 export { decodeXdrBase64, clearXdrCache, getXdrCacheSize } from './utils/xdrCache';
+export { SimulationParser, decodeScVal } from './utils/simulationParser';
+export type { NativeScVal } from './utils/simulationParser';
 
 // Errors
 export { 
@@ -41,6 +43,7 @@ export {
   FaucetRateLimitError,
   DeviceLockedError,
   UserRejectedError,
+  ContractRevertError,
   toAxionveraError
 } from './errors/axionveraError';
 
