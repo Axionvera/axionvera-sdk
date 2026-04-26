@@ -1,9 +1,12 @@
 import {
+  Account,
   Address,
+  Keypair,
   rpc,
   nativeToScVal,
-  xdr,
-  TransactionBuilder
+  scValToNative,
+  TransactionBuilder,
+  xdr
 } from "@stellar/stellar-sdk";
 
 import { StellarClient } from "../client/stellarClient";
@@ -204,6 +207,93 @@ export class VaultContract {
       sourceAccount,
       operations: [contractCall]
     });
+  }
+
+  /**
+   * Simulates a deposit to calculate the expected number of vault shares
+   * received for a given asset amount, at the current exchange rate and TVL.
+   *
+   * This is a **read-only** call. It does NOT prompt the user's wallet for a
+   * signature and never invokes the wallet connector — only Soroban RPC is
+   * touched. The returned value is an estimate based on current on-chain
+   * state and may be affected by slippage if state changes between this call
+   * and actual execution.
+   *
+   * @param assets - The amount of assets to deposit (in base units as bigint)
+   * @returns The estimated number of vault shares that would be minted
+   *
+   * @example
+   * ```typescript
+   * const estimatedShares = await vault.previewDeposit(1000n);
+   * console.log(`You will receive approximately ${estimatedShares} shares`);
+   * ```
+   */
+  async previewDeposit(assets: bigint): Promise<bigint> {
+    return this.simulateReadOnly("preview_deposit", assets);
+  }
+
+  /**
+   * Simulates a withdrawal to calculate the expected asset amount returned
+   * when redeeming a given number of vault shares, at the current exchange
+   * rate.
+   *
+   * This is a **read-only** call. It does NOT prompt the user's wallet and
+   * never invokes the wallet connector. The returned value reflects current
+   * TVL and exchange rate and may shift before the actual withdrawal is
+   * executed.
+   *
+   * @param shares - The number of vault shares to redeem (as bigint)
+   * @returns The estimated amount of assets that would be returned
+   *
+   * @example
+   * ```typescript
+   * const estimatedAssets = await vault.previewWithdraw(500n);
+   * console.log(`Redeeming 500 shares returns ~${estimatedAssets} assets`);
+   * ```
+   */
+  async previewWithdraw(shares: bigint): Promise<bigint> {
+    return this.simulateReadOnly("preview_withdraw", shares);
+  }
+
+  /**
+   * Builds an in-memory transaction (no `rpc.getAccount`, no wallet calls),
+   * simulates it against Soroban RPC, and decodes the i128 return value to
+   * a bigint. Powers the read-only preview methods.
+   */
+  private async simulateReadOnly(method: string, arg: bigint): Promise<bigint> {
+    const operation = buildContractCallOperation({
+      contractId: this.contractId,
+      method,
+      args: [nativeToScVal(arg, { type: "i128" })]
+    });
+
+    // Use a synthetic source account for simulation — Soroban RPC does not
+    // require it to exist on chain, and this keeps the call wallet-free.
+    const dummyAccount = new Account(Keypair.random().publicKey(), "0");
+    const transaction = new TransactionBuilder(dummyAccount, {
+      fee: "100",
+      networkPassphrase: this.client.networkPassphrase
+    })
+      .addOperation(operation)
+      .setTimeout(0)
+      .build();
+
+    const simulation = await this.client.simulateTransaction(transaction);
+
+    if (!rpc.Api.isSimulationSuccess(simulation)) {
+      throw new Error(`Vault preview simulation failed for ${method}: ${simulation.error}`);
+    }
+
+    const retval = simulation.result?.retval;
+    if (!retval) {
+      throw new Error(`Vault preview simulation for ${method} returned no value`);
+    }
+
+    const native = scValToNative(retval);
+    if (typeof native !== "bigint") {
+      throw new Error(`Vault preview for ${method} returned unexpected type ${typeof native}`);
+    }
+    return native;
   }
 
   /**
