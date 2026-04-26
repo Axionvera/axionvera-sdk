@@ -1,8 +1,17 @@
 // Client
-export { StellarClient } from './client/stellarClient';
+export { StellarClient, HYDRATION_STATE_VERSION } from './client/stellarClient';
 export { AxionveraClient } from './client/axionveraClient';
 export { FaucetClient } from './client/faucetClient';
-export type { StellarClientOptions } from './client/stellarClient';
+export type {
+  StellarClientOptions,
+  PendingTransaction,
+  TrackedTransaction,
+  SerializedPendingTransaction,
+  ExportedState,
+  TrackTransactionOptions,
+  SimulationContext,
+  SerializableValue,
+} from './client/stellarClient';
 export type { AxionveraClientConfig } from './client/axionveraClient';
 
 // Contracts
