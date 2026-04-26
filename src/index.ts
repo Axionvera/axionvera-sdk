@@ -48,6 +48,8 @@ export { buildContractCallOperation, buildContractCallTransaction, buildBaseTran
 export type { BuildBaseTransactionParams } from './utils/transactionBuilder';
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
 export { generateTransactionURI, generatePayURI } from './utils/sep7';
+export { parseEvents, decodeSorobanSymbol } from './utils/soroban';
+export type { ParsedEvent, ParseEventsOptions, DecodedTopic } from './utils/soroban';
 
 // Testing & MSW
 export * from './test/msw/setup';
