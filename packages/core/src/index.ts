@@ -44,6 +44,7 @@ export {
   DeviceLockedError,
   UserRejectedError,
   ContractRevertError,
+  TransactionTimeoutError,
   toAxionveraError
 } from './errors/axionveraError';
 

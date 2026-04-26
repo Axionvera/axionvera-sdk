@@ -106,3 +106,6 @@ export function useQueueStatus(client: StellarClient | null) {
 }
 
 export { StellarClient, EventFilter, SorobanEvent, CloudWatchConfig, WebSocketConfig } from '@axionvera/core';
+export { useVault } from './useVault';
+export type { TxStep, UseVaultState, UseVaultActions } from './useVault';
+export { TransactionStepper } from './TransactionStepper';

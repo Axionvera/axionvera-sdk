@@ -66,6 +66,15 @@ export class ContractRevertError extends AxionveraError {
   }
 }
 
+export class TransactionTimeoutError extends AxionveraError {
+  readonly hash: string;
+
+  constructor(hash: string, options: AxionveraErrorOptions = {}) {
+    super(`Transaction ${hash} was not confirmed within the timeout period.`, options);
+    this.hash = hash;
+  }
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

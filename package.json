@@ -46,13 +46,14 @@
     "size": "size-limit",
     "release:dry-run": "semantic-release --dry-run",
     "csp-audit": "node ./scripts/csp-audit.js",
-    "dev": "npm run build --workspaces -- --watch",
-    "prepare": "husky"
+    "dev": "npm run build --workspaces -- --watch"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@size-limit/preset-small-lib": "^11.1.6",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/jest": "^29.5.12",
     "@types/node": "^25.5.0",
     "@typescript-eslint/eslint-plugin": "^8.24.1",
