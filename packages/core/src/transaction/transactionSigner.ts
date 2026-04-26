@@ -13,6 +13,7 @@ import {
 
 import { StellarClient } from "../client/stellarClient";
 import { WalletConnector } from "../wallet/walletConnector";
+import { NetworkMismatchError } from "../errors/axionveraError";
 import { buildContractCallOperation, toScVal, ContractCallArg } from "../utils/transactionBuilder";
 
 /**
@@ -154,11 +155,28 @@ export class TransactionSigner {
   }
 
   /**
+   * Validates that the wallet's network matches the client's network.
+   * @throws NetworkMismatchError if networks don't match
+   */
+  private async validateNetworks(): Promise<void> {
+    const walletNetwork = await this.wallet.getNetwork();
+    
+    if (walletNetwork !== this.client.network) {
+      throw new NetworkMismatchError(
+        `Network mismatch: Expected ${this.client.network}, but wallet is connected to ${walletNetwork}`
+      );
+    }
+  }
+
+  /**
    * Builds, simulates, signs, and submits a transaction in one operation.
    * @param params - Transaction build parameters
    * @returns The transaction result
    */
   async buildAndSignTransaction(params: TransactionBuildParams): Promise<TransactionResult> {
+    // Validate that wallet and client are on the same network
+    await this.validateNetworks();
+
     // Build the transaction
     const transaction = await this.buildTransaction(params);
 

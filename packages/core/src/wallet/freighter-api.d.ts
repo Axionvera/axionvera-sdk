@@ -4,4 +4,5 @@ declare module '@stellar/freighter-api' {
     transactionXdr: string,
     networkPassphrase: string
   ): Promise<string | { signedTransaction: string }>;
+  export function getNetwork(): Promise<string>;
 }

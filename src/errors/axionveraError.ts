@@ -63,6 +63,8 @@ export class WalletNotInstalledError extends AxionveraError { }
 
 export class FaucetRateLimitError extends AxionveraError { }
 
+export class NetworkMismatchError extends AxionveraError { }
+
 export class InsecureNetworkError extends AxionveraError { }
 
 export class AxionveraRPCError extends AxionveraError {
