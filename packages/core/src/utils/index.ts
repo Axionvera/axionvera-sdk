@@ -5,3 +5,4 @@ export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './
 export { generateTransactionURI, generatePayURI } from './sep7';
 export { Logger } from './logger';
 export { decodeXdrBase64, clearXdrCache, getXdrCacheSize } from './xdrCache';
+export { getRequiredSigners } from './getRequiredSigners';
