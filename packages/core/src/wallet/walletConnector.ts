@@ -1,4 +1,5 @@
 import { Keypair, TransactionBuilder } from "@stellar/stellar-sdk";
+import { AxionveraNetwork } from "../utils/networkConfig";
 
 /**
  * Interface for wallet implementations that can sign transactions.
@@ -9,6 +10,12 @@ export interface WalletConnector {
    * @returns The public key
    */
   getPublicKey(): Promise<string>;
+
+  /**
+   * Gets the network that the wallet is currently connected to.
+   * @returns The network identifier
+   */
+  getNetwork(): Promise<AxionveraNetwork>;
 
   /**
    * Signs a transaction XDR string.
@@ -25,18 +32,26 @@ export interface WalletConnector {
  */
 export class LocalKeypairWalletConnector implements WalletConnector {
   private readonly keypair: Keypair;
+  private readonly network: AxionveraNetwork;
 
   /**
    * Creates a new LocalKeypairWalletConnector.
    * @param keypair - The Keypair to use for signing
+   * @param network - The network the keypair is configured for (default: "testnet")
    */
-  constructor(keypair: Keypair) {
+  constructor(keypair: Keypair, network: AxionveraNetwork = "testnet") {
     this.keypair = keypair;
+    this.network = network;
   }
 
   /** @inheritdoc */
   async getPublicKey(): Promise<string> {
     return this.keypair.publicKey();
+  }
+
+  /** @inheritdoc */
+  async getNetwork(): Promise<AxionveraNetwork> {
+    return this.network;
   }
 
   /** @inheritdoc */

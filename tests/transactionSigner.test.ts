@@ -21,6 +21,7 @@ describe('TransactionSigner', () => {
 
     // Setup default mock behavior
     mockClient.networkPassphrase = 'Test SDF Network ; September 2015';
+    mockClient.network = 'testnet';
     mockClient.rpc = {
       getAccount: jest.fn(),
       simulateTransaction: jest.fn(),
@@ -36,6 +37,7 @@ describe('TransactionSigner', () => {
 
     mockWallet.getPublicKey = jest.fn().mockResolvedValue('GTEST123456789');
     mockWallet.signTransaction = jest.fn().mockResolvedValue('signed-xdr');
+    mockWallet.getNetwork = jest.fn().mockResolvedValue('testnet');
 
     transactionSigner = new TransactionSigner({
       client: mockClient,
@@ -267,6 +269,113 @@ describe('TransactionSigner', () => {
       const publicKey = await transactionSigner.getPublicKey();
       expect(publicKey).toBe('GTEST123456789');
       expect(mockWallet.getPublicKey).toHaveBeenCalled();
+    });
+  });
+
+  describe('Network Validation', () => {
+    it('should proceed with transaction when wallet network matches client network', async () => {
+      // Setup mocks with matching networks
+      (mockClient as any).network = 'testnet';
+      mockWallet.getNetwork = jest.fn().mockResolvedValue('testnet');
+
+      const mockAccount = {
+        accountId: 'GTEST123456789',
+        sequence: '1'
+      };
+      
+      const mockSimulation = {
+        results: [{ cpuInstructions: 100000, memoryBytes: 1000 }],
+        transactionData: { resourceFee: 50000 },
+        error: undefined
+      };
+
+      const mockTransaction = {
+        toXDR: jest.fn().mockReturnValue('test-xdr')
+      } as any;
+
+      const mockSendResult = { hash: 'test-hash' };
+      const mockFinalResult = { status: 'SUCCESS' };
+
+      mockClient.rpc!.getAccount = jest.fn().mockResolvedValue(mockAccount);
+      mockClient.simulateTransaction = jest.fn().mockResolvedValue(mockSimulation);
+      mockClient.prepareTransaction = jest.fn().mockResolvedValue(mockTransaction);
+      mockClient.sendTransaction = jest.fn().mockResolvedValue(mockSendResult);
+      mockClient.pollTransaction = jest.fn().mockResolvedValue(mockFinalResult);
+
+      const result = await transactionSigner.buildAndSignTransaction({
+        sourceAccount: 'GTEST123456789',
+        operations: [{
+          contractId: 'CTEST123456789',
+          method: 'test_method',
+          args: [1000n]
+        }]
+      });
+
+      expect(result.successful).toBe(true);
+      expect(mockWallet.getNetwork).toHaveBeenCalled();
+    });
+
+    it('should throw NetworkMismatchError when wallet network does not match client network', async () => {
+      // Setup mocks with mismatched networks
+      (mockClient as any).network = 'testnet';
+      mockWallet.getNetwork = jest.fn().mockResolvedValue('mainnet');
+
+      await expect(transactionSigner.buildAndSignTransaction({
+        sourceAccount: 'GTEST123456789',
+        operations: [{
+          contractId: 'CTEST123456789',
+          method: 'test_method'
+        }]
+      })).rejects.toThrow('Network mismatch: Expected testnet, but wallet is connected to mainnet');
+    });
+
+    it('should detect mainnet wallet with testnet client', async () => {
+      (mockClient as any).network = 'testnet';
+      mockWallet.getNetwork = jest.fn().mockResolvedValue('mainnet');
+
+      const { NetworkMismatchError } = require('../src/errors/axionveraError');
+
+      await expect(transactionSigner.buildAndSignTransaction({
+        sourceAccount: 'GTEST123456789',
+        operations: [{
+          contractId: 'CTEST123456789',
+          method: 'test_method'
+        }]
+      })).rejects.toThrow(NetworkMismatchError);
+    });
+
+    it('should detect testnet wallet with mainnet client', async () => {
+      (mockClient as any).network = 'mainnet';
+      mockWallet.getNetwork = jest.fn().mockResolvedValue('testnet');
+
+      const { NetworkMismatchError } = require('../src/errors/axionveraError');
+
+      await expect(transactionSigner.buildAndSignTransaction({
+        sourceAccount: 'GTEST123456789',
+        operations: [{
+          contractId: 'CTEST123456789',
+          method: 'test_method'
+        }]
+      })).rejects.toThrow(NetworkMismatchError);
+    });
+
+    it('should throw error before attempting to simulate transaction on network mismatch', async () => {
+      (mockClient as any).network = 'testnet';
+      mockWallet.getNetwork = jest.fn().mockResolvedValue('mainnet');
+
+      // Make sure simulate is not called when network validation fails
+      mockClient.simulateTransaction = jest.fn();
+
+      await expect(transactionSigner.buildAndSignTransaction({
+        sourceAccount: 'GTEST123456789',
+        operations: [{
+          contractId: 'CTEST123456789',
+          method: 'test_method'
+        }]
+      })).rejects.toThrow();
+
+      // Verify simulate was never called
+      expect(mockClient.simulateTransaction).not.toHaveBeenCalled();
     });
   });
 });
