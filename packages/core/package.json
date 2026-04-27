@@ -67,7 +67,7 @@
     "clean": "rimraf dist",
     "build": "npm run clean && npx tsup",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "lint": "node ../../node_modules/eslint/bin/eslint.js src/**/*.ts"
+    "lint": "eslint src/**/*.ts"
   },
   "sideEffects": false,
   "dependencies": {
@@ -75,10 +75,18 @@
     "axios": "^1.15.2"
   },
   "peerDependencies": {
-    "@stellar/freighter-api": "^6.0.1"
+    "@stellar/freighter-api": "^6.0.1",
+    "@ledgerhq/hw-transport-webusb": "^6.29.4",
+    "@ledgerhq/hw-app-str": "^6.27.1"
   },
   "peerDependenciesMeta": {
     "@stellar/freighter-api": {
+      "optional": true
+    },
+    "@ledgerhq/hw-transport-webusb": {
+      "optional": true
+    },
+    "@ledgerhq/hw-app-str": {
       "optional": true
     }
   },
@@ -99,7 +107,9 @@
     "tsup": "^8.3.6",
     "typedoc": "^0.28.18",
     "typedoc-plugin-markdown": "^4.11.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "@ledgerhq/hw-transport-webusb": "^6.29.4",
+    "@ledgerhq/hw-app-str": "^6.27.1"
   },
   "publishConfig": {
     "access": "public",
