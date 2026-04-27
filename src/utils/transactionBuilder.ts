@@ -165,3 +165,93 @@ export function buildBaseTransaction(
 
   return builder;
 }
+
+/**
+ * Fluent builder for constructing Soroban contract call transactions.
+ *
+ * @example
+ * ```typescript
+ * const tx = new ContractCallBuilder()
+ *   .setContract("C...")
+ *   .setMethod("deposit")
+ *   .setArgs([1000n, recipientAddress])
+ *   .setFee(200_000)
+ *   .setTimeout(30)
+ *   .build(sourceAccount, networkPassphrase);
+ * ```
+ */
+export class ContractCallBuilder {
+  private _contractId?: string;
+  private _method?: string;
+  private _args: ContractCallArg[] = [];
+  private _fee?: number;
+  private _timeoutInSeconds?: number;
+
+  /** Sets the contract ID to call. */
+  setContract(contractId: string): this {
+    this._contractId = contractId;
+    return this;
+  }
+
+  /** Sets the contract method name. */
+  setMethod(method: string): this {
+    this._method = method;
+    return this;
+  }
+
+  /** Sets the arguments for the contract call. */
+  setArgs(args: ContractCallArg[]): this {
+    this._args = args;
+    return this;
+  }
+
+  /** Sets the transaction fee in stroops (default: 100_000). */
+  setFee(fee: number): this {
+    this._fee = fee;
+    return this;
+  }
+
+  /** Sets the transaction timeout in seconds (default: 60). */
+  setTimeout(timeoutInSeconds: number): this {
+    this._timeoutInSeconds = timeoutInSeconds;
+    return this;
+  }
+
+  /**
+   * Builds the transaction.
+   * @param sourceAccount - The source account for the transaction
+   * @param networkPassphrase - The network passphrase
+   * @returns The constructed Transaction
+   * @throws {Error} If contractId or method have not been set
+   */
+  build(sourceAccount: Account, networkPassphrase: string): Transaction {
+    if (!this._contractId) throw new Error("ContractCallBuilder: contractId is required");
+    if (!this._method) throw new Error("ContractCallBuilder: method is required");
+
+    return buildContractCallTransaction({
+      sourceAccount,
+      networkPassphrase,
+      contractId: this._contractId,
+      method: this._method,
+      args: this._args,
+      fee: this._fee,
+      timeoutInSeconds: this._timeoutInSeconds
+    });
+  }
+
+  /**
+   * Builds only the contract call operation (without wrapping in a transaction).
+   * Useful for composing multiple operations into a single transaction.
+   * @throws {Error} If contractId or method have not been set
+   */
+  buildOperation(): xdr.Operation {
+    if (!this._contractId) throw new Error("ContractCallBuilder: contractId is required");
+    if (!this._method) throw new Error("ContractCallBuilder: method is required");
+
+    return buildContractCallOperation({
+      contractId: this._contractId,
+      method: this._method,
+      args: this._args
+    });
+  }
+}
