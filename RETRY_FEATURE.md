@@ -6,6 +6,7 @@ This feature adds automatic retry functionality to the Axionvera SDK to make it 
 
 - **Automatic Retries**: Configurable retry logic for failed HTTP requests
 - **Exponential Backoff**: Implements exponential backoff algorithm (1s, 2s, 4s, etc.)
+- **Retry-After Support**: Respects the standard `Retry-After` header on 429 (Too Many Requests) responses
 - **Idempotent Operations Only**: Only retries safe operations (GET, PUT)
 - **Configurable**: Full control over retry behavior via configuration
 - **Status Code Filtering**: Retries on specific HTTP status codes (429, 5xx)
@@ -70,11 +71,16 @@ const client = new StellarClient({
 
 ## Exponential Backoff Algorithm
 
-The delay between retries follows this pattern:
-- Attempt 1: 1 second (1000ms)
-- Attempt 2: 2 seconds (2000ms)
-- Attempt 3: 4 seconds (4000ms)
-- Attempt 4: 8 seconds (8000ms, capped at maxDelayMs)
+The delay between retries follows this logic:
+
+1. **Priority Header**: If a `429 Too Many Requests` response includes a `Retry-After` header, the SDK pauses execution for the exact duration specified (supporting both seconds and HTTP-date formats), capped at `maxDelayMs` for safety.
+2. **Fallback Backoff**: If the header is missing or for other status codes, it uses exponential backoff:
+   - Attempt 1: 1 second (1000ms)
+   - Attempt 2: 2 seconds (2000ms)
+   - Attempt 3: 4 seconds (4000ms)
+   - Attempt 4: 8 seconds (8000ms, capped at `maxDelayMs`)
+
+A 20% random jitter is applied to exponential backoff calculations to prevent "thundering herd" issues.
 
 ## Which Operations Are Retried?
 
