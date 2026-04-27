@@ -4,6 +4,7 @@ import {
   Keypair,
   Networks,
   rpc,
+  SorobanDataBuilder,
   Transaction,
   TransactionBuilder
 } from "@stellar/stellar-sdk";
@@ -11,10 +12,12 @@ import {
 import { AxionveraNetwork, resolveNetworkConfig } from "../utils/networkConfig";
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
-import { normalizeRpcError, normalizeTransactionError, TimeoutError, InsecureNetworkError, AxionveraError, AxionveraRPCError, SimulationFailedError } from "../errors/axionveraError";
+import { normalizeRpcError, normalizeTransactionError, TransactionTimeoutError, InsecureNetworkError, AxionveraError, AxionveraRPCError, SimulationFailedError, ValidationError, toAxionveraError } from "../errors/axionveraError";
 import { WebSocketManager } from "./websocket/websocketManager";
 import { WebSocketConfig } from "./websocket/types";
 import { Logger } from "../utils/logger";
+
+const DEFAULT_FEE_BUFFER_MULTIPLIER = 1.15;
 
 /**
  * Checks if a URL points to a localhost address.
@@ -41,6 +44,10 @@ export type StellarClientOptions = {
   retryConfig?: Partial<RetryConfig>;
   webSocketConfig?: WebSocketConfig;
   logger?: Logger;
+  /** Multiplier applied to simulated Soroban resources and fees (default: 1.15). */
+  feeBufferMultiplier?: number;
+  /** Hard ceiling for the total prepared fee in stroops. */
+  maxFeeLimit?: number;
   allowHttp?: boolean;
 };
 
@@ -48,6 +55,13 @@ export type TransactionSendResult = {
   hash: string;
   status: string;
   raw: unknown;
+};
+
+type TransactionResponseRecord = Record<string, unknown>;
+
+export type TransactionPollResult = TransactionResponseRecord & {
+  status: string;
+  ledger: number | null;
 };
 
 /**
@@ -85,6 +99,10 @@ export class StellarClient {
   readonly webSocketManager?: WebSocketManager;
   /** Logger instance for debugging and monitoring. */
   readonly logger: Logger;
+  /** Multiplier applied to simulated Soroban resources and fees. */
+  readonly feeBufferMultiplier: number;
+  /** Optional hard ceiling for the total prepared fee. */
+  readonly maxFeeLimit?: bigint;
 
   /**
    * Creates a new StellarClient instance.
@@ -123,6 +141,19 @@ export class StellarClient {
     this.retryConfig = options?.retryConfig ?? {};
     this.httpClient = createHttpClientWithRetry(this.retryConfig);
     this.logger = options?.logger ?? new Logger();
+    this.feeBufferMultiplier = options?.feeBufferMultiplier ?? DEFAULT_FEE_BUFFER_MULTIPLIER;
+
+    if (!Number.isFinite(this.feeBufferMultiplier) || this.feeBufferMultiplier < 1) {
+      throw new ValidationError("feeBufferMultiplier must be a finite number greater than or equal to 1");
+    }
+
+    if (options?.maxFeeLimit !== undefined) {
+      if (!Number.isInteger(options.maxFeeLimit) || options.maxFeeLimit <= 0) {
+        throw new ValidationError("maxFeeLimit must be a positive integer");
+      }
+
+      this.maxFeeLimit = BigInt(options.maxFeeLimit);
+    }
 
     // Initialize WebSocket manager if configuration is provided
     if (options?.webSocketConfig) {
@@ -233,7 +264,25 @@ export class StellarClient {
    * @returns The prepared transaction
    */
   async prepareTransaction(tx: Transaction | FeeBumpTransaction): Promise<Transaction> {
-    return this.rpc.prepareTransaction(tx);
+    if (tx instanceof FeeBumpTransaction) {
+      try {
+        return await this.rpc.prepareTransaction(tx);
+      } catch (error) {
+        throw toAxionveraError(error, "Failed to prepare transaction");
+      }
+    }
+
+    try {
+      const simulation = await this.simulateTransaction(tx);
+      const assembledTx = rpc.assembleTransaction(tx, simulation).build();
+      return this.applyFeeBuffer(assembledTx);
+    } catch (error) {
+      if (error instanceof AxionveraError) {
+        throw error;
+      }
+
+      throw toAxionveraError(error, "Failed to prepare transaction");
+    }
   }
 
   /**
@@ -293,26 +342,131 @@ export class StellarClient {
    * @param params.timeoutMs - Maximum time to wait in milliseconds (default: 30000)
    * @param params.intervalMs - Time between polls in milliseconds (default: 1000)
    * @returns The transaction result when it reaches a final state
-   * @throws TimeoutError if the transaction times out
+   * @throws TransactionTimeoutError if the transaction does not reach a final status in time
    */
   async pollTransaction(
     hash: string,
     params?: { timeoutMs?: number; intervalMs?: number }
-  ): Promise<unknown> {
+  ): Promise<TransactionPollResult> {
     const timeoutMs = params?.timeoutMs ?? 30_000;
     const intervalMs = params?.intervalMs ?? 1_000;
-    const deadline = Date.now() + timeoutMs;
 
-    while (Date.now() < deadline) {
-      const res = await this.getTransaction(hash);
-      const status = (res as any)?.status;
-      if (status && status !== "NOT_FOUND") {
-        return res;
-      }
-      await new Promise((r) => setTimeout(r, intervalMs));
+    validatePollingInterval(timeoutMs, "timeoutMs", true);
+    validatePollingInterval(intervalMs, "intervalMs", false);
+
+    return new Promise<TransactionPollResult>((resolve, reject) => {
+      let settled = false;
+      let pollTimer: ReturnType<typeof setTimeout> | undefined;
+
+      const clearTimers = () => {
+        clearTimeout(timeoutTimer);
+        if (pollTimer) {
+          clearTimeout(pollTimer);
+        }
+      };
+
+      const settle = (callback: () => void) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimers();
+        callback();
+      };
+
+      const scheduleNextPoll = () => {
+        if (settled) {
+          return;
+        }
+
+        pollTimer = setTimeout(() => {
+          void pollOnce();
+        }, intervalMs);
+      };
+
+      const timeoutTimer = setTimeout(() => {
+        settle(() => {
+          reject(
+            new TransactionTimeoutError(
+              `Timed out waiting for transaction ${hash} after ${timeoutMs}ms`
+            )
+          );
+        });
+      }, timeoutMs);
+
+      const pollOnce = async () => {
+        try {
+          const res = await this.getTransaction(hash);
+          if (settled) {
+            return;
+          }
+
+          const parsed = parseTransactionPollResult(res);
+          if (parsed.status === "SUCCESS" || parsed.status === "FAILED") {
+            settle(() => resolve(parsed));
+            return;
+          }
+
+          scheduleNextPoll();
+        } catch (error) {
+          if (settled) {
+            return;
+          }
+
+          settle(() => reject(error));
+        }
+      };
+
+      void pollOnce();
+    });
+  }
+
+  private applyFeeBuffer(tx: Transaction): Transaction {
+    const sorobanData = tx.toEnvelope().v1().tx().ext().value();
+    if (!sorobanData) {
+      return tx;
     }
 
-    throw new TimeoutError(`Timed out waiting for transaction ${hash} after ${timeoutMs}ms`);
+    const resources = sorobanData.resources();
+    const simulatedResourceFee = sorobanData.resourceFee().toBigInt();
+    const simulatedTotalFee = BigInt(tx.fee);
+    const simulatedBaseFee = simulatedTotalFee > simulatedResourceFee
+      ? simulatedTotalFee - simulatedResourceFee
+      : BigInt(0);
+
+    const bufferedResourceFee = multiplyAndCeil(simulatedResourceFee, this.feeBufferMultiplier);
+    const bufferedBaseFee = multiplyAndCeil(simulatedBaseFee, this.feeBufferMultiplier);
+    const bufferedTotalFee = bufferedBaseFee + bufferedResourceFee;
+
+    if (this.maxFeeLimit !== undefined) {
+      if (this.maxFeeLimit < simulatedTotalFee) {
+        throw new ValidationError(
+          `maxFeeLimit (${this.maxFeeLimit.toString()}) is below the simulated minimum fee (${simulatedTotalFee.toString()})`
+        );
+      }
+
+      if (bufferedTotalFee > this.maxFeeLimit) {
+        throw new ValidationError(
+          `Buffered fee (${bufferedTotalFee.toString()}) exceeds maxFeeLimit (${this.maxFeeLimit.toString()})`
+        );
+      }
+    }
+
+    const bufferedSorobanData = new SorobanDataBuilder(sorobanData)
+      .setResources(
+        multiplyAndCeil(resources.instructions(), this.feeBufferMultiplier),
+        multiplyAndCeil(resources.diskReadBytes(), this.feeBufferMultiplier),
+        multiplyAndCeil(resources.writeBytes(), this.feeBufferMultiplier)
+      )
+      .setResourceFee(bufferedResourceFee.toString())
+      .build();
+
+    return TransactionBuilder.cloneFrom(tx, {
+      fee: bufferedBaseFee.toString(),
+      networkPassphrase: tx.networkPassphrase,
+      sorobanData: bufferedSorobanData
+    }).build();
   }
 
   /**
@@ -382,4 +536,74 @@ export class StellarClient {
       message: 'Stats not available from wrapped client'
     };
   }
+}
+
+function multiplyAndCeil(value: number | bigint | string, multiplier: number): bigint {
+  const scaledValue = typeof value === "bigint" ? value : BigInt(String(value));
+  if (scaledValue < BigInt(0)) {
+    throw new ValidationError("Cannot buffer a non-finite or negative resource value");
+  }
+
+  const { numerator, denominator } = toFraction(multiplier);
+  return (scaledValue * numerator + (denominator - BigInt(1))) / denominator;
+}
+
+function toFraction(multiplier: number): { numerator: bigint; denominator: bigint } {
+  if (!Number.isFinite(multiplier) || multiplier < 0) {
+    throw new ValidationError("feeBufferMultiplier must be a finite number greater than or equal to 0");
+  }
+
+  const decimalString = multiplier.toString().includes("e")
+    ? multiplier.toFixed(12).replace(/0+$/, "").replace(/\.$/, "")
+    : multiplier.toString();
+  const [wholePart, fractionalPart = ""] = decimalString.split(".");
+
+  if (!/^\d+$/.test(wholePart) || !/^\d*$/.test(fractionalPart)) {
+    throw new ValidationError("feeBufferMultiplier must be a valid decimal number");
+  }
+
+  const denominator = BigInt(10) ** BigInt(fractionalPart.length);
+  const numerator = BigInt(`${wholePart}${fractionalPart}`);
+
+  return {
+    numerator,
+    denominator: denominator === BigInt(0) ? BigInt(1) : denominator
+  };
+}
+
+function validatePollingInterval(value: number, fieldName: string, allowZero: boolean): void {
+  const valid = Number.isFinite(value) && (allowZero ? value >= 0 : value > 0);
+  if (!valid) {
+    throw new ValidationError(`${fieldName} must be a finite ${allowZero ? "non-negative" : "positive"} number`);
+  }
+}
+
+function parseTransactionPollResult(response: unknown): TransactionPollResult {
+  const record = isRecord(response) ? response : {};
+  const status = typeof record.status === "string" ? record.status : "UNKNOWN";
+
+  return {
+    ...record,
+    status,
+    ledger: normalizeLedger(record.ledger)
+  };
+}
+
+function normalizeLedger(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+
+  return null;
+}
+
+function isRecord(value: unknown): value is TransactionResponseRecord {
+  return typeof value === "object" && value !== null;
 }

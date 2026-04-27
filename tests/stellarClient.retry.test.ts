@@ -189,7 +189,7 @@ describe('StellarClient Retry Functionality', () => {
 
     it('should not retry prepareTransaction', async () => {
       const error = { response: { status: 500 } };
-      mockServer.prepareTransaction.mockRejectedValue(error);
+      mockServer.simulateTransaction.mockRejectedValue(error);
 
       let thrown: unknown;
       try {
@@ -200,7 +200,7 @@ describe('StellarClient Retry Functionality', () => {
 
       expect(thrown).toBeInstanceOf(NetworkError);
       expect(thrown).toMatchObject({ statusCode: 500 });
-      expect(mockServer.prepareTransaction).toHaveBeenCalledTimes(1);
+      expect(mockServer.simulateTransaction).toHaveBeenCalledTimes(1);
     });
 
     it('should not retry sendTransaction', async () => {

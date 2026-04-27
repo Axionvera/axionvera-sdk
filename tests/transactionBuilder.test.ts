@@ -1,5 +1,17 @@
-import { Account, Keypair, Address } from "@stellar/stellar-sdk";
-import { buildContractCallOperation, buildContractCallTransaction, toScVal } from "../src/utils/transactionBuilder";
+import {
+  Account,
+  Address,
+  FeeBumpTransaction,
+  Keypair,
+  Networks,
+  TransactionBuilder
+} from "@stellar/stellar-sdk";
+import {
+  buildContractCallOperation,
+  buildContractCallTransaction,
+  bumpTransactionFee,
+  toScVal
+} from "../src/utils/transactionBuilder";
 
 describe("transactionBuilder utils", () => {
   const account = new Account(Keypair.random().publicKey(), "1");
@@ -81,5 +93,51 @@ describe("transactionBuilder utils", () => {
 
     expect(tx.operations.length).toBe(1);
     expect(tx.operations[0].body().switch()).toBe("invokeHostFunction");
+  });
+
+  test("bumpTransactionFee wraps a signed transaction in an unsigned fee bump envelope", () => {
+    const source = Keypair.random();
+    const sponsor = Keypair.random();
+    const innerTx = buildContractCallTransaction({
+      sourceAccount: new Account(source.publicKey(), "1"),
+      networkPassphrase: Networks.TESTNET,
+      contractId: "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef",
+      method: "deposit",
+      args: [1]
+    });
+
+    innerTx.sign(source);
+
+    const feeBumpXdr = bumpTransactionFee(innerTx.toXDR(), 200, {
+      feeSource: sponsor.publicKey(),
+      networkPassphrase: Networks.TESTNET
+    });
+
+    const parsed = TransactionBuilder.fromXDR(feeBumpXdr, Networks.TESTNET);
+    expect(parsed).toBeInstanceOf(FeeBumpTransaction);
+
+    const feeBumpTx = parsed as FeeBumpTransaction;
+    expect(feeBumpTx.feeSource).toBe(sponsor.publicKey());
+    expect(feeBumpTx.signatures).toHaveLength(0);
+    expect(feeBumpTx.innerTransaction.signatures).toHaveLength(1);
+    expect(feeBumpTx.innerTransaction.toXDR()).toBe(innerTx.toXDR());
+  });
+
+  test("bumpTransactionFee rejects unsigned inner transactions", () => {
+    const sponsor = Keypair.random();
+    const innerTx = buildContractCallTransaction({
+      sourceAccount: new Account(Keypair.random().publicKey(), "1"),
+      networkPassphrase: Networks.TESTNET,
+      contractId: "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdef",
+      method: "deposit",
+      args: [1]
+    });
+
+    expect(() =>
+      bumpTransactionFee(innerTx.toXDR(), 200, {
+        feeSource: sponsor.publicKey(),
+        networkPassphrase: Networks.TESTNET
+      })
+    ).toThrow("signedXdr must include at least one signature");
   });
 });

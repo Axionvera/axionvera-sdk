@@ -53,6 +53,8 @@ export class ContractError extends AxionveraError { }
 
 export class TimeoutError extends AxionveraError { }
 
+export class TransactionTimeoutError extends TimeoutError { }
+
 export class InsufficientFundsError extends AxionveraError { }
 
 export class InvalidSignatureError extends AxionveraError { }

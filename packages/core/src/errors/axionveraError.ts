@@ -51,6 +51,8 @@ export class StellarRpcResponseError extends AxionveraError {}
 
 export class StellarRpcTimeoutError extends AxionveraError {}
 
+export class TransactionTimeoutError extends StellarRpcTimeoutError {}
+
 export class WalletNotInstalledError extends AxionveraError {}
 
 export class FaucetRateLimitError extends AxionveraError {}

@@ -8,6 +8,7 @@ import {
   RpcError,
   ContractError,
   TimeoutError,
+  TransactionTimeoutError,
   InsufficientFundsError,
   InvalidSignatureError,
   SimulationError,
@@ -114,6 +115,14 @@ describe('New error classes', () => {
     expect(error).toBeInstanceOf(AxionveraError);
     expect(error).toBeInstanceOf(TimeoutError);
     expect(error.message).toBe('Operation timed out');
+  });
+
+  it('TransactionTimeoutError extends TimeoutError', () => {
+    const error = new TransactionTimeoutError('Transaction polling timed out');
+    expect(error).toBeInstanceOf(AxionveraError);
+    expect(error).toBeInstanceOf(TimeoutError);
+    expect(error).toBeInstanceOf(TransactionTimeoutError);
+    expect(error.message).toBe('Transaction polling timed out');
   });
 
   it('InsufficientFundsError extends AxionveraError', () => {

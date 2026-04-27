@@ -111,6 +111,36 @@ STELLAR_PUBLIC_KEY=G... \
 npx ts-node examples/balanceExample.ts
 ```
 
+## 7) Recover a stuck transaction with a sponsor fee bump
+
+Use `bumpTransactionFee` when the user already signed the original contract transaction, but the transaction is stuck in the mempool and a backend sponsor needs to raise the fee.
+
+```ts
+import { Networks } from "@stellar/stellar-sdk";
+import { bumpTransactionFee } from "axionvera-sdk";
+
+const feeBumpEnvelopeXdr = bumpTransactionFee(userSignedXdr, 500, {
+  feeSource: sponsorPublicKey,
+  networkPassphrase: Networks.TESTNET
+});
+
+const sponsorSignedXdr = await sponsorWallet.signTransaction(
+  feeBumpEnvelopeXdr,
+  Networks.TESTNET
+);
+
+await client.sendTransaction(sponsorSignedXdr);
+```
+
+Workflow:
+
+1. The user signs the original inner transaction once.
+2. Your backend wraps that signed XDR with `bumpTransactionFee(...)`.
+3. The sponsor wallet signs only the outer fee bump envelope.
+4. Submit the sponsor-signed fee bump XDR with `client.sendTransaction(...)`.
+
+This keeps the original contract payload intact while letting enterprise apps react to volatile fee markets.
+
 ## TODO
 
 - Add CLI examples that compile to plain JS under `dist/`

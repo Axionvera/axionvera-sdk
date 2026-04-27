@@ -1,19 +1,18 @@
 import {
   Account,
-  Address,
-  Contract,
-  FeeBumpTransaction,
-  Keypair,
   Transaction,
   TransactionBuilder,
   rpc,
-  xdr,
   Operation
 } from "@stellar/stellar-sdk";
 
 import { StellarClient } from "../client/stellarClient";
 import { WalletConnector } from "../wallet/walletConnector";
-import { buildContractCallOperation, toScVal, ContractCallArg } from "../utils/transactionBuilder";
+import {
+  buildContractCallOperation,
+  bumpTransactionFee,
+  ContractCallArg
+} from "../utils/transactionBuilder";
 
 /**
  * Configuration for building and signing transactions.
@@ -277,27 +276,17 @@ export class TransactionSigner {
    * @returns The signed fee bump transaction XDR
    */
   async createFeeBumpTransaction(params: FeeBumpParams): Promise<string> {
-    // Parse the inner transaction
-    const innerTransaction = TransactionBuilder.fromXDR(
+    const feeBumpEnvelopeXdr = bumpTransactionFee(
       params.innerTransaction,
-      this.client.networkPassphrase
+      params.baseFee,
+      {
+        feeSource: params.feeSource,
+        networkPassphrase: this.client.networkPassphrase
+      }
     );
 
-    // Get fee source account
-    const feeSourceAccount = await this.client.rpc.getAccount(params.feeSource);
-
-    // Build the fee bump transaction
-    const feeBumpTx = new FeeBumpTransaction.Builder(
-      feeSourceAccount,
-      params.baseFee.toString(),
-      this.client.networkPassphrase
-    )
-      .setInnerTransaction(innerTransaction)
-      .build();
-
-    // Sign the fee bump transaction
     return await this.wallet.signTransaction(
-      feeBumpTx.toXDR(),
+      feeBumpEnvelopeXdr,
       this.client.networkPassphrase
     );
   }
