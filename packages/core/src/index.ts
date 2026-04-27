@@ -28,21 +28,27 @@ export { generateTransactionURI, generatePayURI } from './utils/sep7';
 export { decodeXdrBase64, clearXdrCache, getXdrCacheSize } from './utils/xdrCache';
 
 // Errors
-export { 
-  AxionveraError, 
-  NetworkError, 
-  AuthenticationError, 
-  RateLimitError, 
+export {
+  AxionveraError,
+  NetworkError,
+  AuthenticationError,
+  RateLimitError,
   ValidationError,
   StellarRpcNetworkError,
   StellarRpcResponseError,
   StellarRpcTimeoutError,
+  InsecureNetworkError,
   WalletNotInstalledError,
   FaucetRateLimitError,
+  RPCValidationMismatchError,
   DeviceLockedError,
   UserRejectedError,
   toAxionveraError
 } from './errors/axionveraError';
+export type { RPCValidationMismatchErrorOptions } from './errors/axionveraError';
+
+// RPC schema types
+export type { ValidatedGetHealthResponse, ValidatedGetTransactionResponse } from './utils/rpcSchemas';
 
 // Transaction Signing
 export { TransactionSigner, EnhancedTransactionBuilder, TransactionSimulator } from './transaction';

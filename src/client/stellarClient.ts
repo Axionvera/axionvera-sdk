@@ -12,6 +12,14 @@ import { AxionveraNetwork, resolveNetworkConfig } from "../utils/networkConfig";
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
 import { normalizeRpcError, normalizeTransactionError, TimeoutError, InsecureNetworkError, AxionveraError, AxionveraRPCError, SimulationFailedError } from "../errors/axionveraError";
+import {
+  validateRpcResponse,
+  GetHealthResponseSchema,
+  SimulateTransactionResponseSchema,
+  GetTransactionResponseSchema,
+  ValidatedGetHealthResponse,
+  ValidatedGetTransactionResponse,
+} from "../utils/rpcSchemas";
 import { WebSocketManager } from "./websocket/websocketManager";
 import { WebSocketConfig } from "./websocket/types";
 import { Logger } from "../utils/logger";
@@ -156,10 +164,12 @@ export class StellarClient {
    * Automatically retries on failure.
    * @returns The health check response
    */
-  async getHealth(): Promise<rpc.Api.GetHealthResponse> {
+  async getHealth(): Promise<ValidatedGetHealthResponse> {
     try {
-      return await retry(() => this.rpc.getHealth(), this.retryConfig);
+      const response = await retry(() => this.rpc.getHealth(), this.retryConfig);
+      return validateRpcResponse(GetHealthResponseSchema, response, 'getHealth');
     } catch (error) {
+      if (error instanceof AxionveraError) throw error;
       throw new AxionveraRPCError(
         error instanceof Error ? error.message : 'RPC operation failed: getHealth',
         'getHealth',
@@ -213,12 +223,13 @@ export class StellarClient {
   ): Promise<rpc.Api.SimulateTransactionResponse> {
     try {
       const result = await this.rpc.simulateTransaction(tx);
+      validateRpcResponse(SimulateTransactionResponseSchema, result, 'simulateTransaction');
       if (rpc.Api.isSimulationError(result)) {
         throw new SimulationFailedError(result.error, { simulationResult: result });
       }
       return result;
     } catch (error) {
-      if (error instanceof SimulationFailedError) throw error;
+      if (error instanceof AxionveraError) throw error;
       throw new SimulationFailedError(
         error instanceof Error ? error.message : 'Transaction simulation failed',
         { originalError: error }
@@ -282,8 +293,9 @@ export class StellarClient {
    * @param hash - The transaction hash
    * @returns The transaction status response
    */
-  async getTransaction(hash: string): Promise<unknown> {
-    return retry(() => this.rpc.getTransaction(hash), this.retryConfig);
+  async getTransaction(hash: string): Promise<ValidatedGetTransactionResponse> {
+    const response = await retry(() => this.rpc.getTransaction(hash), this.retryConfig);
+    return validateRpcResponse(GetTransactionResponseSchema, response, 'getTransaction');
   }
 
   /**
