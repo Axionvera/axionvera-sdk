@@ -6,6 +6,8 @@ export type { StellarClientOptions } from './client/stellarClient';
 export type { AxionveraClientConfig } from './client/axionveraClient';
 
 // Contracts
+export { BaseContract } from './contracts/BaseContract';
+export type { BaseContractConfig } from './contracts/BaseContract';
 export { VaultContract } from './contracts/VaultContract';
 export { ContractEventEmitter } from './contracts/ContractEventEmitter';
 export { Vault } from './contracts/Vault';
@@ -64,3 +66,8 @@ export type {
 export * from './test/msw/setup';
 export * from './test/msw/handlers';
 export { server } from './test/msw/server';
+
+// Codegen utilities (for programmatic use)
+export { parseWasm } from './codegen/wasmParser';
+export { generateContractClass } from './codegen/generator';
+export type { ContractSpec, SpecFunction, SpecParam, SpecStruct, SpecEnum } from './codegen/wasmParser';

@@ -61,7 +61,30 @@
         "types": "./dist/wallet.d.ts",
         "default": "./dist/wallet.js"
       }
+    },
+    "./codegen": {
+      "import": {
+        "types": "./dist/codegen.d.mts",
+        "default": "./dist/codegen.mjs"
+      },
+      "require": {
+        "types": "./dist/codegen.d.ts",
+        "default": "./dist/codegen.js"
+      }
+    },
+    "./contracts/BaseContract": {
+      "import": {
+        "types": "./dist/contracts/BaseContract.d.mts",
+        "default": "./dist/contracts/BaseContract.mjs"
+      },
+      "require": {
+        "types": "./dist/contracts/BaseContract.d.ts",
+        "default": "./dist/contracts/BaseContract.js"
+      }
     }
+  },
+  "bin": {
+    "axionvera-cli": "./bin/axionvera-cli.js"
   },
   "scripts": {
     "clean": "rimraf dist",
