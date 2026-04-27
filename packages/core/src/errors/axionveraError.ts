@@ -54,6 +54,8 @@ export class StellarRpcTimeoutError extends AxionveraError {}
 export class WalletNotInstalledError extends AxionveraError {}
 
 export class FaucetRateLimitError extends AxionveraError {}
+export class DeviceLockedError extends AxionveraError {}
+export class UserRejectedError extends AxionveraError {}
 
 export class SlippageToleranceExceededError extends AxionveraError {
   readonly expected: bigint;
