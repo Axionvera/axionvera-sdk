@@ -5,6 +5,7 @@ import {
   FeeBumpTransaction,
   Keypair,
   nativeToScVal,
+  scValToNative,
   rpc,
   Transaction,
   TransactionBuilder,
