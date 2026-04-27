@@ -13,55 +13,31 @@
   ],
   "exports": {
     ".": {
-      "import": {
-        "types": "./dist/index.d.mts",
-        "default": "./dist/index.mjs"
-      },
-      "require": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
-      }
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     },
     "./vault": {
-      "import": {
-        "types": "./dist/vault.d.mts",
-        "default": "./dist/vault.mjs"
-      },
-      "require": {
-        "types": "./dist/vault.d.ts",
-        "default": "./dist/vault.js"
-      }
+      "import": "./dist/vault.mjs",
+      "require": "./dist/vault.js",
+      "types": "./dist/vault.d.ts"
     },
     "./client": {
-      "import": {
-        "types": "./dist/client.d.mts",
-        "default": "./dist/client.mjs"
-      },
-      "require": {
-        "types": "./dist/client.d.ts",
-        "default": "./dist/client.js"
-      }
+      "import": "./dist/client.mjs",
+      "require": "./dist/client.js",
+      "types": "./dist/client.d.ts"
     },
     "./utils": {
-      "import": {
-        "types": "./dist/utils.d.mts",
-        "default": "./dist/utils.mjs"
-      },
-      "require": {
-        "types": "./dist/utils.d.ts",
-        "default": "./dist/utils.js"
-      }
+      "import": "./dist/utils.mjs",
+      "require": "./dist/utils.js",
+      "types": "./dist/utils.d.ts"
     },
     "./wallet": {
-      "import": {
-        "types": "./dist/wallet.d.mts",
-        "default": "./dist/wallet.mjs"
-      },
-      "require": {
-        "types": "./dist/wallet.d.ts",
-        "default": "./dist/wallet.js"
-      }
-    }
+      "import": "./dist/wallet.mjs",
+      "require": "./dist/wallet.js",
+      "types": "./dist/wallet.d.ts"
+    },
+    "./dist/*": null
   },
   "scripts": {
     "clean": "rimraf dist",
