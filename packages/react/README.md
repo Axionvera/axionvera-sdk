@@ -148,6 +148,8 @@ A high-level abstraction for the Axionvera Vault smart contract.
 - `deposit({ amount, from })`: Deposits tokens into the vault.
 - `withdraw({ amount, from })`: Withdraws tokens from the vault.
 - `getBalance({ account })`: Retrieves the vault balance for a specific account.
+- `getVaultShares({ account })`: Queries the user's balance of the Vault's share token (read-only).
+- `getExchangeRate()`: Queries the current conversion rate between 1 Share and the underlying asset (read-only).
 - `claimRewards({ from })`: Claims pending rewards for the caller.
 
 ### `FaucetClient`
