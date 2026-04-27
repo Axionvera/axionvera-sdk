@@ -11,6 +11,7 @@ export {
     TimeoutError,
     InsufficientFundsError,
     InvalidSignatureError,
+    InvalidXDRError,
     SimulationError,
     WalletNotInstalledError,
     FaucetRateLimitError,
@@ -31,13 +32,13 @@ export { FaucetClient } from './client/faucetClient';
 export type { StellarClientOptions } from './client/stellarClient';
 
 // Contracts
-export { VaultContract } from './contracts/VaultContract';
-export { Vault } from './contracts/Vault';
+// export { VaultContract } from './contracts/VaultContract';
+export { Vault } from './contracts/vault';
 export { VaultABI } from './contracts/abis/VaultABI';
-export type { VaultConfig, DepositParams, WithdrawParams, VaultInfo } from './contracts/Vault';
+export type { VaultConfig, DepositParams, WithdrawParams, VaultInfo } from './contracts/vault';
 
 // Wallet
-export { LocalKeypairWalletConnector } from './wallet/localKeypairWalletConnector';
+export { LocalKeypairWalletConnector } from './wallet/walletConnector';
 export { BrowserWalletConnector } from './wallet/browserWalletConnector';
 export type { WalletConnector } from './wallet/walletConnector';
 
@@ -48,8 +49,9 @@ export { buildContractCallOperation, buildContractCallTransaction, buildBaseTran
 export type { BuildBaseTransactionParams } from './utils/transactionBuilder';
 export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
 export { generateTransactionURI, generatePayURI } from './utils/sep7';
+export { isValidXDR, assertValidXDR, MAX_XDR_STRING_LENGTH } from './utils/xdrValidator';
 
 // Testing & MSW
-export * from './test/msw/setup';
-export * from './test/msw/handlers';
-export { server } from './test/msw/server';
+// export * from './test/msw/setup';
+// export * from './test/msw/handlers';
+// export { server } from './test/msw/server';

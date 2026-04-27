@@ -1,5 +1,6 @@
 import { WalletConnector } from './walletConnector';
 import { WalletNotInstalledError } from '../errors/axionveraError';
+import { assertValidXDR } from '../utils/xdrValidator';
 
 type FreighterApi = {
   getPublicKey: () => Promise<string>;
@@ -51,6 +52,8 @@ export class BrowserWalletConnector implements WalletConnector {
     transactionXdr: string,
     networkPassphrase: string
   ): Promise<string> {
+    // Sanitize before sending to freighter.
+    assertValidXDR(transactionXdr, 'signTransaction');
     const freighter = await loadFreighter();
     const result = await freighter.signTransaction(transactionXdr, networkPassphrase);
 

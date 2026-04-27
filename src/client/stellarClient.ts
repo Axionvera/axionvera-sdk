@@ -11,7 +11,8 @@ import {
 import { AxionveraNetwork, resolveNetworkConfig } from "../utils/networkConfig";
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
-import { normalizeRpcError, normalizeTransactionError, TimeoutError, InsecureNetworkError, AxionveraError, AxionveraRPCError, SimulationFailedError } from "../errors/axionveraError";
+import { normalizeRpcError, normalizeTransactionError, TimeoutError, InsecureNetworkError, AxionveraError, AxionveraRPCError, SimulationFailedError, InvalidXDRError } from "../errors/axionveraError";
+import { assertValidXDR } from '../utils/xdrValidator';
 import { WebSocketManager } from "./websocket/websocketManager";
 import { WebSocketConfig } from "./websocket/types";
 import { Logger } from "../utils/logger";
@@ -258,11 +259,25 @@ export class StellarClient {
           this.networkPassphrase
         );
 
+        // Sanitize the wallet-returned XDR before parsing to prevent
+        // injection / buffer panic from a malicious wallet response.
+        assertValidXDR(signedXdr, 'sendTransaction (wallet signedXdr)');
+
         // Reconstruct signed transaction from XDR
-        finalTx = TransactionBuilder.fromXDR(
-          signedXdr,
-          this.networkPassphrase
-        );
+        try {
+          finalTx = TransactionBuilder.fromXDR(
+            signedXdr,
+            this.networkPassphrase
+          );
+        } catch (err) {
+          throw new InvalidXDRError(
+            `sendTransaction: wallet returned an XDR string that could not be parsed: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+            signedXdr,
+            { originalError: err },
+          );
+        }
       }
 
       // Submit either original or signed transaction
@@ -329,15 +344,33 @@ export class StellarClient {
 
   /**
    * Parses a base64-encoded transaction XDR string.
-   * @param transactionXdr - The base64-encoded transaction
+   *
+   * Validates the string against the base64 alphabet and the maximum permitted
+   * length before handing it to the stellar-sdk parser, preventing
+   * injection / Buffer allocation panics from untrusted inputs.
+   *
+   * @param transactionXdr - The base64-encoded transaction (consumer-supplied)
    * @param networkPassphrase - The network passphrase
    * @returns The parsed Transaction or FeeBumpTransaction
+   * @throws {InvalidXDRError} If the XDR string is invalid or oversized
    */
   static parseTransactionXdr(
     transactionXdr: string,
     networkPassphrase: string
   ): Transaction | FeeBumpTransaction {
-    return TransactionBuilder.fromXDR(transactionXdr, networkPassphrase);
+    // Sanitize before stellar-sdk Buffer allocation.
+    assertValidXDR(transactionXdr, 'parseTransactionXdr');
+    try {
+      return TransactionBuilder.fromXDR(transactionXdr, networkPassphrase);
+    } catch (err) {
+      throw new InvalidXDRError(
+        `parseTransactionXdr: failed to parse XDR: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        transactionXdr,
+        { originalError: err },
+      );
+    }
   }
 
   /**
