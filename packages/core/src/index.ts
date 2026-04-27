@@ -16,6 +16,7 @@ export type { ContractEvent, EventCallback } from './contracts/ContractEventEmit
 // Wallet
 export { LocalKeypairWalletConnector } from './wallet/localKeypairWalletConnector';
 export { BrowserWalletConnector } from './wallet/browserWalletConnector';
+export { LedgerWalletConnector } from './wallet/ledgerWalletConnector';
 export type { WalletConnector } from './wallet/walletConnector';
 
 // Utils
@@ -40,6 +41,8 @@ export {
   WalletNotInstalledError,
   FaucetRateLimitError,
   RPCValidationMismatchError,
+  DeviceLockedError,
+  UserRejectedError,
   toAxionveraError
 } from './errors/axionveraError';
 export type { RPCValidationMismatchErrorOptions } from './errors/axionveraError';

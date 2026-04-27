@@ -27,9 +27,11 @@ export function useStellarClient(options?: {
     }
 
     return () => {
-      client?.removeAllListeners();
+      if (client) {
+        client.removeAllListeners();
+      }
     };
-  }, []);
+  }, [client]);
 
   return { client, isLoading, error };
 }
@@ -68,7 +70,7 @@ export function useEventSubscription(
   }, [client, subscriptionId]);
 
   useEffect(() => {
-    subscribe();
+    void subscribe();
     return unsubscribe;
   }, [subscribe, unsubscribe]);
 
@@ -79,7 +81,7 @@ export function useEventSubscription(
  * Hook for monitoring queue status
  */
 export function useQueueStatus(client: StellarClient | null) {
-  const [status, setStatus] = useState<any>(null);
+  const [status, setStatus] = useState<unknown>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const refreshStatus = useCallback(async () => {
@@ -97,7 +99,7 @@ export function useQueueStatus(client: StellarClient | null) {
   }, [client]);
 
   useEffect(() => {
-    refreshStatus();
+    void refreshStatus();
   }, [refreshStatus]);
 
   return { status, isLoading, refreshStatus };

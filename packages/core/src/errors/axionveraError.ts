@@ -56,6 +56,8 @@ export class InsecureNetworkError extends AxionveraError {}
 export class WalletNotInstalledError extends AxionveraError {}
 
 export class FaucetRateLimitError extends AxionveraError {}
+export class DeviceLockedError extends AxionveraError {}
+export class UserRejectedError extends AxionveraError {}
 
 export type RPCValidationMismatchErrorOptions = AxionveraErrorOptions & {
   rpcMethod: string;
