@@ -10,13 +10,18 @@ jobs:
   dependency-audit:
     name: Dependency Audit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      # Fails the build if "high" or "critical" vulnerabilities are found
-      - run: npm audit --audit-level=high
+          cache: 'npm'
+      - name: Install locked dependencies without lifecycle scripts
+        run: npm ci --ignore-scripts
+      - name: Audit npm dependency graph
+        run: npm audit --workspaces --include-workspace-root --audit-level=high
 
   test-and-coverage:
     name: Test on Node ${{ matrix.node-version }}
