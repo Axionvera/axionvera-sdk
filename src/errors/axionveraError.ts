@@ -57,6 +57,31 @@ export class InsufficientFundsError extends AxionveraError { }
 
 export class InvalidSignatureError extends AxionveraError { }
 
+/**
+ * Thrown when a consumer-provided XDR string fails sanitization.
+ *
+ * This error is raised before the underlying @stellar/stellar-sdk parser is
+ * ever invoked, so no unhandled Buffer allocation panics can reach the caller.
+ *
+ * @example
+ * ```typescript
+ * import { assertValidXDR } from 'axionvera-sdk';
+ * // Throws InvalidXDRError for any non-base64 or oversized input
+ * assertValidXDR(userSuppliedXdr);
+ * ```
+ */
+export class InvalidXDRError extends AxionveraError {
+  /** The (possibly truncated) input that failed validation. */
+  readonly input: string;
+
+  constructor(message: string, input: string, options: AxionveraErrorOptions = {}) {
+    super(message, options);
+    this.name = 'InvalidXDRError';
+    // Avoid leaking huge strings in the error object — keep at most 64 chars.
+    this.input = input.length > 64 ? `${input.slice(0, 64)}…` : input;
+  }
+}
+
 export class SimulationError extends AxionveraError { }
 
 export class WalletNotInstalledError extends AxionveraError { }

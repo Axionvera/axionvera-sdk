@@ -14,15 +14,18 @@ export class CloudWatchLogger {
   private isInitialized = false;
   private isDestroyed = false;
 
-  private readonly config: Required<CloudWatchConfig>;
+  private readonly config: Required<Omit<CloudWatchConfig, 'accessKeyId' | 'secretAccessKey'>> & {
+    accessKeyId?: string;
+    secretAccessKey?: string;
+  };
 
   constructor(config: CloudWatchConfig) {
     this.config = {
       logGroupName: config.logGroupName,
       logStreamName: config.logStreamName || `axionvera-sdk-${Date.now()}`,
       region: config.region || 'us-east-1',
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.secretAccessKey,
+      accessKeyId: config.accessKeyId as string,
+      secretAccessKey: config.secretAccessKey as string,
       batchSize: config.batchSize || 100,
       flushIntervalMs: config.flushIntervalMs || 5000,
       maxRetries: config.maxRetries || 3,
@@ -47,7 +50,7 @@ export class CloudWatchLogger {
         };
       }
 
-      this.client = new CloudWatchLogsClient(clientConfig);
+      this.client = new CloudWatchLogsClient(clientConfig) as any;
 
       // Ensure log group exists
       await this.ensureLogGroup();
@@ -175,8 +178,8 @@ export class CloudWatchLogger {
           logStreamNamePrefix: this.config.logStreamName,
         });
         
-        const response = await this.client!.send(command);
-        const stream = response.logStreams?.find(s => s.logStreamName === this.config.logStreamName);
+        const response = await (this.client as any).send(command);
+        const stream = response.logStreams?.find((s: any) => s.logStreamName === this.config.logStreamName);
         
         if (stream?.uploadSequenceToken) {
           params.sequenceToken = stream.uploadSequenceToken;
