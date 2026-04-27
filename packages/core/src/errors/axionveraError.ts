@@ -57,6 +57,29 @@ export class FaucetRateLimitError extends AxionveraError {}
 export class DeviceLockedError extends AxionveraError {}
 export class UserRejectedError extends AxionveraError {}
 
+export class SlippageToleranceExceededError extends AxionveraError {
+  readonly expected: bigint;
+  readonly actual: bigint;
+  readonly tolerance: bigint;
+
+  constructor(
+    expected: bigint,
+    actual: bigint,
+    tolerance: bigint,
+    options: AxionveraErrorOptions = {}
+  ) {
+    super(
+      `Slippage tolerance exceeded: expected at least ${expected} shares, ` +
+      `but simulation returned ${actual}. Tolerance was ${tolerance}.`,
+      options
+    );
+    this.name = 'SlippageToleranceExceededError';
+    this.expected = expected;
+    this.actual = actual;
+    this.tolerance = tolerance;
+  }
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
