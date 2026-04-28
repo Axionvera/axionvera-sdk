@@ -8,4 +8,5 @@ export default defineConfig({
   treeshake: true,
   sourcemap: true,
   clean: true,
+  external: ['@stellar/stellar-sdk'],
 });

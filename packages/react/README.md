@@ -54,21 +54,23 @@ Before using the Axionvera SDK, ensure you have the following installed:
 
 ## 📦 Installation
 
+`axionvera-sdk` relies on `@stellar/stellar-sdk` as a peer dependency (minimum `^14.6.1`).
+
 Install the package using your preferred package manager:
 
 **Using npm:**
 ```bash
-npm install axionvera-sdk
+npm install axionvera-sdk @stellar/stellar-sdk
 ```
 
 **Using yarn:**
 ```bash
-yarn add axionvera-sdk
+yarn add axionvera-sdk @stellar/stellar-sdk
 ```
 
 **Using pnpm:**
 ```bash
-pnpm add axionvera-sdk
+pnpm add axionvera-sdk @stellar/stellar-sdk
 ```
 
 ---

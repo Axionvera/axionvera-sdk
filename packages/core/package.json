@@ -71,10 +71,10 @@
   },
   "sideEffects": false,
   "dependencies": {
-    "@stellar/stellar-sdk": "^14.6.1",
     "axios": "^1.7.9"
   },
   "peerDependencies": {
+    "@stellar/stellar-sdk": "^14.6.1",
     "@stellar/freighter-api": "^6.0.1",
     "@ledgerhq/hw-transport-webusb": "^6.29.4",
     "@ledgerhq/hw-app-str": "^6.27.1"
@@ -108,6 +108,7 @@
     "typedoc": "^0.28.18",
     "typedoc-plugin-markdown": "^4.11.0",
     "typescript": "^5.5.4",
+    "@stellar/stellar-sdk": "^14.6.1",
     "@ledgerhq/hw-transport-webusb": "^6.29.4",
     "@ledgerhq/hw-app-str": "^6.27.1"
   },
