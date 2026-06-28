@@ -57,23 +57,16 @@ export {
   DiagnosticsReport,
   TraceSpan,
 } from './observability/types';
-export {
-  DiagnosticsManager,
-} from './diagnostics';
+export { DiagnosticsManager } from './diagnostics';
 
 // Plugin System
-export {
-  PluginManager,
-  getPluginManager,
-  setPluginManager,
-} from './plugin';
+export { PluginManager, getPluginManager, setPluginManager } from './plugin';
 export type {
   PluginConfig,
   PluginInstance,
   PluginManagerConfig,
   PluginHooks,
 } from './plugin/types';
-
 
 // Dependency Injection
 export {
@@ -112,7 +105,14 @@ export type {
 export type { StellarClientOptions } from './client/stellarClient';
 export type { LogLevel, CustomLogger } from './utils/logger';
 export { MiddlewarePipeline } from './middleware';
-export type { Middleware, MiddlewareContext, MiddlewareRegistration, MiddlewareWorkflow, MiddlewareStage, MiddlewarePipelineOptions } from './middleware';
+export type {
+  Middleware,
+  MiddlewareContext,
+  MiddlewareRegistration,
+  MiddlewareWorkflow,
+  MiddlewareStage,
+  MiddlewarePipelineOptions,
+} from './middleware';
 export type {
   StellarClientOptions,
   PendingTransaction,
@@ -142,22 +142,43 @@ export { Vault } from './contracts/vault';
 export { VaultABI } from './contracts/abis/VaultABI';
 export type { VaultConfig, DepositParams, WithdrawParams, VaultInfo } from './contracts/vault';
 
-
 // Discovery
-export { DefaultContractDiscoveryService, contractDiscovery, DefaultContractDescriptors, VaultContractDescriptor } from './discovery';
+export {
+  DefaultContractDiscoveryService,
+  contractDiscovery,
+  DefaultContractDescriptors,
+  VaultContractDescriptor,
+} from './discovery';
 export { CapabilityRegistry } from './registry';
-export type { ContractCapability, ContractDescriptor, ContractDiscoveryService, ContractMethodDescriptor, DiscoveryValidationResult } from './discovery';
+export type {
+  ContractCapability,
+  ContractDescriptor,
+  ContractDiscoveryService,
+  ContractMethodDescriptor,
+  DiscoveryValidationResult,
+} from './discovery';
+
+// Reflection
+export { ContractReflectionService, contractReflection } from './reflection';
+export type {
+  ContractReflection,
+  ReflectedEvent,
+  ReflectedMethod,
+  ReflectedParameter,
+  ReflectedStateMutability,
+  ReflectOptions,
+} from './reflection';
 
 // Session
 export { ContractSession } from './session/contractSession';
 export { SessionManager } from './session/sessionManager';
 export type {
-    SessionStatus,
-    ContractContext,
-    RegisterContractParams,
-    SessionConfig,
-    SessionSnapshot,
-    SessionManagerConfig
+  SessionStatus,
+  ContractContext,
+  RegisterContractParams,
+  SessionConfig,
+  SessionSnapshot,
+  SessionManagerConfig,
 } from './session/types';
 
 // Wallet
@@ -220,7 +241,13 @@ export type {
 
 // Profiling
 export { ProfilingService, profilingService } from './profiling';
-export type { ProfileOptions, ProfiledCallMetric, ProfilingConfig, ProfilingLevel, ProfilingReport } from './profiling';
+export type {
+  ProfileOptions,
+  ProfiledCallMetric,
+  ProfilingConfig,
+  ProfilingLevel,
+  ProfilingReport,
+} from './profiling';
 
 // Testing & MSW
 // export * from './test/msw/setup';
