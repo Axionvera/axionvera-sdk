@@ -154,6 +154,17 @@ export type {
   LoggerService,
   WebSocketManagerService,
 } from './core/serviceInterfaces';
+export {
+  CryptoProviderRegistry,
+  NodeDigestCryptoProvider,
+  cryptoProviderRegistry,
+  validateCryptoProvider,
+} from './crypto';
+export type {
+  CryptoProvider,
+  CryptoProviderCapability,
+  CryptoProviderValidationResult,
+} from './crypto';
 
 // Client
 export { StellarClient, HYDRATION_STATE_VERSION } from './client/stellarClient';
