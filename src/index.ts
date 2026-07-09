@@ -256,6 +256,23 @@ export type { WalletConnector } from './wallet/walletConnector';
 
 // Utils
 export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
+export {
+  IncrementalSyncEngine,
+  InMemoryCheckpointStore,
+  InMemoryResourceStore,
+} from './sync';
+export type {
+  CheckpointStore,
+  IncrementalSyncEngineConfig,
+  ResourceStore,
+  SyncCheckpoint,
+  SyncConflict,
+  SyncConflictStrategy,
+  SyncPage,
+  SyncResource,
+  SyncResult,
+  SyncSource,
+} from './sync';
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export {
   buildContractCallOperation,
