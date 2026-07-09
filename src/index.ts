@@ -256,6 +256,17 @@ export type { WalletConnector } from './wallet/walletConnector';
 
 // Utils
 export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
+export {
+  DEFAULT_OBJECT_POOL_MAX_SIZE,
+  ObjectPool,
+  ObjectPoolManager,
+  objectPoolManager,
+} from './pooling';
+export type {
+  ObjectPoolConfig,
+  ObjectPoolHooks,
+  ObjectPoolStats,
+} from './pooling';
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export {
   buildContractCallOperation,
