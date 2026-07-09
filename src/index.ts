@@ -256,6 +256,22 @@ export type { WalletConnector } from './wallet/walletConnector';
 
 // Utils
 export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
+export {
+  TransactionSerializationCache,
+  createTransactionEnvelope,
+  decodeTransactionEnvelope,
+  deserializeTransactionEnvelope,
+  encodeTransactionEnvelope,
+  serializeTransactionEnvelope,
+  transactionSerializationCache,
+} from './serialization';
+export type {
+  DeserializedTransactionEnvelope,
+  SerializableTransactionLike,
+  SerializedTransactionEnvelope,
+  TransactionParser,
+  TransactionSerializationOptions,
+} from './serialization';
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export {
   buildContractCallOperation,
