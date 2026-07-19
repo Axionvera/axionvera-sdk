@@ -256,6 +256,19 @@ export type { WalletConnector } from './wallet/walletConnector';
 
 // Utils
 export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
+export {
+  DEFAULT_REQUEST_SCHEDULER_CONFIG,
+  RequestCancelledError,
+  RequestScheduler,
+  createScheduledClient,
+} from './scheduler';
+export type {
+  RequestPriority,
+  RequestSchedulerConfig,
+  RequestSchedulerStats,
+  ScheduledRequestOptions,
+  ScheduledRequestSnapshot,
+} from './scheduler';
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export {
   buildContractCallOperation,
