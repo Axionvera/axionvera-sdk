@@ -257,22 +257,18 @@ export type { WalletConnector } from './wallet/walletConnector';
 // Utils
 export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
 export {
-  IncrementalSyncEngine,
-  InMemoryCheckpointStore,
-  InMemoryResourceStore,
-} from './sync';
+  DEFAULT_REQUEST_SCHEDULER_CONFIG,
+  RequestCancelledError,
+  RequestScheduler,
+  createScheduledClient,
+} from './scheduler';
 export type {
-  CheckpointStore,
-  IncrementalSyncEngineConfig,
-  ResourceStore,
-  SyncCheckpoint,
-  SyncConflict,
-  SyncConflictStrategy,
-  SyncPage,
-  SyncResource,
-  SyncResult,
-  SyncSource,
-} from './sync';
+  RequestPriority,
+  RequestSchedulerConfig,
+  RequestSchedulerStats,
+  ScheduledRequestOptions,
+  ScheduledRequestSnapshot,
+} from './scheduler';
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export {
   buildContractCallOperation,
