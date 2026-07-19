@@ -154,6 +154,12 @@ export type {
   LoggerService,
   WebSocketManagerService,
 } from './core/serviceInterfaces';
+export { ResourceLifecycleManager, resourceLifecycleManager } from './resources';
+export type {
+  ManagedResource,
+  ResourceLifecycleSnapshot,
+  ResourceLifecycleState,
+} from './resources';
 
 // Client
 export { StellarClient, HYDRATION_STATE_VERSION } from './client/stellarClient';
