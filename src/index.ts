@@ -154,6 +154,12 @@ export type {
   LoggerService,
   WebSocketManagerService,
 } from './core/serviceInterfaces';
+export { ResourceLifecycleManager, resourceLifecycleManager } from './resources';
+export type {
+  ManagedResource,
+  ResourceLifecycleSnapshot,
+  ResourceLifecycleState,
+} from './resources';
 
 // Client
 export { StellarClient, HYDRATION_STATE_VERSION } from './client/stellarClient';
@@ -257,21 +263,18 @@ export type { WalletConnector } from './wallet/walletConnector';
 // Utils
 export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
 export {
-  TransactionSerializationCache,
-  createTransactionEnvelope,
-  decodeTransactionEnvelope,
-  deserializeTransactionEnvelope,
-  encodeTransactionEnvelope,
-  serializeTransactionEnvelope,
-  transactionSerializationCache,
-} from './serialization';
+  DEFAULT_REQUEST_SCHEDULER_CONFIG,
+  RequestCancelledError,
+  RequestScheduler,
+  createScheduledClient,
+} from './scheduler';
 export type {
-  DeserializedTransactionEnvelope,
-  SerializableTransactionLike,
-  SerializedTransactionEnvelope,
-  TransactionParser,
-  TransactionSerializationOptions,
-} from './serialization';
+  RequestPriority,
+  RequestSchedulerConfig,
+  RequestSchedulerStats,
+  ScheduledRequestOptions,
+  ScheduledRequestSnapshot,
+} from './scheduler';
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export {
   buildContractCallOperation,
