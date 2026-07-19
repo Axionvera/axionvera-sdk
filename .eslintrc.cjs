@@ -23,5 +23,5 @@ module.exports = {
     '@typescript-eslint/no-explicit-any': 'error',
     '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
   },
-  ignorePatterns: ['dist/', 'node_modules/', 'tests/', 'examples/', 'benchmarks/']
+  ignorePatterns: ['dist/', 'node_modules/', 'tests/', 'examples/', 'benchmarks/', 'packages/*/bin/']
 };
