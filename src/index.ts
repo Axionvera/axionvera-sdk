@@ -154,17 +154,12 @@ export type {
   LoggerService,
   WebSocketManagerService,
 } from './core/serviceInterfaces';
-export {
-  CryptoProviderRegistry,
-  NodeDigestCryptoProvider,
-  cryptoProviderRegistry,
-  validateCryptoProvider,
-} from './crypto';
+export { ResourceLifecycleManager, resourceLifecycleManager } from './resources';
 export type {
-  CryptoProvider,
-  CryptoProviderCapability,
-  CryptoProviderValidationResult,
-} from './crypto';
+  ManagedResource,
+  ResourceLifecycleSnapshot,
+  ResourceLifecycleState,
+} from './resources';
 
 // Client
 export { StellarClient, HYDRATION_STATE_VERSION } from './client/stellarClient';
@@ -267,6 +262,19 @@ export type { WalletConnector } from './wallet/walletConnector';
 
 // Utils
 export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
+export {
+  DEFAULT_REQUEST_SCHEDULER_CONFIG,
+  RequestCancelledError,
+  RequestScheduler,
+  createScheduledClient,
+} from './scheduler';
+export type {
+  RequestPriority,
+  RequestSchedulerConfig,
+  RequestSchedulerStats,
+  ScheduledRequestOptions,
+  ScheduledRequestSnapshot,
+} from './scheduler';
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export {
   buildContractCallOperation,
