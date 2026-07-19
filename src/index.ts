@@ -257,16 +257,18 @@ export type { WalletConnector } from './wallet/walletConnector';
 // Utils
 export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
 export {
-  DEFAULT_OBJECT_POOL_MAX_SIZE,
-  ObjectPool,
-  ObjectPoolManager,
-  objectPoolManager,
-} from './pooling';
+  DEFAULT_REQUEST_SCHEDULER_CONFIG,
+  RequestCancelledError,
+  RequestScheduler,
+  createScheduledClient,
+} from './scheduler';
 export type {
-  ObjectPoolConfig,
-  ObjectPoolHooks,
-  ObjectPoolStats,
-} from './pooling';
+  RequestPriority,
+  RequestSchedulerConfig,
+  RequestSchedulerStats,
+  ScheduledRequestOptions,
+  ScheduledRequestSnapshot,
+} from './scheduler';
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
 export {
   buildContractCallOperation,
