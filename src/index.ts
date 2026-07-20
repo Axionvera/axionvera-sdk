@@ -194,6 +194,7 @@ export type {
 
 // Registry
 export { ContractMetadataRegistry, contractMetadataRegistry } from './registry';
+export { ExtensionRegistry, isExtensionDependencySatisfied } from './registry';
 export type {
   ContractCapability,
   ContractDeploymentMetadata,
@@ -203,6 +204,29 @@ export type {
   ContractMetadata,
   ContractValidationResult,
 } from './registry';
+export type {
+  ExtensionCapability,
+  ExtensionCompatibility,
+  ExtensionDependency,
+  ExtensionDiscoveryQuery,
+  ExtensionKind,
+  ExtensionMetadata,
+  ExtensionRegistryConfig,
+  ExtensionRegistryEntry,
+  ExtensionRuntime,
+  ExtensionValidationResult,
+  SDKExtension,
+} from './interfaces';
+
+// Extensions
+export {
+  defineExtension,
+  discoverExtensions,
+  findExtensionsByCapability,
+  getExtensionRegistry,
+  registerExtension,
+  setExtensionRegistry,
+} from './extensions';
 
 // Contracts
 // export { VaultContract } from './contracts/VaultContract';
