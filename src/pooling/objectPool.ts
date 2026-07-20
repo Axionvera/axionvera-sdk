@@ -115,7 +115,8 @@ export class ObjectPool<T extends object> {
   }
 
   drain(): void {
-    const items = [...this.available, ...this.borrowed];
+    // FIXED: Use Array.from for Set iteration
+    const items = [...this.available, ...Array.from(this.borrowed)];
     this.available.length = 0;
     this.borrowed.clear();
     items.forEach((item) => {
