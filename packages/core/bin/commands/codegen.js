@@ -109,27 +109,23 @@ function run(argv) {
   console.log(`Generated: ${outFile}`);
 }
 
-// Loads the codegen implementation from dist (production) or src (ts-node).
+// Loads the codegen implementation from @axionvera/codegen package.
 function requireCodegen() {
-  const distParser = path.join(PKG_ROOT, "dist/codegen/wasmParser.js");
-  const distGenerator = path.join(PKG_ROOT, "dist/codegen/generator.js");
-  if (fs.existsSync(distParser) && fs.existsSync(distGenerator)) {
-    return {
-      parseWasm: require(distParser).parseWasm,
-      generateContractClass: require(distGenerator).generateContractClass,
-    };
+  // Try to require the built @axionvera/codegen package first
+  try {
+    return require("@axionvera/codegen");
+  } catch (err) {
+    // If that fails, try to require it from the source (for development)
+    const codegenPkgPath = path.join(PKG_ROOT, "..", "codegen");
+    const srcIndex = path.join(codegenPkgPath, "src/index.ts");
+    if (fs.existsSync(srcIndex)) {
+      try {
+        require("ts-node/register");
+      } catch (_) {}
+      return require(srcIndex);
+    }
+    throw new Error(`Could not load @axionvera/codegen: ${err.message}. Ensure dependencies are installed.`);
   }
-  const srcParser = path.join(PKG_ROOT, "src/codegen/wasmParser.ts");
-  if (fs.existsSync(srcParser)) {
-    try {
-      require("ts-node/register");
-    } catch (_) {}
-    return {
-      parseWasm: require(srcParser).parseWasm,
-      generateContractClass: require(path.join(PKG_ROOT, "src/codegen/generator.ts")).generateContractClass,
-    };
-  }
-  throw new Error("Could not locate codegen modules. Run `npm run build` in packages/core first.");
 }
 
 module.exports = { run, HELP };
