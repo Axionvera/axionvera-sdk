@@ -6,7 +6,7 @@
  * `includeMeta` option on service methods.
  */
 
-import type { ResponseMetadata, WithMetadata } from '../types/common';
+import type { ResponseMetadata, WithMetadata } from '../types';
 
 // ---------------------------------------------------------------------------
 // Constants

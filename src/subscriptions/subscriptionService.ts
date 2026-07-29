@@ -1,7 +1,7 @@
-﻿import { EventFilter, SorobanEvent, SubscriptionOptions } from '../events/types';
-import { EventDispatcher } from '../events/eventDispatcher';
-import { ReconnectionManager } from '../network/reconnectionManager';
-import { WebSocketManager } from '../client/websocket/websocketManager';
+﻿import { EventFilter, SorobanEvent, SubscriptionOptions } from '../events';
+import { EventDispatcher } from '../events';
+import { ReconnectionManager } from '../network';
+import { WebSocketManager } from '../client';
 
 export interface SubscriptionHandle {
   id: string;

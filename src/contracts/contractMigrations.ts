@@ -1,8 +1,7 @@
 import * as v from 'valibot';
-import { defaultMigrationRegistry } from '../migrations/migrationRegistry';
-import { defaultMigrationStateValidator } from '../migrations/stateValidator';
-import type { MigrationStepDefinition } from '../types/migration';
-import { nonNegativeBigIntSchema } from '../validation/rules';
+import { defaultMigrationRegistry, defaultMigrationStateValidator } from '../migrations';
+import type { MigrationStepDefinition } from '../types';
+import { nonNegativeBigIntSchema } from '../validation';
 
 /**
  * Example contract state migrations, registered against

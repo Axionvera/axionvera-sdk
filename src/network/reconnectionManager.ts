@@ -1,4 +1,4 @@
-﻿import { ReconnectionConfig, DEFAULT_RECONNECTION_CONFIG } from '../events/types';
+﻿import { ReconnectionConfig, DEFAULT_RECONNECTION_CONFIG } from '../events';
 
 export type ConnectionState = 'connected' | 'connecting' | 'disconnected' | 'reconnecting';
 

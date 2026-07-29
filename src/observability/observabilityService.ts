@@ -1,6 +1,6 @@
-import { Logger, CustomLogger } from '../utils/logger';
+import { Logger, CustomLogger } from '../utils';
 import { Tracer } from './tracer';
-import { DiagnosticsManager } from '../diagnostics/diagnosticsManager';
+import { DiagnosticsManager } from '../diagnostics';
 import { ObservabilityConfig, DEFAULT_OBSERVABILITY_CONFIG, DiagnosticsReport, TraceSpan } from './types';
 
 export class ObservabilityService {

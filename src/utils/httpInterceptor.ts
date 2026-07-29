@@ -1,5 +1,5 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
-import { getErrorStatusCode, toAxionveraError } from '../errors/axionveraError';
+import { getErrorStatusCode, toAxionveraError } from '../errors';
 
 /**
  * Configuration for retry behavior.

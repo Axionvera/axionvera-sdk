@@ -1,4 +1,4 @@
-import type { AxionveraNetwork } from '../utils/networkConfig';
+import type { AxionveraNetwork } from '../utils';
 
 /**
  * Supported environment identifiers.

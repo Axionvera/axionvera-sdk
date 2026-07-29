@@ -1,6 +1,6 @@
 import { EventFilter, SorobanEvent, WebSocketEventSubscription, WebSocketConfig } from './types';
-import { parseEvents } from '../../utils/soroban';
-import { Logger } from '../../utils/logger';
+import { parseEvents } from '../../utils';
+import { Logger } from '../../utils';
 
 export class WebSocketManager {
   private ws: WebSocket | null = null;

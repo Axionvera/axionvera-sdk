@@ -1,4 +1,4 @@
-import type { ContractDescriptor } from '../discovery/types';
+import type { ContractDescriptor } from '../discovery';
 
 /**
  * A single input or output parameter of a reflected method or event.

@@ -1,4 +1,4 @@
-import { CapabilityRegistry } from '../registry/capabilityRegistry';
+import { CapabilityRegistry } from '../registry';
 import { DefaultContractDescriptors } from './defaultContracts';
 import type {
   ContractCapability,

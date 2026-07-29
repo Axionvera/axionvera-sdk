@@ -1,10 +1,10 @@
 import type { AxiosInstance } from 'axios';
 import type { rpc } from '@stellar/stellar-sdk';
-import type { RetryConfig } from '../utils/httpInterceptor';
-import type { ConcurrencyConfig } from '../utils/concurrencyQueue';
-import type { Logger } from '../utils/logger';
-import type { WebSocketConfig } from '../client/websocket/types';
-import type { WebSocketManager } from '../client/websocket/websocketManager';
+import type { RetryConfig } from '../utils';
+import type { ConcurrencyConfig } from '../utils';
+import type { Logger } from '../utils';
+import type { WebSocketConfig } from '../client';
+import type { WebSocketManager } from '../client';
 
 export type RpcServer = rpc.Server;
 export type HttpClient = AxiosInstance;

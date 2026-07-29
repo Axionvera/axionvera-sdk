@@ -1,7 +1,7 @@
 import { WalletConnector } from './walletConnector';
-import { AxionveraNetwork } from '../utils/networkConfig';
-import { WalletNotInstalledError } from '../errors/axionveraError';
-import { assertValidXDR } from '../utils/xdrValidator';
+import { AxionveraNetwork } from '../utils';
+import { WalletNotInstalledError } from '../errors';
+import { assertValidXDR } from '../utils';
 
 type FreighterApi = {
   getPublicKey: () => Promise<string>;

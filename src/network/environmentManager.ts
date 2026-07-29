@@ -7,7 +7,7 @@ import type {
   EnvironmentValidationResult,
   EnvironmentValidationIssue,
   EnvironmentTier,
-} from '../types/environment';
+} from '../types';
 import { ENVIRONMENT_PRESETS, buildEnvironmentConfig } from './environmentPresets';
 
 /**

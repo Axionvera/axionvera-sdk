@@ -1,7 +1,7 @@
 import { Networks } from '@stellar/stellar-sdk';
-import type { EnvironmentConfig, EnvironmentTier } from '../types/environment';
-import { getDefaultRpcUrl, getNetworkPassphrase } from '../utils/networkConfig';
-import type { AxionveraNetwork } from '../utils/networkConfig';
+import type { EnvironmentConfig, EnvironmentTier } from '../types';
+import { getDefaultRpcUrl, getNetworkPassphrase } from '../utils';
+import type { AxionveraNetwork } from '../utils';
 
 /**
  * Maps an environment tier to the default AxionveraNetwork.

@@ -1,9 +1,9 @@
 import { rpc } from '@stellar/stellar-sdk';
 
-import { createConcurrencyControlledClient } from '../utils/concurrencyQueue';
-import { createHttpClientWithRetry } from '../utils/httpInterceptor';
-import { Logger } from '../utils/logger';
-import { WebSocketManager } from '../client/websocket/websocketManager';
+import { createConcurrencyControlledClient } from '../utils';
+import { createHttpClientWithRetry } from '../utils';
+import { Logger } from '../utils';
+import { WebSocketManager } from '../client';
 import type {
   CoreServices,
   HttpClient,

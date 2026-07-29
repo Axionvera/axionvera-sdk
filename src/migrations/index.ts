@@ -3,7 +3,7 @@ export { MigrationStateValidator, defaultMigrationStateValidator } from './state
 export { MigrationRunner, defaultMigrationRunner } from './migrationRunner';
 export { summarizeMigrationReport, serializeMigrationReport } from './migrationReporter';
 
-export { MigrationStatus, MigrationStepStatus } from '../types/migration';
+export { MigrationStatus, MigrationStepStatus } from '../types';
 export type {
   AnyMigrationStep,
   MigrationContext,
@@ -13,4 +13,4 @@ export type {
   MigrationStepResult,
   RunMigrationOptions,
   RunMigrationResult,
-} from '../types/migration';
+} from '../types';

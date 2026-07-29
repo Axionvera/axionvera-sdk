@@ -3,10 +3,9 @@ import {
   LifecycleEventEmitter,
   LifecycleEventListener,
   LifecycleEventFilter,
-} from '../events/lifecycleEvents';
-import { TransactionNotTrackedError } from '../lifecycle/errors';
-import { LifecycleStateMachine } from '../lifecycle/stateMachine';
-import { TERMINAL_STATES, TransactionLifecycleState } from '../lifecycle/types';
+} from '../events';
+import { TransactionNotTrackedError, LifecycleStateMachine } from '../lifecycle';
+import { TERMINAL_STATES, TransactionLifecycleState } from '../lifecycle';
 import {
   CreateTransactionOptions,
   TransactionLifecycleRecord,

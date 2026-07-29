@@ -1,5 +1,5 @@
-import { MigrationPathNotFoundError } from '../errors/axionveraError';
-import type { AnyMigrationStep, MigrationPlan, MigrationStepDefinition } from '../types/migration';
+import { MigrationPathNotFoundError } from '../errors';
+import type { AnyMigrationStep, MigrationPlan, MigrationStepDefinition } from '../types';
 
 /**
  * Registry of migration steps for one or more contracts, keyed by contract

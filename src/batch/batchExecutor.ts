@@ -1,5 +1,5 @@
 import { TransactionBuilder } from '@stellar/stellar-sdk';
-import { BatchExecutionError, BatchValidationError, SimulationFailedError } from '../errors/axionveraError';
+import { BatchExecutionError, BatchValidationError, SimulationFailedError } from '../errors';
 import type { BatchConfig, BatchResult, BatchTransaction, BatchTransactionResult } from './types';
 import { batchValidator } from './batchValidator';
 

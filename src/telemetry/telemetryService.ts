@@ -1,5 +1,5 @@
 ﻿import { TelemetryConfig, TelemetryEvent, DEFAULT_TELEMETRY_CONFIG, MetricsSnapshot } from './types';
-import { MetricsCollector } from '../metrics/metricsCollector';
+import { MetricsCollector } from '../metrics';
 
 export type TelemetryFlushHandler = (events: TelemetryEvent[], snapshot: MetricsSnapshot) => void | Promise<void>;
 

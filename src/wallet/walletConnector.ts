@@ -1,7 +1,7 @@
 import { Keypair, TransactionBuilder } from "@stellar/stellar-sdk";
 import { AxionveraNetwork } from "../utils/networkConfig";
-import { assertValidXDR } from '../utils/xdrValidator';
-import { InvalidXDRError } from '../errors/axionveraError';
+import { assertValidXDR } from '../utils';
+import { InvalidXDRError } from '../errors';
 
 /**
  * Interface for wallet implementations that can sign transactions.

@@ -7,5 +7,5 @@ export type {
   OfflineTransactionBuilderOptions,
   OfflineTransactionValidationResult,
   OfflineTransactionPackage,
-} from '../types/offlineTransaction';
-export { OFFLINE_TRANSACTION_PACKAGE_VERSION } from '../types/offlineTransaction';
+} from '../types';
+export { OFFLINE_TRANSACTION_PACKAGE_VERSION } from '../types';

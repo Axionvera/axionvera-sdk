@@ -1,6 +1,6 @@
 import * as v from 'valibot';
-import { MigrationStateValidationError } from '../errors/axionveraError';
-import type { AnyValidationSchema, ValidationIssue } from '../types/validation';
+import { MigrationStateValidationError } from '../errors';
+import type { AnyValidationSchema, ValidationIssue } from '../types';
 
 function issuePath(issue: v.BaseIssue<unknown>): string {
   if (!issue.path || issue.path.length === 0) {

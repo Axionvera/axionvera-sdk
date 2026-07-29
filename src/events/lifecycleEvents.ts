@@ -1,4 +1,4 @@
-import { TransactionLifecycleState } from '../lifecycle/types';
+import { TransactionLifecycleState } from '../lifecycle';
 
 /** The kind of lifecycle event being emitted. */
 export type LifecycleEventType = 'created' | 'transition' | 'completed' | 'failed';

@@ -1,6 +1,6 @@
 import { MigrationRegistry, defaultMigrationRegistry } from './migrationRegistry';
 import { MigrationStateValidator, defaultMigrationStateValidator } from './stateValidator';
-import { MigrationStatus, MigrationStepStatus } from '../types/migration';
+import { MigrationStatus, MigrationStepStatus } from '../types';
 import type {
   AnyMigrationStep,
   MigrationContext,
@@ -9,7 +9,7 @@ import type {
   MigrationStepResult,
   RunMigrationOptions,
   RunMigrationResult,
-} from '../types/migration';
+} from '../types';
 
 function toErrorInfo(error: unknown): { name: string; message: string } {
   return {

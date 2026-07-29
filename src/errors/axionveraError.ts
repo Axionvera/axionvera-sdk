@@ -1,4 +1,4 @@
-import type { ValidationIssue, ValidationKind } from '../types/validation';
+import type { ValidationIssue, ValidationKind } from '../types';
 
 /** Type-safe error response structure */
 interface ErrorResponseLike {
