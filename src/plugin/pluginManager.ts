@@ -10,8 +10,8 @@ import {
   topologicalSort,
 } from './validation';
 import { transitionState, isValidTransition } from './lifecycle';
-import type { StellarClient, StellarClientOptions } from '../client/stellarClient';
-import type { ServiceOverrides } from '../core/serviceContainer';
+import type { StellarClient, StellarClientOptions } from '../client';
+import type { ServiceOverrides } from '../core';
 import type { Middleware } from '../middleware';
 
 /**

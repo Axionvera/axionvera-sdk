@@ -1,4 +1,4 @@
-import { RpcHealthMonitor, RpcHealthCheckClient } from '../monitoring/rpcHealthMonitor';
+import { RpcHealthMonitor, RpcHealthCheckClient } from '../monitoring';
 
 export type LoadBalancingPolicy = 'round-robin' | 'weighted' | 'least-latency' | 'primary-fallback';
 

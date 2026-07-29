@@ -7,16 +7,16 @@ import {
   TransactionBuilder,
   xdr,
 } from '@stellar/stellar-sdk';
-import { ContractCallArg, buildContractCallOperation } from '../utils/transactionBuilder';
-import { assertValidXDR } from '../utils/xdrValidator';
-import { InvalidXDRError, ValidationError } from '../errors/axionveraError';
+import { ContractCallArg, buildContractCallOperation } from '../utils';
+import { assertValidXDR } from '../utils';
+import { InvalidXDRError, ValidationError } from '../errors';
 import {
   OFFLINE_TRANSACTION_PACKAGE_VERSION,
   OfflineSourceAccount,
   OfflineTransactionBuilderOptions,
   OfflineTransactionPackage,
   OfflineTransactionValidationResult,
-} from '../types/offlineTransaction';
+} from '../types';
 
 const DEFAULT_FEE = 100_000;
 const DEFAULT_TIMEOUT_SECONDS = 60;

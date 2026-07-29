@@ -1,11 +1,11 @@
 import * as v from 'valibot';
-import { SchemaValidationError } from '../errors/axionveraError';
+import { SchemaValidationError } from '../errors';
 import type {
   AnyValidationSchema,
   ContractMethodSchema,
   ValidationIssue,
   ValidationKind,
-} from '../types/validation';
+} from '../types';
 
 function issuePath(issue: v.BaseIssue<unknown>): string {
   if (!issue.path || issue.path.length === 0) {

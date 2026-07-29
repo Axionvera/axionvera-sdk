@@ -1,4 +1,4 @@
-import { InvalidXDRError } from '../errors/axionveraError';
+import { InvalidXDRError } from '../errors';
 
 // ---------------------------------------------------------------------------
 // Constants

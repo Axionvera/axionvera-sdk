@@ -1,4 +1,4 @@
-import { ValidationError } from '../errors/axionveraError';
+import { ValidationError } from '../errors';
 import type {
   ExtensionCompatibility,
   ExtensionDiscoveryQuery,
@@ -9,7 +9,7 @@ import type {
   ExtensionValidationResult,
   SDKExtension,
 } from '../interfaces';
-import { compareSemVer, parseSemVer, satisfiesMinVersion } from '../plugin/validation';
+import { compareSemVer, parseSemVer, satisfiesMinVersion } from '../plugin';
 
 const EXTENSION_ID_REGEX = /^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$/i;
 const KNOWN_EXTENSION_KINDS = new Set(['module', 'plugin', 'package']);

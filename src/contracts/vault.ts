@@ -1,6 +1,6 @@
 import { ethers } from 'ethers';
 import { VaultABI } from './abis/VaultABI';
-import { ValidationError, InsufficientFundsError, ContractError } from '../errors/axionveraError';
+import { ValidationError, InsufficientFundsError, ContractError } from '../errors';
 
 export interface VaultConfig {
   contractAddress: string;

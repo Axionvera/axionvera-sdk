@@ -1,9 +1,9 @@
-import { ValidationError } from '../errors/axionveraError';
+import { ValidationError } from '../errors';
 import type {
   ContractCapability,
   ContractDescriptor,
   DiscoveryValidationResult,
-} from '../discovery/types';
+} from '../discovery';
 
 const CONTRACT_ID_PATTERN = /^(0x[a-fA-F0-9]{40}|[A-Z0-9]{56}|[a-fA-F0-9]{64})$/;
 

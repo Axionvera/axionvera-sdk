@@ -9,11 +9,11 @@ export type {
 export {
   OfflineTransactionBuilder,
   MAX_OPERATIONS_PER_TRANSACTION,
-} from '../builders/offlineTransactionBuilder';
+} from '../builders';
 export type {
   OfflineSourceAccount,
   OfflineTransactionBuilderOptions,
   OfflineTransactionValidationResult,
   OfflineTransactionPackage,
-} from '../types/offlineTransaction';
-export { OFFLINE_TRANSACTION_PACKAGE_VERSION } from '../types/offlineTransaction';
+} from '../types';
+export { OFFLINE_TRANSACTION_PACKAGE_VERSION } from '../types';

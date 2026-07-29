@@ -5,7 +5,7 @@
  * attempt cap, an overall time budget, an AbortSignal, and a diagnostics hook.
  */
 
-import { TimeoutError } from '../errors/axionveraError';
+import { TimeoutError } from '../errors';
 import type { RetryOptions, RetryPolicy } from './types';
 import { errorTypeName, isRetryableError } from './errorClassification';
 

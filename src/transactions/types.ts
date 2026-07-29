@@ -1,4 +1,4 @@
-import { LifecycleTransitionRecord, TransactionLifecycleState } from '../lifecycle/types';
+import { LifecycleTransitionRecord, TransactionLifecycleState } from '../lifecycle';
 
 /** The full tracked state of a single transaction as it moves through its lifecycle. */
 export interface TransactionLifecycleRecord {

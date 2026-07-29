@@ -4,7 +4,7 @@ import type {
   ExtensionRegistryEntry,
   SDKExtension,
 } from '../interfaces';
-import { ExtensionRegistry } from '../registry/extensionRegistry';
+import { ExtensionRegistry } from '../registry';
 
 let defaultExtensionRegistry: ExtensionRegistry | undefined;
 

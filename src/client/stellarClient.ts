@@ -26,7 +26,7 @@ import {
   ValidatedGetHealthResponse,
   ValidatedGetTransactionResponse,
 } from "../utils/rpcSchemas";
-import { assertValidXDR } from '../utils/xdrValidator';
+import { assertValidXDR } from '../utils';
 import { WebSocketManager } from "./websocket/websocketManager";
 import { WebSocketConfig } from "./websocket/types";
 import { Logger } from "../utils/logger";

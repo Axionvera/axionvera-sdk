@@ -1,4 +1,4 @@
-import { BatchValidationError } from '../errors/axionveraError';
+import { BatchValidationError } from '../errors';
 import type {
   BatchConfig,
   BatchTransaction,

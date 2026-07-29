@@ -1,4 +1,4 @@
-import { MetricCounter, MetricGauge, MetricHistogram, MetricsSnapshot } from '../telemetry/types';
+import { MetricCounter, MetricGauge, MetricHistogram, MetricsSnapshot } from '../telemetry';
 
 export class MetricsCollector {
   private counters: Map<string, MetricCounter> = new Map();

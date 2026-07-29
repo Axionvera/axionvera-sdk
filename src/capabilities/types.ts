@@ -1,4 +1,4 @@
-import type { ContractCapability } from '../discovery/types';
+import type { ContractCapability } from '../discovery';
 
 /**
  * The presence status of a single declared contract method, resolved by

@@ -1,4 +1,4 @@
-﻿import type { LogLevel } from '../utils/logger';
+﻿import type { LogLevel } from '../utils';
 
 export type TraceLevel = 'off' | 'error' | 'warn' | 'info' | 'debug';
 

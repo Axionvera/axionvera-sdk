@@ -1,4 +1,4 @@
-﻿import { DiagnosticEvent, DiagnosticsReport } from '../observability/types';
+﻿import { DiagnosticEvent, DiagnosticsReport } from '../observability';
 
 export class DiagnosticsManager {
   private events: DiagnosticEvent[] = [];

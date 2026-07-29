@@ -1,5 +1,5 @@
 import { rpc, xdr } from '@stellar/stellar-sdk';
-import type { StellarClient } from '../client/stellarClient';
+import type { StellarClient } from '../client';
 
 export type ContractEvent = Omit<rpc.Api.EventResponse, 'contractId'> & {
   contractId?: string;

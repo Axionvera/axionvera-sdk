@@ -1,5 +1,5 @@
 import { xdr } from "@stellar/stellar-sdk";
-import { InvalidXDRError } from '../errors/axionveraError';
+import { InvalidXDRError } from '../errors';
 import { assertValidXDR } from './xdrValidator';
 
 const MAX_CACHE_SIZE = 50;

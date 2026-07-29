@@ -1,5 +1,5 @@
-import { MigrationStepStatus } from '../types/migration';
-import type { MigrationReport, MigrationStepResult } from '../types/migration';
+import { MigrationStepStatus } from '../types';
+import type { MigrationReport, MigrationStepResult } from '../types';
 
 function formatStep(step: MigrationStepResult): string {
   const marker = step.status === MigrationStepStatus.SUCCEEDED ? 'OK' : 'FAIL';

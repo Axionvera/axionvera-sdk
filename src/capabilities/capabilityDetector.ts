@@ -1,8 +1,8 @@
 import { ethers } from 'ethers';
-import { ValidationError } from '../errors/axionveraError';
+import { ValidationError } from '../errors';
 import { ContractReflectionService, contractReflection } from '../reflection';
-import { CapabilityRegistry } from '../registry/capabilityRegistry';
-import type { ContractCapability, ContractDescriptor } from '../discovery/types';
+import { CapabilityRegistry } from '../registry';
+import type { ContractCapability, ContractDescriptor } from '../discovery';
 import type { CapabilityDetectionResult, DetectedMethod, DetectOptions } from './types';
 
 /**

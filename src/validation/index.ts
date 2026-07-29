@@ -20,4 +20,4 @@ export type {
   ContractMethodSchema,
   ValidationIssue,
   ValidationKind,
-} from '../types/validation';
+} from '../types';

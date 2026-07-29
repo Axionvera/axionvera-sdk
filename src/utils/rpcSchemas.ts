@@ -1,5 +1,5 @@
 import * as v from 'valibot';
-import { RPCValidationMismatchError } from '../errors/axionveraError';
+import { RPCValidationMismatchError } from '../errors';
 
 export const GetHealthResponseSchema = v.looseObject({
   status: v.string(),

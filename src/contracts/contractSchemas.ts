@@ -1,6 +1,6 @@
 import * as v from 'valibot';
-import { defaultValidationEngine } from '../validation/engine';
-import { nonEmptyStringSchema, positiveBigIntSchema } from '../validation/rules';
+import { defaultValidationEngine } from '../validation';
+import { nonEmptyStringSchema, positiveBigIntSchema } from '../validation';
 
 /**
  * Example contract schemas, registered against {@link defaultValidationEngine}

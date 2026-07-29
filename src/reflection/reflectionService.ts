@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { ValidationError } from '../errors/axionveraError';
+import { ValidationError } from '../errors';
 import type {
   ContractReflection,
   ReflectedEvent,

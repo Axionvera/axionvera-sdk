@@ -7,7 +7,7 @@
  * the side of NOT retrying.
  */
 
-import { AxionveraError } from '../errors/axionveraError';
+import { AxionveraError } from '../errors';
 
 /** HTTP status codes that indicate a transient, retryable condition. */
 export const RETRYABLE_STATUS_CODES: ReadonlySet<number> = new Set([
