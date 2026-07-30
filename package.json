@@ -47,7 +47,8 @@
     "release:dry-run": "semantic-release --dry-run",
     "csp-audit": "node ./scripts/csp-audit.js",
     "analyze:deps": "node ./scripts/analyze-dependencies.js --root src --format markdown",
-    "dev": "npm run build --workspaces -- --watch"
+    "dev": "npm run build --workspaces -- --watch",
+    "test:regression": "jest tests/regression"
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
