@@ -55,6 +55,8 @@ Before using the Axionvera SDK, ensure you have the following installed:
 
 ---
 
+
+## Configuration\n\nSee [docs/configuration.md](docs/configuration.md) for the full list of\nenvironment variables and their defaults.\n
 ## 📦 Installation
 
 The SDK requires Node.js 18+ and has `@stellar/stellar-sdk` as a peer dependency.
