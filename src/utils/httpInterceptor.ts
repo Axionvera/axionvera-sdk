@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios';
 import { getErrorStatusCode, toAxionveraError } from '../errors';
+import { sleep } from './sleep';
 
 /**
  * Configuration for retry behavior.
@@ -47,17 +48,13 @@ function isRetryableError(error: unknown, retryConfig: RetryConfig): boolean {
   return retryConfig.retryableStatusCodes.includes(statusCode);
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 /**
  * Creates an Axios client with automatic retry interceptors.
  * @param retryConfig - Configuration for retry behavior
  * @returns An Axios instance with retry interceptors
  */
 export function createHttpClientWithRetry(
-  retryConfig: Partial<RetryConfig> = {}
+  retryConfig: Partial<RetryConfig> = {},
 ): AxiosInstance {
   const config = { ...DEFAULT_RETRY_CONFIG, ...retryConfig };
 
@@ -87,7 +84,7 @@ export function createHttpClientWithRetry(
       originalRequest._retryCount++;
 
       const delayMs = calculateDelay(originalRequest._retryCount, config.baseDelayMs, config.maxDelayMs);
-      await delay(delayMs);
+      await sleep(delayMs);
 
       return client(originalRequest);
     }
@@ -106,7 +103,7 @@ export function createHttpClientWithRetry(
  */
 export async function retry<T>(
   fn: () => Promise<T>,
-  retryConfig: Partial<RetryConfig> = {}
+  retryConfig: Partial<RetryConfig> = {},
 ): Promise<T> {
   const config = { ...DEFAULT_RETRY_CONFIG, ...retryConfig };
 
@@ -134,7 +131,7 @@ export async function retry<T>(
       }
 
       const delayMs = calculateDelay(attempt, config.baseDelayMs, config.maxDelayMs);
-      await delay(delayMs);
+      await sleep(delayMs);
     }
   }
 

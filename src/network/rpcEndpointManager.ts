@@ -1,4 +1,5 @@
 import { RpcHealthMonitor, RpcHealthCheckClient } from '../monitoring';
+import { sleep } from '../utils/sleep';
 
 export type LoadBalancingPolicy = 'round-robin' | 'weighted' | 'least-latency' | 'primary-fallback';
 
@@ -25,10 +26,6 @@ export interface RpcEndpointManagerConfig {
   degradedLatencyMs?: number;
   maxRetries?: number;
   retryDelayMs?: number;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export class RpcEndpointManager {

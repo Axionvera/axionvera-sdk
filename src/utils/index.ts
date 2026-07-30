@@ -1,4 +1,5 @@
 export * from './logger';
+export * from './sleep';
 export * from './xdrValidator';
 export * from './sep7';
 export * from './transactionBuilder';
