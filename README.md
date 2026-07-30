@@ -23,6 +23,7 @@
 - [API Reference](#-api-reference)
 - [Troubleshooting](#-troubleshooting)
 - [Contributing](#-contributing)
+- [Cleanup Checklist](#-cleanup-checklist)
 - [License](#-license)
 - [Contact](#-contact)
 
@@ -378,6 +379,23 @@ For a faster feedback loop during development, run typecheck separately:
 npm run typecheck
 npm run lint
 ```
+
+---
+
+## 🧹 Cleanup Checklist
+
+Every pull request to this repository should be checked against the [SDK Cleanup Checklist](./docs/CLEANUP_CHECKLIST.md) before requesting review. The checklist covers:
+
+- **Module boundaries** — barrel imports, no circular dependencies, isolated modules
+- **Naming conventions** — files, classes, errors, booleans, and constants
+- **Import and export rules** — explicit public surfaces, no deep cross-module imports
+- **Testing expectations** — coverage of happy paths and error paths, correct placement, approved mock helpers
+- **Error and config conventions** — typed `AxionveraError` subclasses, no hardcoded URLs, secrets never logged
+- **Documentation standards** — TSDoc on public exports, updated `docs/` reference files, working examples
+- **Code quality** — lint, typecheck, build, and bundle size all green
+- **Monorepo hygiene** — package READMEs, shim exports, independent versioning
+
+The [pull request template](./github/PULL_REQUEST_TEMPLATE.md) includes a condensed version of these checks.
 
 ---
 
