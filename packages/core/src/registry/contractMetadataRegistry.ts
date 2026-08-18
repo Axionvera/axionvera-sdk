@@ -144,13 +144,27 @@ export class ContractMetadataRegistry {
   }
 
   private cloneMetadata(metadata: ContractMetadata): ContractMetadata {
-    return {
-      ...metadata,
+    const cloned: ContractMetadata = {
+      name: metadata.name,
+      version: metadata.version,
       capabilities: [...metadata.capabilities],
       deployments: metadata.deployments.map((deployment) => ({ ...deployment })),
-      supportedFeatures: metadata.supportedFeatures ? [...metadata.supportedFeatures] : undefined,
-      tags: metadata.tags ? [...metadata.tags] : undefined,
     };
+
+    if (metadata.supportedFeatures !== undefined) {
+      cloned.supportedFeatures = [...metadata.supportedFeatures];
+    }
+    if (metadata.description !== undefined) {
+      cloned.description = metadata.description;
+    }
+    if (metadata.abiName !== undefined) {
+      cloned.abiName = metadata.abiName;
+    }
+    if (metadata.tags !== undefined) {
+      cloned.tags = [...metadata.tags];
+    }
+
+    return cloned;
   }
 }
 

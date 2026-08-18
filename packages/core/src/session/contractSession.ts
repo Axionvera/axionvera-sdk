@@ -66,7 +66,9 @@ export class ContractSession {
 
     this.id = (config.id ?? "").trim() || ContractSession.generateId();
     this.client = config.client;
-    this.wallet = config.wallet;
+    if (config.wallet !== undefined) {
+      this.wallet = config.wallet;
+    }
     this.createdAt = Date.now();
     this._updatedAt = this.createdAt;
     this.metadata = { ...(config.metadata ?? {}) };
@@ -143,9 +145,9 @@ export class ContractSession {
     const context: ContractContext<TInstance> = {
       name,
       contractId,
-      instance: params.instance,
       registeredAt: Date.now(),
       metadata: { ...(params.metadata ?? {}) },
+      ...(params.instance !== undefined ? { instance: params.instance } : {}),
     };
 
     this._contracts.set(name, context as ContractContext);
