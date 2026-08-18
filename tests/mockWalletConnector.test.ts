@@ -32,5 +32,22 @@ describe('MockWalletConnector', () => {
     const signedXdr = await connector.signTransaction(tx.toXDR(), Networks.TESTNET);
     expect(signedXdr).toBeTruthy();
   });
+
+  describe('getNetwork', () => {
+    it('defaults to testnet', async () => {
+      const keypair = Keypair.random();
+      const connector = new MockWalletConnector(keypair);
+      await expect(connector.getNetwork()).resolves.toBe('testnet');
+    });
+
+    it('returns custom configured network', async () => {
+      const keypair = Keypair.random();
+      const connector = new MockWalletConnector(keypair, 'mainnet');
+      await expect(connector.getNetwork()).resolves.toBe('mainnet');
+
+      const futurenetConnector = new MockWalletConnector(keypair.secret(), 'futurenet');
+      await expect(futurenetConnector.getNetwork()).resolves.toBe('futurenet');
+    });
+  });
 });
 
