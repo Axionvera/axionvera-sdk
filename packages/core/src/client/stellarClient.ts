@@ -695,7 +695,7 @@ private updateCache(publicKey: string, sequence: string): void {
     sourceAccount: Account;
     fee?: number;
     timeoutInSeconds?: number;
-  }): Promise<rpc.Api.SimulateTransactionResponse['result']> {
+  }): Promise<rpc.Api.SimulateTransactionSuccess['result']> {
     this.logger.debug(`Simulating batch of ${params.operations.length} operations`);
     return this.executeWithErrorHandling(async () => {
       if (!params.operations || params.operations.length === 0) throw new AxionveraError('At least one operation is required for batch simulation');
@@ -708,16 +708,25 @@ private updateCache(publicKey: string, sequence: string): void {
       const tx = builder.setTimeout(timeoutInSeconds).build();
 
       // Simulate the combined transaction
-      const result = await this.executeWithFailover(rpc => 
+      const simulationResult = await this.executeWithFailover(rpc =>
         retry(() => rpc.simulateTransaction(tx), this.retryConfig)
       );
 
-      // Return only the results array
-      if (!result.result) {
+      // Narrow the union type before accessing variant-specific fields
+      if (rpc.Api.isSimulationError(simulationResult)) {
+        throw new NetworkError(`Batch simulation failed: ${simulationResult.error}`);
+      }
+
+      if (rpc.Api.isSimulationRestore(simulationResult)) {
+        throw new NetworkError('Batch simulation requires a restore operation before proceeding');
+      }
+
+      // isSimulationSuccess: .result is now safe to access
+      if (!simulationResult.result) {
         throw new NetworkError('No results returned from batch simulation');
       }
 
-      return result.result;
+      return simulationResult.result;
     }, `Failed to simulate batch of ${params.operations.length} operations`);
   }
 
@@ -743,33 +752,31 @@ private updateCache(publicKey: string, sequence: string): void {
         .build();
 
       const simulationResult = await this.rpc.simulateTransaction(tx);
-      if (simulationResult.error) throw new NetworkError(`Simulation failed: ${simulationResult.error}`);
-      if (!simulationResult.result) throw new NetworkError('No result returned from simulation');
 
-      // Check for simulation errors
-      if (simulationResult.error) {
+      // Narrow the union type before accessing variant-specific fields
+      if (rpc.Api.isSimulationError(simulationResult)) {
         throw new NetworkError(`Simulation failed: ${simulationResult.error}`);
       }
 
-      // Extract the result from the simulation
-      if (!simulationResult.result) {
+      if (rpc.Api.isSimulationRestore(simulationResult)) {
+        throw new NetworkError(`Simulation requires a restore operation for ${contractId}.${method}`);
+      }
+
+      // isSimulationSuccess: .result is now safe to access
+      if (!simulationResult.result || simulationResult.result.length === 0) {
         throw new NetworkError('No result returned from simulation');
       }
 
-      // Return the first (and typically only) result
-      const results = simulationResult.result;
-      if (results.length === 0) {
-        throw new NetworkError('No results returned from simulation');
-      }
-
-      const firstResult = results[0];
+      const firstResult = simulationResult.result[0];
       if (!firstResult) {
         throw new NetworkError('Empty result returned from simulation');
       }
 
-      return firstResult;
+      // result items are { retval: xdr.ScVal, auth: xdr.SorobanAuthorizationEntry[] }
+      return firstResult.retval;
     }, `Failed to simulate read call to ${contractId}.${method}`);
   }
+
 
   /**
    * Prepares a transaction by fetching the current ledger sequence
