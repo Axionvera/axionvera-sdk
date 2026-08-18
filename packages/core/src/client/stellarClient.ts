@@ -7,6 +7,7 @@ import {
   nativeToScVal,
   scValToNative,
   rpc,
+  SorobanDataBuilder,
   Transaction,
   TransactionBuilder,
   xdr
@@ -31,13 +32,6 @@ import {
 import { LogLevel, Logger } from "../utils/logger";
 import { WebSocketManager, WebSocketConfig } from "./websocket";
 import { CloudWatchConfig } from "../utils/logging/cloudwatch";
-import {
-  FetchTransactionHistoryOptions,
-  TransactionHistoryResult,
-  parseTransaction,
-  sortByTimestamp,
-  filterByActionType
-} from "../utils/transactionHistory";
 import { parseSorobanEvent, ParsedSorobanEvent } from "../utils/sorobanEventParser";
 import {
   RpcEndpointStatus,
@@ -240,7 +234,8 @@ export class StellarClient extends BaseStellarRpcClient {
   private readonly concurrencyConfig: ConcurrencyConfig;
   private readonly concurrencyEnabled: boolean;
   private readonly logger: Logger;
-  private webSocketManager: WebSocketManager | null = null;
+  /** WebSocket manager for real-time event subscriptions, if configured. */
+  readonly webSocketManager: WebSocketManager | null = null;
   /** Optional RPC endpoint health monitor. */
   readonly healthMonitor?: RpcHealthMonitor;
   private readonly pendingTransactions = new Map<string, TrackedTransaction>();
@@ -801,6 +796,65 @@ private updateCache(publicKey: string, sequence: string): void {
       },
       "Failed to prepare transaction"
     );
+  }
+
+  /**
+   * Applies the configured fee/resource buffer to a prepared Soroban transaction.
+   * Uses `feeBufferMultiplier` and, when set, enforces `maxFeeLimit`.
+   * Transactions without Soroban data are returned unchanged.
+   */
+  applyFeeBuffer(tx: Transaction): Transaction {
+    const sorobanData = tx.toEnvelope().v1().tx().ext().value();
+    if (!sorobanData) {
+      return tx;
+    }
+
+    const resources = sorobanData.resources();
+    const simulatedResourceFee = sorobanData.resourceFee().toBigInt();
+    const simulatedTotalFee = BigInt(tx.fee);
+    const simulatedBaseFee = simulatedTotalFee > simulatedResourceFee
+      ? simulatedTotalFee - simulatedResourceFee
+      : BigInt(0);
+
+    const bufferedResourceFee = multiplyAndCeil(simulatedResourceFee, this.feeBufferMultiplier);
+    const bufferedBaseFee = multiplyAndCeil(simulatedBaseFee, this.feeBufferMultiplier);
+    const bufferedTotalFee = bufferedBaseFee + bufferedResourceFee;
+
+    if (this.maxFeeLimit !== undefined) {
+      if (this.maxFeeLimit < simulatedTotalFee) {
+        throw new ValidationError(
+          `maxFeeLimit (${this.maxFeeLimit.toString()}) is below the simulated minimum fee (${simulatedTotalFee.toString()})`
+        );
+      }
+
+      if (bufferedTotalFee > this.maxFeeLimit) {
+        throw new ValidationError(
+          `Buffered fee (${bufferedTotalFee.toString()}) exceeds maxFeeLimit (${this.maxFeeLimit.toString()})`
+        );
+      }
+    }
+
+    const bufferedSorobanData = new SorobanDataBuilder(sorobanData)
+      .setResources(
+        Number(multiplyAndCeil(resources.instructions(), this.feeBufferMultiplier)),
+        Number(multiplyAndCeil(resources.diskReadBytes(), this.feeBufferMultiplier)),
+        Number(multiplyAndCeil(resources.writeBytes(), this.feeBufferMultiplier))
+      )
+      .setResourceFee(bufferedResourceFee.toString())
+      .build();
+
+    return TransactionBuilder.cloneFrom(tx, {
+      fee: bufferedBaseFee.toString(),
+      networkPassphrase: tx.networkPassphrase,
+      sorobanData: bufferedSorobanData,
+    }).build();
+  }
+
+  /**
+   * Disconnects the WebSocket manager if one was configured.
+   */
+  disconnectWebSocket(): void {
+    this.webSocketManager?.disconnect();
   }
 
   /**
@@ -1450,4 +1504,37 @@ private updateCache(publicKey: string, sequence: string): void {
     const message = typeof (error as any)?.message === 'string' ? (error as any).message : '';
     return statusCode === 413 || /payload too large|request entity too large|413/i.test(message);
   }
+}
+
+function multiplyAndCeil(value: number | bigint | string, multiplier: number): bigint {
+  const scaledValue = typeof value === "bigint" ? value : BigInt(String(value));
+  if (scaledValue < BigInt(0)) {
+    throw new ValidationError("Cannot buffer a non-finite or negative resource value");
+  }
+
+  const { numerator, denominator } = toFraction(multiplier);
+  return (scaledValue * numerator + (denominator - BigInt(1))) / denominator;
+}
+
+function toFraction(multiplier: number): { numerator: bigint; denominator: bigint } {
+  if (!Number.isFinite(multiplier) || multiplier < 0) {
+    throw new ValidationError("feeBufferMultiplier must be a finite number greater than or equal to 0");
+  }
+
+  const decimalString = multiplier.toString().includes("e")
+    ? multiplier.toFixed(12).replace(/0+$/, "").replace(/\.$/, "")
+    : multiplier.toString();
+  const [wholePart, fractionalPart = ""] = decimalString.split(".");
+
+  if (!/^\d+$/.test(wholePart) || !/^\d*$/.test(fractionalPart)) {
+    throw new ValidationError("feeBufferMultiplier must be a valid decimal number");
+  }
+
+  const denominator = BigInt(10) ** BigInt(fractionalPart.length);
+  const numerator = BigInt(`${wholePart}${fractionalPart}`);
+
+  return {
+    numerator,
+    denominator: denominator === BigInt(0) ? BigInt(1) : denominator
+  };
 }
