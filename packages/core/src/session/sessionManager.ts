@@ -31,8 +31,8 @@ import type { SessionConfig, SessionManagerConfig } from "./types";
  */
 export class SessionManager {
   private readonly _sessions = new Map<string, ContractSession>();
-  private readonly _defaultClient?: StellarClient;
-  private readonly _defaultWallet?: WalletConnector;
+  private readonly _defaultClient: StellarClient | undefined;
+  private readonly _defaultWallet: WalletConnector | undefined;
   private readonly _maxSessions: number;
 
   /**
@@ -86,10 +86,12 @@ export class SessionManager {
       throw new ValidationError(`A session with id "${config.id}" already exists`);
     }
 
+    const wallet = config.wallet ?? this._defaultWallet;
+
     const session = new ContractSession({
       ...config,
       client,
-      wallet: config.wallet ?? this._defaultWallet,
+      ...(wallet !== undefined ? { wallet } : {}),
     });
 
     // Guard against a generated id colliding with an existing session.
