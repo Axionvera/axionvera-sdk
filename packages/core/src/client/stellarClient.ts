@@ -847,9 +847,9 @@ private updateCache(publicKey: string, sequence: string): void {
   ): Promise<unknown> {
     const tracked = this.trackTransaction({
       hash,
-      timeoutMs: params?.timeoutMs,
-      intervalMs: params?.intervalMs,
-      onProgress: params?.onProgress,
+      ...(params?.timeoutMs !== undefined && { timeoutMs: params.timeoutMs }),
+      ...(params?.intervalMs !== undefined && { intervalMs: params.intervalMs }),
+      ...(params?.onProgress !== undefined && { onProgress: params.onProgress }),
     });
     return tracked.promise;
   }
@@ -886,11 +886,13 @@ private updateCache(publicKey: string, sequence: string): void {
     // very first getTransaction() call already sees the tracked state.
     const tracked: TrackedTransaction = {
       hash: options.hash,
-      simulationContext: options.simulationContext,
       submittedAt,
       intervalMs,
       deadline,
-      label: options.label,
+      ...(options.simulationContext !== undefined && {
+        simulationContext: options.simulationContext,
+      }),
+      ...(options.label !== undefined && { label: options.label }),
       promise: Promise.resolve(),
       cancel,
     };
@@ -942,11 +944,13 @@ private updateCache(publicKey: string, sequence: string): void {
   getPendingTransactions(): PendingTransaction[] {
     return Array.from(this.pendingTransactions.values()).map((t) => ({
       hash: t.hash,
-      simulationContext: t.simulationContext,
       submittedAt: t.submittedAt,
       intervalMs: t.intervalMs,
       deadline: t.deadline,
-      label: t.label,
+      ...(t.simulationContext !== undefined && {
+        simulationContext: t.simulationContext,
+      }),
+      ...(t.label !== undefined && { label: t.label }),
     }));
   }
 
@@ -961,13 +965,14 @@ private updateCache(publicKey: string, sequence: string): void {
   exportState(): ExportedState {
     const pending: SerializedPendingTransaction[] = [];
     for (const tx of this.pendingTransactions.values()) {
+      const simulationContext = freezeContext(tx.simulationContext);
       pending.push({
         hash: tx.hash,
-        simulationContext: freezeContext(tx.simulationContext),
         submittedAt: tx.submittedAt.toISOString(),
         intervalMs: tx.intervalMs,
         deadline: tx.deadline.toISOString(),
-        label: tx.label,
+        ...(simulationContext !== undefined && { simulationContext }),
+        ...(tx.label !== undefined && { label: tx.label }),
       });
     }
     return {
@@ -1021,12 +1026,13 @@ private updateCache(publicKey: string, sequence: string): void {
         typeof entry.intervalMs === "number" && entry.intervalMs > 0
           ? entry.intervalMs
           : 1_000;
+      const simulationContext = thawContext(entry.simulationContext);
       const tracked = this.trackTransaction({
         hash: entry.hash,
-        simulationContext: thawContext(entry.simulationContext),
         intervalMs,
         deadline,
-        label: entry.label,
+        ...(simulationContext !== undefined && { simulationContext }),
+        ...(entry.label !== undefined && { label: entry.label }),
       });
       restored.push(tracked);
     }
