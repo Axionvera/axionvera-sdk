@@ -132,7 +132,7 @@ export function addAuthEntry(envelopeXdr: string, authEntry: SorobanAuthEntry): 
 
     for (const op of envelope.v1().tx().operations()) {
       if (op.body().switch().name === 'invokeHostFunction') {
-        const ihf = op.body().invokeHostFunction();
+        const ihf = op.body().invokeHostFunctionOp();
         ihf.auth([...ihf.auth(), authEntry]);
       }
     }

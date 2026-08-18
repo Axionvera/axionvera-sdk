@@ -56,10 +56,6 @@ export interface ScValI256 {
   value: string | bigint;
 }
 
-export interface ScValStatic {
-  type: "static";
-  value: Buffer;
-}
 
 export interface ScValString {
   type: "string";
@@ -150,7 +146,6 @@ export type ScVal =
   | ScValI128
   | ScValU256
   | ScValI256
-  | ScValStatic
   | ScValString
   | ScValBytes
   | ScValAddress
@@ -166,7 +161,8 @@ export function scValToType(scval: xdr.ScVal): ScVal {
     case xdr.ScValType.scvVoid():
       return { type: "void" };
     case xdr.ScValType.scvBool():
-      return { type: "bool", value: scval.bool() };
+      // The instance accessor for bool is b(), not bool()
+      return { type: "bool", value: scval.b() };
     case xdr.ScValType.scvU32():
       return { type: "u32", value: scval.u32() };
     case xdr.ScValType.scvI32():
@@ -183,20 +179,20 @@ export function scValToType(scval: xdr.ScVal): ScVal {
       return { type: "u256", value: scval.u256().toString() };
     case xdr.ScValType.scvI256():
       return { type: "i256", value: scval.i256().toString() };
-    case xdr.ScValType.scvStatic():
-      return { type: "static", value: scval.static() };
+    // scvStatic was removed from the current SDK — no case needed
     case xdr.ScValType.scvString():
       return { type: "string", value: scval.str().toString() };
     case xdr.ScValType.scvBytes():
       return { type: "bytes", value: scval.bytes() };
-    case xdr.ScValType.scvAddress():
+    case xdr.ScValType.scvAddress(): {
       const address = scval.address();
-      if (address.switch() === xdr.ScAddressType.SCPUBLIC_KEY()) {
+      // scAddressTypeAccount replaces the old SCPUBLIC_KEY; accountId() replaces publicKey()
+      if (address.switch() === xdr.ScAddressType.scAddressTypeAccount()) {
         return {
           type: "address",
           value: {
             type: "publicKey",
-            value: address.publicKey().toString()
+            value: address.accountId().toString()
           }
         };
       } else {
@@ -204,59 +200,66 @@ export function scValToType(scval: xdr.ScVal): ScVal {
           type: "address",
           value: {
             type: "contract",
-            value: address.contractId().toString("hex")
+            value: (address.contractId() as unknown as Buffer).toString("hex")
           }
         };
       }
+    }
     case xdr.ScValType.scvSymbol():
       return { type: "symbol", value: scval.sym().toString() };
-    case xdr.ScValType.scvMap():
+    case xdr.ScValType.scvMap(): {
       const map = scval.map();
       return {
         type: "map",
-        value: map.map(entry => ({
+        value: (map ?? []).map(entry => ({
           key: scValToType(entry.key()),
           val: scValToType(entry.val())
         }))
       };
-    case xdr.ScValType.scvVec():
+    }
+    case xdr.ScValType.scvVec(): {
       const vec = scval.vec();
       return {
         type: "vec",
-        value: vec.map(item => scValToType(item))
+        value: (vec ?? []).map(item => scValToType(item))
       };
-    case xdr.ScValType.scvInstance():
+    }
+    case xdr.ScValType.scvContractInstance(): {
+      // scvInstance was renamed to scvContractInstance in the current SDK
       const instance = scval.instance();
       const executable = instance.executable();
       const storage = instance.storage();
-      
+
       const result: ScValContractInstance = {
         type: "instance",
         value: {}
       };
-      
+
       if (executable) {
-        if (executable.switch() === xdr.ContractExecutableType.WASM()) {
+        // WASM → contractExecutableWasm; wasm() accessor renamed to wasmHash()
+        if (executable.switch() === xdr.ContractExecutableType.contractExecutableWasm()) {
           result.value.executable = {
             type: "wasm",
-            value: executable.wasm()
+            value: executable.wasmHash()
           };
         } else {
+          // contractExecutableStellarAsset carries no data payload
           result.value.executable = {
             type: "stellarAsset",
-            value: executable.stellarAsset()
+            value: Buffer.alloc(0)
           };
         }
       }
-      
+
       if (storage) {
         result.value.storage = storage.map(entry => ({
           key: scValToType(entry.key()),
           val: scValToType(entry.val())
         }));
       }
-      
+
       return result;
+    }
     default:
       throw new Error(`Unknown SCVal type: ${scval.switch()}`);
   }
