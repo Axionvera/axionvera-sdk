@@ -1,5 +1,6 @@
 import { Keypair, TransactionBuilder } from '@stellar/stellar-sdk';
 import { WalletConnector } from './walletConnector';
+import { AxionveraNetwork } from '../utils/networkConfig';
 
 /**
  * Mock wallet connector for automated tests (Playwright/Cypress/Jest).
@@ -9,21 +10,32 @@ import { WalletConnector } from './walletConnector';
  */
 export class MockWalletConnector implements WalletConnector {
   private readonly keypair: Keypair;
+  private readonly network: AxionveraNetwork;
 
   /**
    * Creates a new MockWalletConnector.
    * @param keypairOrSecret - A Keypair instance or secret key (starts with 'S')
+   * @param network - The network this connector operates on (default: "testnet")
    */
-  constructor(keypairOrSecret: Keypair | string) {
+  constructor(keypairOrSecret: Keypair | string, network: AxionveraNetwork = 'testnet') {
     this.keypair =
       typeof keypairOrSecret === 'string'
         ? Keypair.fromSecret(keypairOrSecret)
         : keypairOrSecret;
+    this.network = network;
   }
 
   /** @inheritdoc */
   getPublicKey(): Promise<string> {
     return Promise.resolve(this.keypair.publicKey());
+  }
+
+  /**
+   * Returns the network this mock connector was configured for.
+   * @inheritdoc
+   */
+  getNetwork(): Promise<AxionveraNetwork> {
+    return Promise.resolve(this.network);
   }
 
   /** @inheritdoc */
@@ -33,4 +45,3 @@ export class MockWalletConnector implements WalletConnector {
     return Promise.resolve(tx.toXDR());
   }
 }
-

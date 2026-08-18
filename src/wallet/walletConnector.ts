@@ -186,12 +186,12 @@ export class LocalKeypairWalletConnector implements WalletConnector {
  */
 export class MockWalletConnector implements WalletConnector {
   private readonly mockPublicKey: string;
+  private readonly network: AxionveraNetwork;
 
   /**
-   * Creates a new MockWalletConnector.
+   * Creates a new MockWalletConnector with an optional fake public key and network.
    * @param publicKey - Optional fake public key. If not provided, generates a random one.
-   * Creates a new MockWalletConnector with an optional fake public key.
-   * @param publicKey - Optional fake public key. If not provided, generates a random one.
+   * @param network - The network this connector operates on (default: "testnet")
    * @example
    * ```typescript
    * import { MockWalletConnector } from "axionvera-sdk";
@@ -205,8 +205,9 @@ export class MockWalletConnector implements WalletConnector {
    * );
    * ```
    */
-  constructor(publicKey?: string) {
+  constructor(publicKey?: string, network: AxionveraNetwork = "testnet") {
     this.mockPublicKey = publicKey || Keypair.random().publicKey();
+    this.network = network;
   }
 
   /** @inheritdoc */
@@ -221,6 +222,14 @@ export class MockWalletConnector implements WalletConnector {
    */
   async getPublicKey(): Promise<string> {
     return this.mockPublicKey;
+  }
+
+  /**
+   * Returns the network this mock connector was configured for.
+   * @inheritdoc
+   */
+  async getNetwork(): Promise<AxionveraNetwork> {
+    return this.network;
   }
 
   /** @inheritdoc */

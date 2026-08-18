@@ -2,20 +2,37 @@ import TransportWebUSB from "@ledgerhq/hw-transport-webusb";
 import Str from "@ledgerhq/hw-app-str";
 import { TransactionBuilder } from "@stellar/stellar-sdk";
 import { WalletConnector } from "./walletConnector";
+import { AxionveraNetwork } from "../utils/networkConfig";
 import { DeviceLockedError, UserRejectedError } from "../errors/axionveraError";
 
 /**
  * Wallet connector implementation for Ledger hardware wallets.
+ *
+ * A Ledger device has no intrinsic network awareness, so the target network
+ * must be declared at construction time and is returned by {@link getNetwork}.
+ * Production Ledger deployments typically target mainnet, so "mainnet" is the
+ * default — override when using a testnet key.
  */
 export class LedgerWalletConnector implements WalletConnector {
   private readonly bip32Path: string;
+  private readonly network: AxionveraNetwork;
 
   /**
    * Creates a new LedgerWalletConnector.
-   * @param bip32Path - The BIP32 path to use (default: 44'/148'/0')
+   * @param bip32Path - The BIP32 derivation path (default: "44'/148'/0'")
+   * @param network   - The target Stellar network (default: "mainnet")
    */
-  constructor(bip32Path = "44'/148'/0'") {
+  constructor(bip32Path = "44'/148'/0'", network: AxionveraNetwork = "mainnet") {
     this.bip32Path = bip32Path;
+    this.network = network;
+  }
+
+  /**
+   * Returns the network this connector was configured for.
+   * @inheritdoc
+   */
+  async getNetwork(): Promise<AxionveraNetwork> {
+    return this.network;
   }
 
   /** @inheritdoc */

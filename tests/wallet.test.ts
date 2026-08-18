@@ -1,5 +1,5 @@
 import { LocalKeypairWalletConnector } from '../src/wallet/localKeypairWalletConnector';
-import { Keypair } from '@stellar/stellar-sdk';
+import { Keypair, TransactionBuilder } from '@stellar/stellar-sdk';
 
 describe('LocalKeypairWalletConnector', () => {
   let keypair: Keypair;
@@ -72,9 +72,21 @@ describe('LocalKeypairWalletConnector', () => {
   describe('signTransaction', () => {
     it('should sign a transaction and return the signed XDR', async () => {
       const connector = new LocalKeypairWalletConnector(keypair, 'testnet');
-      const transactionXdr = 'AAAAAgAAAABTjRfz3NYu7TFsmz8O+H3UmBJnhGKkIVj5hpPDSAEsQwAAAGQAH0g7AAAAAAAAAAIAAAAAAAAAAAAAAACIggAAAAAAAAABggEABgAAAC8xVjhiV3BzYVhSM2NHRnJaU0F5TUMzd01IZ2RabWxqWVdSVGRHRjBkWE10S0Vac2RtWnBRakZ2ZFdGMGFXOXVLSFJsYkdGMGIzSjU7dkgzMmJpSWdxdWVQN1hINzJFeThsZTJFdzR1Yz0AAAABAAAAAAAAAAAAAAAA';
       const networkPassphrase = 'Test SDF Network ; September 2015';
+      const account = {
+        accountId: () => keypair.publicKey(),
+        sequenceNumber: () => '1',
+        incrementSequenceNumber: () => {},
+      } as any;
 
+      const tx = new TransactionBuilder(account, {
+        fee: '100',
+        networkPassphrase,
+      })
+        .setTimeout(30)
+        .build();
+
+      const transactionXdr = tx.toXDR();
       const signedXdr = await connector.signTransaction(transactionXdr, networkPassphrase);
 
       expect(signedXdr).toBeDefined();

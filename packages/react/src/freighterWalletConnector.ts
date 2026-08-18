@@ -1,4 +1,4 @@
-import type { WalletConnector } from '@axionvera/core';
+import type { WalletConnector, AxionveraNetwork } from '@axionvera/core';
 import { WalletNotInstalledError } from '@axionvera/core';
 
 type FreighterErrorLike =
@@ -26,6 +26,7 @@ type FreighterModule = {
   requestAccess?: () => Promise<FreighterAccessResponse>;
   getAddress?: () => Promise<FreighterAccessResponse>;
   getPublicKey?: () => Promise<string>;
+  getNetwork?: () => Promise<string>;
   signTransaction?: (
     transactionXdr: string,
     opts?: {
@@ -192,6 +193,20 @@ export async function getFreighterAvailability(): Promise<{
   }
 }
 
+function mapFreighterNetworkToAxionveraNetwork(freighterNetwork: string): AxionveraNetwork {
+  const normalized = (freighterNetwork || '').toUpperCase();
+  switch (normalized) {
+    case 'TESTNET':
+      return 'testnet';
+    case 'PUBLIC':
+      return 'mainnet';
+    case 'FUTURENET':
+      return 'futurenet';
+    default:
+      return 'testnet';
+  }
+}
+
 export class FreighterWalletConnector implements WalletConnector {
   async getPublicKey(): Promise<string> {
     const address = await getFreighterAddress({ requireAccess: true });
@@ -200,6 +215,15 @@ export class FreighterWalletConnector implements WalletConnector {
     }
 
     return address;
+  }
+
+  async getNetwork(): Promise<AxionveraNetwork> {
+    const freighter = await loadFreighterModule();
+    if (typeof freighter.getNetwork === 'function') {
+      const freighterNetwork = await freighter.getNetwork();
+      return mapFreighterNetworkToAxionveraNetwork(freighterNetwork);
+    }
+    return 'testnet';
   }
 
   async signTransaction(

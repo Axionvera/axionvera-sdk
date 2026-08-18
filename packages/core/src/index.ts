@@ -108,6 +108,11 @@ export {
   resolveNetworkConfig,
 } from './utils/networkConfig';
 
+export type {
+  AxionveraNetwork,
+  NetworkConfig,
+} from './utils/networkConfig';
+
 export { generateTransactionURI, generatePayURI } from './utils/sep7';
 
 export {
