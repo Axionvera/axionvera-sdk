@@ -1,6 +1,6 @@
 /**
  * Transaction simulation and resource estimation utilities.
- * 
+ *
  * This module provides advanced simulation capabilities including
  * resource estimation, cost optimization, and simulation analysis.
  */
@@ -9,7 +9,6 @@ import {
   Account,
   Transaction,
   rpc,
-  xdr
 } from "@stellar/stellar-sdk";
 
 import { StellarClient } from "../client/stellarClient";
@@ -58,7 +57,7 @@ export type ResourceOptimizationOptions = {
   /** Maximum acceptable fee */
   maxFee?: number;
   /** Priority for optimization */
-  priority: 'cpu' | 'memory' | 'fee' | 'balanced';
+  priority: "cpu" | "memory" | "fee" | "balanced";
 };
 
 /**
@@ -66,7 +65,8 @@ export type ResourceOptimizationOptions = {
  */
 export class TransactionSimulator {
   private readonly client: StellarClient;
-  private readonly historicalData: Map<string, DetailedSimulationResult[]> = new Map();
+  private readonly historicalData: Map<string, DetailedSimulationResult[]> =
+    new Map();
 
   constructor(client: StellarClient) {
     this.client = client;
@@ -77,9 +77,11 @@ export class TransactionSimulator {
    * @param transaction - The transaction to simulate
    * @returns Detailed simulation result
    */
-  async detailedSimulation(transaction: Transaction): Promise<DetailedSimulationResult> {
+  async detailedSimulation(
+    transaction: Transaction,
+  ): Promise<DetailedSimulationResult> {
     const basicSimulation = await this.client.simulateTransaction(transaction);
-    
+
     if (!rpc.Api.isSimulationSuccess(basicSimulation)) {
       return {
         cpuInstructions: 0,
@@ -92,49 +94,71 @@ export class TransactionSimulator {
           cpuEfficiency: 0,
           memoryEfficiency: 0,
           feeEfficiency: 0,
-          overallEfficiency: 0
+          overallEfficiency: 0,
         },
-        suggestions: ['Fix simulation errors before optimization'],
+        suggestions: ["Fix simulation errors before optimization"],
         costBreakdown: {
           baseFee: 0,
           resourceFee: 0,
-          totalFee: 0
+          totalFee: 0,
         },
-        perOperation: []
+        perOperation: [],
       };
     }
 
-    // Extract detailed metrics
-    const results = basicSimulation.results || [];
-    const perOperation = results.map((result, index) => ({
-      operationIndex: index,
-      cpuInstructions: result.cpuInstructions || 0,
-      memoryBytes: result.memoryBytes || 0,
-      fee: 0 // Will be calculated based on resource usage
-    }));
+    // Current SDK shape: use transactionData.resources() + result (not results)
+    const resources = basicSimulation.transactionData.build().resources();
+    const totalCpu = resources.instructions();
+    const totalMemory =
+      resources.diskReadBytes() + resources.writeBytes();
 
-    const totalCpu = perOperation.reduce((sum, op) => sum + op.cpuInstructions, 0);
-    const totalMemory = perOperation.reduce((sum, op) => sum + op.memoryBytes, 0);
-    const resourceFee = basicSimulation.minResourceFee || 0;
-    const baseFee = parseInt(transaction.fee);
+    // minResourceFee is a string in the current SDK — normalize to number
+    const resourceFee = Number(basicSimulation.minResourceFee ?? 0);
+    const baseFee = Number(transaction.fee);
 
-    // Calculate efficiency metrics
-    const analysis = this.calculateEfficiencyMetrics(totalCpu, totalMemory, baseFee, resourceFee);
-    
-    // Generate optimization suggestions
-    const suggestions = this.generateOptimizationSuggestions(analysis, perOperation);
-    
-    // Calculate cost breakdown
+    // Optional per-op breakdown from result (singular), not results
+    const resultEntry = basicSimulation.result;
+    const perOperation: DetailedSimulationResult["perOperation"] = resultEntry
+      ? [
+          {
+            operationIndex: 0,
+            cpuInstructions: totalCpu,
+            memoryBytes: totalMemory,
+            fee: resourceFee,
+          },
+        ]
+      : [
+          {
+            operationIndex: 0,
+            cpuInstructions: totalCpu,
+            memoryBytes: totalMemory,
+            fee: resourceFee,
+          },
+        ];
+
+    const analysis = this.calculateEfficiencyMetrics(
+      totalCpu,
+      totalMemory,
+      baseFee,
+      resourceFee,
+    );
+
+    const suggestions = this.generateOptimizationSuggestions(
+      analysis,
+      perOperation,
+    );
+
     const costBreakdown = {
       baseFee,
       resourceFee,
-      totalFee: baseFee + resourceFee
+      totalFee: baseFee + resourceFee,
     };
 
-    // Update per-operation fees
-    perOperation.forEach(op => {
-      op.fee = Math.ceil((op.cpuInstructions / totalCpu) * resourceFee);
-    });
+    if (totalCpu > 0) {
+      perOperation.forEach((op) => {
+        op.fee = Math.ceil((op.cpuInstructions / totalCpu) * resourceFee);
+      });
+    }
 
     return {
       cpuInstructions: totalCpu,
@@ -145,7 +169,7 @@ export class TransactionSimulator {
       analysis,
       suggestions,
       costBreakdown,
-      perOperation
+      perOperation,
     };
   }
 
@@ -164,20 +188,30 @@ export class TransactionSimulator {
     };
   }> {
     const results = await Promise.all(
-      transactions.map(tx => this.detailedSimulation(tx))
+      transactions.map((tx) => this.detailedSimulation(tx)),
     );
 
-    // Find best performers
-    const mostEfficient = results.reduce((best, current, index) => 
-      current.analysis.overallEfficiency > results[best].analysis.overallEfficiency ? index : best, 0);
-    
-    const leastExpensive = results.reduce((best, current, index) => 
-      current.recommendedFee < results[best].recommendedFee ? index : best, 0);
-    
-    const fastest = results.reduce((best, current, index) => 
-      current.cpuInstructions < results[best].cpuInstructions ? index : best, 0);
+    const mostEfficient = results.reduce(
+      (best, current, index) =>
+        current.analysis.overallEfficiency >
+        results[best].analysis.overallEfficiency
+          ? index
+          : best,
+      0,
+    );
 
-    // Generate recommendations
+    const leastExpensive = results.reduce(
+      (best, current, index) =>
+        current.recommendedFee < results[best].recommendedFee ? index : best,
+      0,
+    );
+
+    const fastest = results.reduce(
+      (best, current, index) =>
+        current.cpuInstructions < results[best].cpuInstructions ? index : best,
+      0,
+    );
+
     const recommendations = this.generateComparativeRecommendations(results);
 
     return {
@@ -186,8 +220,8 @@ export class TransactionSimulator {
         mostEfficient,
         leastExpensive,
         fastest,
-        recommendations
-      }
+        recommendations,
+      },
     };
   }
 
@@ -199,7 +233,7 @@ export class TransactionSimulator {
    */
   async optimizeTransaction(
     transaction: Transaction,
-    options: ResourceOptimizationOptions
+    options: ResourceOptimizationOptions,
   ): Promise<{
     optimized: boolean;
     suggestions: string[];
@@ -211,60 +245,69 @@ export class TransactionSimulator {
     };
   }> {
     const simulation = await this.detailedSimulation(transaction);
-    
+
     if (!simulation.success) {
       return {
         optimized: false,
-        suggestions: ['Fix simulation errors before optimization']
+        suggestions: ["Fix simulation errors before optimization"],
       };
     }
 
     const suggestions: string[] = [];
     let optimized = false;
-    let modifiedTransaction: Transaction | undefined;
     const estimatedSavings = {
       feeReduction: 0,
       cpuReduction: 0,
-      memoryReduction: 0
+      memoryReduction: 0,
     };
 
-    // Check against optimization targets
-    if (options.maxCpuInstructions && simulation.cpuInstructions > options.maxCpuInstructions) {
-      suggestions.push(`CPU usage (${simulation.cpuInstructions}) exceeds target (${options.maxCpuInstructions})`);
+    if (
+      options.maxCpuInstructions &&
+      simulation.cpuInstructions > options.maxCpuInstructions
+    ) {
+      suggestions.push(
+        `CPU usage (\( {simulation.cpuInstructions}) exceeds target ( \){options.maxCpuInstructions})`,
+      );
       optimized = true;
     }
 
-    if (options.maxMemoryBytes && simulation.memoryBytes > options.maxMemoryBytes) {
-      suggestions.push(`Memory usage (${simulation.memoryBytes}) exceeds target (${options.maxMemoryBytes})`);
+    if (
+      options.maxMemoryBytes &&
+      simulation.memoryBytes > options.maxMemoryBytes
+    ) {
+      suggestions.push(
+        `Memory usage (\( {simulation.memoryBytes}) exceeds target ( \){options.maxMemoryBytes})`,
+      );
       optimized = true;
     }
 
     if (options.maxFee && simulation.recommendedFee > options.maxFee) {
-      suggestions.push(`Fee (${simulation.recommendedFee}) exceeds target (${options.maxFee})`);
+      suggestions.push(
+        `Fee (\( {simulation.recommendedFee}) exceeds target ( \){options.maxFee})`,
+      );
       optimized = true;
     }
 
-    // Generate optimization suggestions based on priority
     switch (options.priority) {
-      case 'cpu':
+      case "cpu":
         suggestions.push(...this.generateCpuOptimizations(simulation));
         break;
-      case 'memory':
+      case "memory":
         suggestions.push(...this.generateMemoryOptimizations(simulation));
         break;
-      case 'fee':
+      case "fee":
         suggestions.push(...this.generateFeeOptimizations(simulation));
         break;
-      case 'balanced':
+      case "balanced":
         suggestions.push(...this.generateBalancedOptimizations(simulation));
         break;
     }
 
+    // Omit modifiedTransaction when undefined (do not assign explicit undefined)
     return {
       optimized,
       suggestions,
-      modifiedTransaction,
-      estimatedSavings
+      estimatedSavings,
     };
   }
 
@@ -273,37 +316,40 @@ export class TransactionSimulator {
    * @param operations - Array of contract call operations
    * @returns Resource estimates for each operation
    */
-  async estimateBatchResources(operations: ContractCallParams[]): Promise<Array<{
-    operation: ContractCallParams;
-    estimatedCpu: number;
-    estimatedMemory: number;
-    estimatedFee: number;
-    confidence: number;
-  }>> {
+  async estimateBatchResources(
+    operations: ContractCallParams[],
+  ): Promise<
+    Array<{
+      operation: ContractCallParams;
+      estimatedCpu: number;
+      estimatedMemory: number;
+      estimatedFee: number;
+      confidence: number;
+    }>
+  > {
     const estimates = await Promise.all(
-      operations.map(async (op, index) => {
+      operations.map(async (op) => {
         try {
-          // Create a temporary transaction with just this operation
           const tempTx = await this.createTemporaryTransaction(op);
           const simulation = await this.detailedSimulation(tempTx);
-          
+
           return {
             operation: op,
             estimatedCpu: simulation.cpuInstructions,
             estimatedMemory: simulation.memoryBytes,
             estimatedFee: simulation.recommendedFee,
-            confidence: simulation.success ? 0.9 : 0.1
+            confidence: simulation.success ? 0.9 : 0.1,
           };
-        } catch (error) {
+        } catch {
           return {
             operation: op,
             estimatedCpu: 0,
             estimatedMemory: 0,
-            estimatedFee: 100000, // Default fee
-            confidence: 0.1
+            estimatedFee: 100000,
+            confidence: 0.1,
           };
         }
-      })
+      }),
     );
 
     return estimates;
@@ -314,15 +360,17 @@ export class TransactionSimulator {
    * @param transactionKey - Identifier for the transaction type
    * @param result - Simulation result to store
    */
-  trackSimulationHistory(transactionKey: string, result: DetailedSimulationResult): void {
+  trackSimulationHistory(
+    transactionKey: string,
+    result: DetailedSimulationResult,
+  ): void {
     if (!this.historicalData.has(transactionKey)) {
       this.historicalData.set(transactionKey, []);
     }
-    
+
     const history = this.historicalData.get(transactionKey)!;
     history.push(result);
-    
-    // Keep only last 50 results
+
     if (history.length > 50) {
       history.shift();
     }
@@ -337,7 +385,7 @@ export class TransactionSimulator {
     averageCpu: number;
     averageMemory: number;
     averageFee: number;
-    trendDirection: 'improving' | 'degrading' | 'stable';
+    trendDirection: "improving" | "degrading" | "stable";
     sampleSize: number;
   } | null {
     const history = this.historicalData.get(transactionKey);
@@ -348,23 +396,27 @@ export class TransactionSimulator {
     const recent = history.slice(-10);
     const older = history.slice(-20, -10);
 
-    const avgCpu = recent.reduce((sum, r) => sum + r.cpuInstructions, 0) / recent.length;
-    const avgMemory = recent.reduce((sum, r) => sum + r.memoryBytes, 0) / recent.length;
-    const avgFee = recent.reduce((sum, r) => sum + r.recommendedFee, 0) / recent.length;
+    const avgCpu =
+      recent.reduce((sum, r) => sum + r.cpuInstructions, 0) / recent.length;
+    const avgMemory =
+      recent.reduce((sum, r) => sum + r.memoryBytes, 0) / recent.length;
+    const avgFee =
+      recent.reduce((sum, r) => sum + r.recommendedFee, 0) / recent.length;
 
-    // Calculate trend
-    let trendDirection: 'improving' | 'degrading' | 'stable' = 'stable';
+    let trendDirection: "improving" | "degrading" | "stable" = "stable";
     if (older.length > 0) {
-      const olderAvgCpu = older.reduce((sum, r) => sum + r.cpuInstructions, 0) / older.length;
-      const olderAvgFee = older.reduce((sum, r) => sum + r.recommendedFee, 0) / older.length;
-      
+      const olderAvgCpu =
+        older.reduce((sum, r) => sum + r.cpuInstructions, 0) / older.length;
+      const olderAvgFee =
+        older.reduce((sum, r) => sum + r.recommendedFee, 0) / older.length;
+
       const cpuChange = (olderAvgCpu - avgCpu) / olderAvgCpu;
       const feeChange = (olderAvgFee - avgFee) / olderAvgFee;
-      
+
       if (cpuChange > 0.05 && feeChange > 0.05) {
-        trendDirection = 'improving';
+        trendDirection = "improving";
       } else if (cpuChange < -0.05 || feeChange < -0.05) {
-        trendDirection = 'degrading';
+        trendDirection = "degrading";
       }
     }
 
@@ -373,7 +425,7 @@ export class TransactionSimulator {
       averageMemory: avgMemory,
       averageFee: avgFee,
       trendDirection,
-      sampleSize: history.length
+      sampleSize: history.length,
     };
   }
 
@@ -381,117 +433,154 @@ export class TransactionSimulator {
     cpu: number,
     memory: number,
     baseFee: number,
-    resourceFee: number
-  ): DetailedSimulationResult['analysis'] {
-    // Normalize metrics (these are heuristic calculations)
-    const cpuEfficiency = Math.max(0, Math.min(100, 100 - (cpu / 1000000) * 100));
-    const memoryEfficiency = Math.max(0, Math.min(100, 100 - (memory / 100000) * 100));
-    const feeEfficiency = Math.max(0, Math.min(100, 100 - ((baseFee + resourceFee) / 1000000) * 100));
-    const overallEfficiency = (cpuEfficiency + memoryEfficiency + feeEfficiency) / 3;
+    resourceFee: number,
+  ): DetailedSimulationResult["analysis"] {
+    const cpuEfficiency = Math.max(
+      0,
+      Math.min(100, 100 - (cpu / 1000000) * 100),
+    );
+    const memoryEfficiency = Math.max(
+      0,
+      Math.min(100, 100 - (memory / 100000) * 100),
+    );
+    const feeEfficiency = Math.max(
+      0,
+      Math.min(100, 100 - ((baseFee + resourceFee) / 1000000) * 100),
+    );
+    const overallEfficiency =
+      (cpuEfficiency + memoryEfficiency + feeEfficiency) / 3;
 
     return {
       cpuEfficiency,
       memoryEfficiency,
       feeEfficiency,
-      overallEfficiency
+      overallEfficiency,
     };
   }
 
   private generateOptimizationSuggestions(
-    analysis: DetailedSimulationResult['analysis'],
-    perOperation: DetailedSimulationResult['perOperation']
+    analysis: DetailedSimulationResult["analysis"],
+    perOperation: DetailedSimulationResult["perOperation"],
   ): string[] {
     const suggestions: string[] = [];
 
     if (analysis.cpuEfficiency < 50) {
-      suggestions.push('Consider optimizing CPU-intensive operations');
+      suggestions.push("Consider optimizing CPU-intensive operations");
     }
 
     if (analysis.memoryEfficiency < 50) {
-      suggestions.push('Consider reducing memory usage in operations');
+      suggestions.push("Consider reducing memory usage in operations");
     }
 
     if (analysis.feeEfficiency < 50) {
-      suggestions.push('Consider reducing transaction fee');
+      suggestions.push("Consider reducing transaction fee");
     }
 
-    // Check for outlier operations
-    const avgCpu = perOperation.reduce((sum, op) => sum + op.cpuInstructions, 0) / perOperation.length;
-    const outliers = perOperation.filter(op => op.cpuInstructions > avgCpu * 2);
-    
-    if (outliers.length > 0) {
-      suggestions.push(`${outliers.length} operations use significantly more CPU than average`);
+    if (perOperation.length > 0) {
+      const avgCpu =
+        perOperation.reduce((sum, op) => sum + op.cpuInstructions, 0) /
+        perOperation.length;
+      const outliers = perOperation.filter(
+        (op) => op.cpuInstructions > avgCpu * 2,
+      );
+
+      if (outliers.length > 0) {
+        suggestions.push(
+          `${outliers.length} operations use significantly more CPU than average`,
+        );
+      }
     }
 
     return suggestions;
   }
 
-  private generateCpuOptimizations(simulation: DetailedSimulationResult): string[] {
+  private generateCpuOptimizations(
+    simulation: DetailedSimulationResult,
+  ): string[] {
     const suggestions: string[] = [];
-    
+
     if (simulation.cpuInstructions > 500000) {
-      suggestions.push('Split into multiple transactions to reduce CPU load');
+      suggestions.push("Split into multiple transactions to reduce CPU load");
     }
-    
+
     if (simulation.perOperation.length > 5) {
-      suggestions.push('Consider reducing the number of operations per transaction');
+      suggestions.push(
+        "Consider reducing the number of operations per transaction",
+      );
     }
-    
+
     return suggestions;
   }
 
-  private generateMemoryOptimizations(simulation: DetailedSimulationResult): string[] {
+  private generateMemoryOptimizations(
+    simulation: DetailedSimulationResult,
+  ): string[] {
     const suggestions: string[] = [];
-    
+
     if (simulation.memoryBytes > 50000) {
-      suggestions.push('Optimize data structures to reduce memory usage');
+      suggestions.push("Optimize data structures to reduce memory usage");
     }
-    
+
     return suggestions;
   }
 
-  private generateFeeOptimizations(simulation: DetailedSimulationResult): string[] {
+  private generateFeeOptimizations(
+    simulation: DetailedSimulationResult,
+  ): string[] {
     const suggestions: string[] = [];
-    
-    if (simulation.costBreakdown.baseFee > simulation.costBreakdown.resourceFee) {
-      suggestions.push('Consider reducing base fee and increasing resource fee allocation');
+
+    if (
+      simulation.costBreakdown.baseFee > simulation.costBreakdown.resourceFee
+    ) {
+      suggestions.push(
+        "Consider reducing base fee and increasing resource fee allocation",
+      );
     }
-    
+
     return suggestions;
   }
 
-  private generateBalancedOptimizations(simulation: DetailedSimulationResult): string[] {
+  private generateBalancedOptimizations(
+    simulation: DetailedSimulationResult,
+  ): string[] {
     return [
       ...this.generateCpuOptimizations(simulation),
       ...this.generateMemoryOptimizations(simulation),
-      ...this.generateFeeOptimizations(simulation)
+      ...this.generateFeeOptimizations(simulation),
     ];
   }
 
-  private generateComparativeRecommendations(results: DetailedSimulationResult[]): string[] {
+  private generateComparativeRecommendations(
+    results: DetailedSimulationResult[],
+  ): string[] {
     const recommendations: string[] = [];
-    
+
     if (results.length < 2) {
       return recommendations;
     }
 
-    const avgFee = results.reduce((sum, r) => sum + r.recommendedFee, 0) / results.length;
-    const expensiveTx = results.filter(r => r.recommendedFee > avgFee * 1.5);
-    
+    const avgFee =
+      results.reduce((sum, r) => sum + r.recommendedFee, 0) / results.length;
+    const expensiveTx = results.filter((r) => r.recommendedFee > avgFee * 1.5);
+
     if (expensiveTx.length > 0) {
-      recommendations.push(`${expensiveTx.length} transactions are significantly more expensive than average`);
+      recommendations.push(
+        `${expensiveTx.length} transactions are significantly more expensive than average`,
+      );
     }
 
     return recommendations;
   }
 
-  private async createTemporaryTransaction(operation: ContractCallParams): Promise<Transaction> {
-    // This is a simplified implementation
-    // In practice, you'd need a valid source account
-    const dummyAccount = new Account('GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF', '1');
-    
-    // Build a minimal transaction for simulation
-    // This would need to be implemented based on your transaction building utilities
-    throw new Error('Temporary transaction creation not implemented');
+  private async createTemporaryTransaction(
+    _operation: ContractCallParams,
+  ): Promise<Transaction> {
+    // Placeholder: requires a valid source account and builder utilities
+    const dummyAccount = new Account(
+      "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+      "1",
+    );
+    void dummyAccount;
+    throw new Error("Temporary transaction creation not implemented");
   }
-}
+      }
