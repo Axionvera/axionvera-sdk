@@ -38,7 +38,7 @@ import {
   sortByTimestamp,
   filterByActionType
 } from "../utils/transactionHistory";
-import { parseSorobanEvent, ParsedSorobanEvent } from "../utils/sorobanEventParser";
+
 import {
   RpcEndpointStatus,
   RpcHealthMonitor,
@@ -114,7 +114,7 @@ export type GetContractEventsOptions = {
 };
 
 export type GetContractEventsResult = {
-  events: ParsedSorobanEvent[];
+  events: ContractEventResult[];
   pagingToken?: string;
 };
 
@@ -524,20 +524,17 @@ export class StellarClient extends BaseStellarRpcClient {
       const normalizedStartLedger = Math.min(startLedger, endLedger);
       const normalizedEndLedger = Math.max(startLedger, endLedger);
 
-      const result = await this.fetchContractEventsRange({
+      const rangeParams: Parameters<typeof this.fetchContractEventsRange>[0] = {
         contractId,
-        topicFilters,
         startLedger: normalizedStartLedger,
         endLedger: normalizedEndLedger,
-        limit: options.limit,
-        cursor: options.cursor,
-        fetchAll: options.fetchAll ?? false
-      });
-
-      return {
-        ...result,
-        events: result.events.map((e) => parseSorobanEvent(e))
+        fetchAll: options.fetchAll ?? false,
       };
+      if (topicFilters !== undefined) rangeParams.topicFilters = topicFilters;
+      if (options.limit !== undefined) rangeParams.limit = options.limit;
+      if (options.cursor !== undefined) rangeParams.cursor = options.cursor;
+
+      return this.fetchContractEventsRange(rangeParams);
     }, `Failed to fetch contract events for ${contractId}`);
   }
 
@@ -1317,11 +1314,15 @@ private updateCache(publicKey: string, sequence: string): void {
 
         pagingToken = this.extractPagingToken(response, pageEvents);
         if (!params.fetchAll || !pagingToken) {
-          return { events, pagingToken };
+          const result: GetContractEventsResult = { events };
+          if (pagingToken !== undefined) result.pagingToken = pagingToken;
+          return result;
         }
 
         if (seenPagingTokens.has(pagingToken)) {
-          return { events, pagingToken };
+          const result: GetContractEventsResult = { events };
+          if (pagingToken !== undefined) result.pagingToken = pagingToken;
+          return result;
         }
 
         seenPagingTokens.add(pagingToken);
@@ -1329,26 +1330,37 @@ private updateCache(publicKey: string, sequence: string): void {
       } catch (error) {
         if (this.isPayloadTooLarge(error) && params.startLedger < params.endLedger) {
           const midpoint = Math.floor((params.startLedger + params.endLedger) / 2);
-          const firstHalf = await this.fetchContractEventsRange({
-            ...params,
+          const firstHalfParams: Parameters<typeof this.fetchContractEventsRange>[0] = {
+            contractId: params.contractId,
+            startLedger: params.startLedger,
             endLedger: midpoint,
-            cursor
-          });
+            fetchAll: params.fetchAll,
+          };
+          if (params.topicFilters !== undefined) firstHalfParams.topicFilters = params.topicFilters;
+          if (params.limit !== undefined) firstHalfParams.limit = params.limit;
+          if (cursor !== undefined) firstHalfParams.cursor = cursor;
+          const firstHalf = await this.fetchContractEventsRange(firstHalfParams);
 
           if (!params.fetchAll) {
             return firstHalf;
           }
 
-          const secondHalf = await this.fetchContractEventsRange({
-            ...params,
+          const secondHalfParams: Parameters<typeof this.fetchContractEventsRange>[0] = {
+            contractId: params.contractId,
             startLedger: midpoint + 1,
-            cursor: undefined
-          });
-
-          return {
-            events: [...firstHalf.events, ...secondHalf.events],
-            pagingToken: secondHalf.pagingToken ?? firstHalf.pagingToken
+            endLedger: params.endLedger,
+            fetchAll: params.fetchAll,
           };
+          if (params.topicFilters !== undefined) secondHalfParams.topicFilters = params.topicFilters;
+          if (params.limit !== undefined) secondHalfParams.limit = params.limit;
+          const secondHalf = await this.fetchContractEventsRange(secondHalfParams);
+
+          const mergedToken = secondHalf.pagingToken ?? firstHalf.pagingToken;
+          const merged: GetContractEventsResult = {
+            events: [...firstHalf.events, ...secondHalf.events]
+          };
+          if (mergedToken !== undefined) merged.pagingToken = mergedToken;
+          return merged;
         }
 
         throw error;
