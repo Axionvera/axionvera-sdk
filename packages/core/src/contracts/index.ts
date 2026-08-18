@@ -13,5 +13,4 @@ export type {
   ClaimRewardsParams,
 } from './VaultContract';
 // Legacy ethers.js Vault — retained for backward compat.
-export { Vault } from './vault';
 export { VaultABI } from './abis/VaultABI';
