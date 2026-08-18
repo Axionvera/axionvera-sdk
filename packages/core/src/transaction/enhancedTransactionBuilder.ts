@@ -6,24 +6,18 @@
  */
 
 import {
-  Account,
-  Address,
-  Contract,
-  FeeBumpTransaction,
-  Keypair,
+  Memo,
   Transaction,
   TransactionBuilder,
-  rpc,
-  xdr,
-  Operation,
-  Memo,
-  MemoType
+  rpc
 } from "@stellar/stellar-sdk";
 
-import { StellarClient } from "../client/stellarClient";
-import { WalletConnector } from "../wallet/walletConnector";
-import { ContractCallParams, TransactionSigner, TransactionBuildParams, ContractCallArg } from "./transactionSigner";
-import { buildContractCallOperation, toScVal } from "../utils/transactionBuilder";
+import {
+  ContractCallParams,
+  TransactionSigner,
+  TransactionBuildParams,
+  TransactionResult
+} from "./transactionSigner";
 
 /**
  * Parameters for building multi-step transactions.
@@ -87,8 +81,10 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
       sourceAccount: params.sourceAccount,
       operations: params.steps,
       fee: totalFee,
-      timeoutInSeconds: params.timeoutInSeconds,
-      memo: params.memo
+      ...(params.timeoutInSeconds !== undefined && {
+        timeoutInSeconds: params.timeoutInSeconds,
+      }),
+      ...(params.memo !== undefined && { memo: params.memo }),
     };
 
     return await this.buildAndSignTransaction(buildParams);
@@ -160,7 +156,7 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
     sourceAccount: string,
     operations: Array<{
       operation: ContractCallParams;
-      condition?: (simulation: rpc.SimulateTransactionResponse) => boolean;
+      condition?: (simulation: rpc.Api.SimulateTransactionResponse) => boolean;
     }>
   ): Promise<Transaction> {
     // Build initial transaction
@@ -179,12 +175,9 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
     }
 
     // Filter operations based on conditions
-    const filteredOperations = operations.filter((op, index) => {
+    const filteredOperations = operations.filter((op) => {
       if (!op.condition) return true;
-      
-      const operationResult = simulation.results?.[index];
-      if (!operationResult) return false;
-      
+
       return op.condition(simulation);
     });
 
@@ -284,7 +277,7 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
     const buildParams: TransactionBuildParams = {
       sourceAccount,
       operations,
-      memo: memo.type === 'text' ? memo.value as string : undefined
+      ...(memo.type === 'text' && { memo: memo.value as string }),
     };
 
     const transaction = await this.buildTransaction(buildParams);
@@ -302,7 +295,9 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
           memoObj = Memo.hash(memo.value as Buffer);
           break;
         case 'return':
-          memoObj = Memo.return(memo.value as Buffer);
+          memoObj = Memo.return(
+            typeof memo.value === 'string' ? memo.value : memo.value.toString('hex')
+          );
           break;
         default:
           throw new Error(`Unsupported memo type: ${memo.type}`);
@@ -353,7 +348,7 @@ export class EnhancedTransactionBuilder extends TransactionSigner {
       }
 
       // Check timeout
-      if (transaction.timeBounds?.maxTime === 0) {
+      if (transaction.timeBounds?.maxTime === "0") {
         warnings.push('Transaction has no timeout');
       }
 

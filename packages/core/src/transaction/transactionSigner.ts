@@ -1,15 +1,14 @@
 import {
-  Account,
+  Memo,
   Transaction,
   TransactionBuilder,
   rpc,
-  Operation
+  xdr
 } from "@stellar/stellar-sdk";
 
 import { StellarClient } from "../client/stellarClient";
 import { WalletConnector } from "../wallet/walletConnector";
 import { NetworkMismatchError } from "../errors/axionveraError";
-import { buildContractCallOperation, toScVal, ContractCallArg } from "../utils/transactionBuilder";
 import {
   buildContractCallOperation,
   bumpTransactionFee,
@@ -77,7 +76,7 @@ export type TransactionResult = {
   /** The signed transaction XDR */
   signedXdr: string;
   /** The simulation result (if available) */
-  simulation?: rpc.SimulateTransactionResponse;
+  simulation?: rpc.Api.SimulateTransactionResponse;
 };
 
 /**
@@ -95,7 +94,7 @@ export type SimulationResult = {
   /** Error details if simulation failed */
   error?: string;
   /** Raw simulation response */
-  raw: rpc.SimulateTransactionResponse;
+  raw: rpc.Api.SimulateTransactionResponse;
 };
 
 /**
@@ -136,10 +135,10 @@ export type FeeBumpParams = {
  * ```
  */
 export class TransactionSigner {
-  private readonly client: StellarClient;
+  protected readonly client: StellarClient;
   private readonly wallet: WalletConnector;
-  private readonly defaultFee: number;
-  private readonly defaultTimeout: number;
+  protected readonly defaultFee: number;
+  protected readonly defaultTimeout: number;
   private readonly autoSimulate: boolean;
 
   /**
@@ -181,7 +180,7 @@ export class TransactionSigner {
     const transaction = await this.buildTransaction(params);
 
     // Simulate if enabled
-    let simulation: rpc.SimulateTransactionResponse | undefined;
+    let simulation: rpc.Api.SimulateTransactionResponse | undefined;
     if (this.autoSimulate) {
       simulation = await this.client.simulateTransaction(transaction);
 
@@ -192,7 +191,7 @@ export class TransactionSigner {
 
     // Prepare the transaction with simulation results
     const preparedTransaction = simulation
-      ? await this.client.prepareTransaction(transaction, simulation)
+      ? await this.client.prepareTransaction(transaction)
       : transaction;
 
     // Sign the transaction
@@ -202,20 +201,25 @@ export class TransactionSigner {
     );
 
     // Submit the transaction
-    const result = await this.client.sendTransaction(signedXdr);
+    const signedTransaction = TransactionBuilder.fromXDR(
+      signedXdr,
+      this.client.networkPassphrase
+    );
+    const result = await this.client.sendTransaction(signedTransaction);
 
     // Poll for completion
     const finalResult = await this.client.pollTransaction(result.hash, {
-      onProgress: params.onProgress,
+      ...(params.onProgress !== undefined && { onProgress: params.onProgress }),
     });
+    const finalStatus = (finalResult as { status?: string } | null | undefined)?.status ?? 'UNKNOWN';
 
     return {
       hash: result.hash,
-      status: finalResult.status,
-      successful: finalResult.status === 'SUCCESS',
+      status: finalStatus,
+      successful: finalStatus === 'SUCCESS',
       raw: finalResult,
       signedXdr,
-      simulation
+      ...(simulation !== undefined && { simulation })
     };
   }
 
@@ -229,11 +233,11 @@ export class TransactionSigner {
     const account = await this.client.getAccountWithCache(params.sourceAccount);
 
     // Build operations
-    const operations: Operation[] = params.operations.map(op =>
+    const operations: xdr.Operation[] = params.operations.map(op =>
       buildContractCallOperation({
         contractId: op.contractId,
         method: op.method,
-        args: op.args
+        ...(op.args !== undefined && { args: op.args })
       })
     );
 
@@ -248,7 +252,7 @@ export class TransactionSigner {
 
     // Add memo if provided
     if (params.memo) {
-      builder = builder.addMemo(TransactionBuilder.memoText(params.memo));
+      builder = builder.addMemo(Memo.text(params.memo));
     }
 
     // Set timeout
@@ -276,9 +280,10 @@ export class TransactionSigner {
       };
     }
 
-    const cpuInstructions = simulation.results?.[0]?.cpuInstructions ?? 0;
-    const memoryBytes = simulation.results?.[0]?.memoryBytes ?? 0;
-    const recommendedFee = simulation.minResourceFee ?? this.defaultFee;
+    const resources = simulation.transactionData.build().resources();
+    const cpuInstructions = resources.instructions();
+    const memoryBytes = resources.diskReadBytes() + resources.writeBytes();
+    const recommendedFee = Number(simulation.minResourceFee);
 
     return {
       cpuInstructions,
@@ -304,18 +309,6 @@ export class TransactionSigner {
       }
     );
 
-// Get fee source account with cache fallback for offline resilience
-    const feeSourceAccount = await this.client.getAccountWithCache(params.feeSource);
-
-    // Build the fee bump transaction
-    const feeBumpTx = new FeeBumpTransaction.Builder(
-      feeSourceAccount,
-      params.baseFee.toString(),
-      this.client.networkPassphrase
-    )
-      .setInnerTransaction(innerTransaction)
-      .build();
-
     // Sign the fee bump transaction
     return await this.wallet.signTransaction(
       feeBumpEnvelopeXdr,
@@ -334,16 +327,21 @@ export class TransactionSigner {
       onProgress?: (status: string, ledger: number) => void | Promise<void>;
     }
   ): Promise<TransactionResult> {
-    const result = await this.client.sendTransaction(signedXdr);
+    const signedTransaction = TransactionBuilder.fromXDR(
+      signedXdr,
+      this.client.networkPassphrase
+    );
+    const result = await this.client.sendTransaction(signedTransaction);
 
     const finalResult = await this.client.pollTransaction(result.hash, {
-      onProgress: options?.onProgress,
+      ...(options?.onProgress !== undefined && { onProgress: options.onProgress }),
     });
+    const finalStatus = (finalResult as { status?: string } | null | undefined)?.status ?? 'UNKNOWN';
 
     return {
       hash: result.hash,
-      status: finalResult.status,
-      successful: finalResult.status === 'SUCCESS',
+      status: finalStatus,
+      successful: finalStatus === 'SUCCESS',
       raw: finalResult,
       signedXdr
     };

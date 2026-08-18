@@ -123,7 +123,7 @@ export function buildContractCallTransaction(
   const operation = buildContractCallOperation({
     contractId: params.contractId,
     method: params.method,
-    args: params.args
+    ...(params.args !== undefined && { args: params.args })
   });
 
   const fee = (params.fee ?? 100_000).toString();
