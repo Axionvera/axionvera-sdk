@@ -7,7 +7,6 @@ import {
   nativeToScVal,
   scValToNative,
   rpc,
-  SorobanDataBuilder,
   Transaction,
   TransactionBuilder,
   xdr
@@ -20,7 +19,7 @@ import {
 } from "../utils/networkConfig";
 import { ConcurrencyConfig, DEFAULT_CONCURRENCY_CONFIG, createConcurrencyControlledClient } from "../utils/concurrencyQueue";
 import { RetryConfig, createHttpClientWithRetry, retry } from "../utils/httpInterceptor";
-import { NetworkError, toAxionveraError, InsecureNetworkError, AxionveraError, TransactionTimeoutError, ValidationError } from "../errors/axionveraError";
+import { NetworkError, InsecureNetworkError, AxionveraError, ValidationError } from "../errors/axionveraError";
 import {
   validateRpcResponse,
   GetHealthResponseSchema,
@@ -30,7 +29,7 @@ import {
   ValidatedGetTransactionResponse,
 } from "../utils/rpcSchemas";
 import { LogLevel, Logger } from "../utils/logger";
-import { WebSocketManager, EventFilter, SorobanEvent, WebSocketConfig } from "./websocket";
+import { WebSocketManager, WebSocketConfig } from "./websocket";
 import { CloudWatchConfig } from "../utils/logging/cloudwatch";
 import {
   FetchTransactionHistoryOptions,
@@ -82,6 +81,21 @@ export type StellarClientOptions = {
   allowHttp?: boolean;
   accountFetchTimeoutMs?: number;
   cacheTtlMs?: number;
+};
+
+export interface ContractEventResult {
+  id: string;
+  type: rpc.Api.EventType;
+  contractId?: string;
+  topic: xdr.ScVal[];
+  topicNames: string[];
+  value: xdr.ScVal;
+  ledger: number;
+  ledgerClosedAt: string;
+  transactionIndex: number;
+  operationIndex: number;
+  inSuccessfulContractCall: boolean;
+  txHash: string;
 };
 
 export type TransactionSendResult = {
@@ -324,20 +338,52 @@ export class StellarClient extends BaseStellarRpcClient {
     }
 
     if (options?.monitoringConfig?.enabled) {
-      this.healthMonitor = new RpcHealthMonitor({
-        intervalMs: options.monitoringConfig.intervalMs,
-        timeoutMs: options.monitoringConfig.timeoutMs,
-        degradedLatencyMs: options.monitoringConfig.degradedLatencyMs,
-        unhealthyAfterFailures: options.monitoringConfig.unhealthyAfterFailures,
-        autoStart: options.monitoringConfig.autoStart,
+      const monitorConfig: RpcHealthMonitorConfig = {
         endpoints: this.rpcUrls.map((url, index) => ({
           id: `${this.network}:${url}`,
           url,
           network: this.network,
           rpcClient: this.rpcServers[index],
-          allowHttp
-        }))
-      });
+          allowHttp,
+        })),
+      };
+
+      if (options.monitoringConfig.intervalMs !== undefined) {
+        monitorConfig.intervalMs = options.monitoringConfig.intervalMs;
+      }
+
+      if (options.monitoringConfig.timeoutMs !== undefined) {
+        monitorConfig.timeoutMs = options.monitoringConfig.timeoutMs;
+      }
+
+      if (options.monitoringConfig.degradedLatencyMs !== undefined) {
+        monitorConfig.degradedLatencyMs = options.monitoringConfig.degradedLatencyMs;
+      }
+
+      if (options.monitoringConfig.unhealthyAfterFailures !== undefined) {
+        monitorConfig.unhealthyAfterFailures = options.monitoringConfig.unhealthyAfterFailures;
+      }
+
+      if (options.monitoringConfig.autoStart !== undefined) {
+        monitorConfig.autoStart = options.monitoringConfig.autoStart;
+      }
+
+      this.healthMonitor = new RpcHealthMonitor(monitorConfig);
+    }
+  }
+
+  async executeWithErrorHandling<T>(
+    action: () => Promise<T>,
+    message = 'Stellar client operation failed'
+  ): Promise<T> {
+    try {
+      return await action();
+    } catch (error) {
+      if (error instanceof AxionveraError) {
+        throw error;
+      }
+
+      throw new NetworkError(message, { originalError: error });
     }
   }
 
@@ -351,7 +397,6 @@ export class StellarClient extends BaseStellarRpcClient {
     }
 
     this.currentRpcIndex = (this.currentRpcIndex + 1) % this.rpcUrls.length;
-    this.rpc = this.rpcServers[this.currentRpcIndex];
     this.logger.info(`Switched to RPC URL: ${this.rpcUrl}`);
     return true;
   }

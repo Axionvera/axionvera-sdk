@@ -2,11 +2,11 @@
 export { StellarClient, HYDRATION_STATE_VERSION } from './client/stellarClient';
 export { AxionveraClient } from './client/axionveraClient';
 export { FaucetClient } from './client/faucetClient';
+
 export type {
   StellarClientOptions,
   GetContractEventsOptions,
   GetContractEventsResult,
-  ContractEventResult,
   PendingTransaction,
   TrackedTransaction,
   SerializedPendingTransaction,
@@ -15,11 +15,16 @@ export type {
   SimulationContext,
   SerializableValue,
 } from './client/stellarClient';
+
 export type { AxionveraClientConfig } from './client/axionveraClient';
+
+// Logging
+export { Logger } from './utils/logger';
 export type { LogLevel, CustomLogger } from './utils/logger';
 
 // Registry
 export { ContractMetadataRegistry, contractMetadataRegistry } from './registry';
+
 export type {
   ContractCapability,
   ContractDeploymentMetadata,
@@ -32,41 +37,41 @@ export type {
 
 // Contracts
 export { BaseContract } from './contracts/BaseContract';
-export type { BaseContractConfig, InvokeMethodOptions } from './contracts/BaseContract';
-export type { BaseContractConfig } from './contracts/BaseContract';
 export { VaultContract } from './contracts/VaultContract';
-// Strict argument interfaces for Soroban vault methods (issue #95).
-// These enforce compile-time typo detection (e.g. { amout } instead of { amount }).
+export { ContractEventEmitter } from './contracts/ContractEventEmitter';
+export { VaultABI } from './contracts/abis/VaultABI';
+
+export type {
+  BaseContractConfig,
+  ContractConfig,
+  InvokeMethodOptions,
+} from './contracts/BaseContract';
+
 export type {
   DepositArgs,
   WithdrawArgs,
   ClaimArgs,
   ClaimRewardsParams,
-} from './contracts/VaultContract';
-export { ContractEventEmitter } from './contracts/ContractEventEmitter';
-export { Vault } from './contracts/Vault';
-export { VaultABI } from './contracts/abis/VaultABI';
-export type { ContractConfig } from './contracts/BaseContract';
-export type { VaultConfig, DepositParams, WithdrawParams, VaultInfo } from './contracts/Vault';
-// Soroban-native VaultContract config and param shapes.
-export type {
   VaultConfig,
   VaultInfo,
   DepositParams,
   WithdrawParams,
 } from './contracts/VaultContract';
-export type { ContractEvent, EventCallback } from './contracts/ContractEventEmitter';
+
+
+export type { ContractEvent } from './contracts/ContractEventEmitter';
 
 // Session
 export { ContractSession } from './session/contractSession';
 export { SessionManager } from './session/sessionManager';
+
 export type {
   SessionStatus,
   ContractContext,
   RegisterContractParams,
   SessionConfig,
   SessionSnapshot,
-  SessionManagerConfig
+  SessionManagerConfig,
 } from './session/types';
 
 // Wallet
@@ -74,11 +79,17 @@ export { LocalKeypairWalletConnector } from './wallet/localKeypairWalletConnecto
 export { BrowserWalletConnector } from './wallet/browserWalletConnector';
 export { LedgerWalletConnector } from './wallet/ledgerWalletConnector';
 export { MockWalletConnector } from './wallet/mockWalletConnector';
+
 export type { WalletConnector } from './wallet/walletConnector';
 
 // Utils
-export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
+export {
+  ConcurrencyQueue,
+  createConcurrencyControlledClient,
+} from './utils/concurrencyQueue';
+
 export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
+
 export {
   buildContractCallOperation,
   buildContractCallTransaction,
@@ -86,22 +97,44 @@ export {
   bumpTransactionFee,
   toScVal,
 } from './utils/transactionBuilder';
-export type { BumpTransactionFeeOptions } from './utils/transactionBuilder';
+
+export type {
+  BumpTransactionFeeOptions,
+} from './utils/transactionBuilder';
+
 export {
   getDefaultRpcUrl,
   getNetworkPassphrase,
   resolveNetworkConfig,
 } from './utils/networkConfig';
+
 export { generateTransactionURI, generatePayURI } from './utils/sep7';
-export { decodeXdrBase64, clearXdrCache, getXdrCacheSize } from './utils/xdrCache';
+
+export {
+  decodeXdrBase64,
+  clearXdrCache,
+  getXdrCacheSize,
+} from './utils/xdrCache';
+
 export { getRequiredSigners } from './utils/getRequiredSigners';
-export { parseEvents, decodeSorobanSymbol } from './utils/soroban';
-export type { ParsedEvent, ParseEventsOptions, DecodedTopic } from './utils/soroban';
+
+export {
+  parseEvents,
+  decodeSorobanSymbol,
+} from './utils/soroban';
+
+export type {
+  ParsedEvent,
+  ParseEventsOptions,
+  DecodedTopic,
+} from './utils/soroban';
+
 export {
   addAuthEntry,
   buildSorobanAddressAuthEntry,
   buildSorobanSourceAccountAuthEntry,
 } from './utils/sorobanAuth';
+
 export type {
   SorobanAuthEntry,
   BuildAddressAuthEntryParams,
@@ -110,6 +143,7 @@ export type {
 
 // Monitoring
 export { RpcHealthMonitor } from './monitoring';
+
 export type {
   EndpointHealthState,
   RpcEndpointConfig,
@@ -118,7 +152,7 @@ export type {
   RpcHealthCheckClient,
   RpcHealthMonitorConfig,
   RpcHealthResponse,
-  RpcHealthStatusReport
+  RpcHealthStatusReport,
 } from './monitoring';
 
 // Errors
@@ -141,13 +175,17 @@ export {
   UserRejectedError,
   ContractRevertError,
   toAxionveraError,
-  // New error utilities
-  ErrorCodes,
+} from './errors/axionveraError';
+
+export type { RPCValidationMismatchErrorOptions } from './errors/axionveraError';
+
+export { ErrorCodes } from './errors/errorCodes';
+
+export {
   classifyError,
   isRetryable,
   shouldRetry,
-} from './errors/axionveraError';
-export type { RPCValidationMismatchErrorOptions } from './errors/axionveraError';
+} from './errors/errorClassifier';
 
 // Error Middleware
 export { createErrorMiddleware } from './middleware/errorMiddleware';
@@ -159,7 +197,12 @@ export type {
 } from './utils/rpcSchemas';
 
 // Transaction Signing
-export { TransactionSigner, EnhancedTransactionBuilder, TransactionSimulator } from './transaction';
+export {
+  TransactionSigner,
+  EnhancedTransactionBuilder,
+  TransactionSimulator,
+} from './transaction';
+
 export type {
   TransactionSignerConfig,
   ContractCallParams,
@@ -179,9 +222,10 @@ export * from './test/msw/setup';
 export * from './test/msw/handlers';
 export { server } from './test/msw/server';
 
-// Codegen utilities (for programmatic use)
+// Codegen utilities
 export { parseWasm } from './codegen/wasmParser';
 export { generateContractClass } from './codegen/generator';
+
 export type {
   ContractSpec,
   SpecFunction,

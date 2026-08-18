@@ -1,3 +1,4 @@
+export type { ParsedEvent as ParsedSorobanEvent } from './soroban';
 import { scValToNative, rpc } from "@stellar/stellar-sdk";
 
 export type ParsedEvent = {
