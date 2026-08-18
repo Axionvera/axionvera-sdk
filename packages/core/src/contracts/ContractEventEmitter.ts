@@ -32,12 +32,19 @@ function normalizeEvent(event: rpc.Api.EventResponse): ContractEvent {
     .map((topic) => topicToName(topic))
     .filter((value): value is string => Boolean(value));
 
-  return {
+  const normalized: ContractEvent = {
     ...event,
-    contractId: event.contractId ? event.contractId.toString() : undefined,
     topicNames,
     eventName: topicNames[0],
   };
+
+  if (event.contractId == null) {
+    delete (normalized as Partial<ContractEvent> & { contractId?: string }).contractId;
+    return normalized;
+  }
+
+  normalized.contractId = event.contractId.toString();
+  return normalized;
 }
 
 /**
@@ -48,7 +55,7 @@ export class ContractEventEmitter {
   private readonly contractId: string;
   private readonly topics: string[];
   private readonly pollingIntervalMs: number;
-  private readonly onClose?: () => void;
+  private readonly onClose: (() => void) | undefined;
   private readonly listeners = new Map<string, Set<ContractEventCallback>>();
   private interval: ReturnType<typeof setInterval> | null = null;
   private lastLedger: number | undefined;
@@ -132,7 +139,7 @@ export class ContractEventEmitter {
       try {
         listener(event);
       } catch (error) {
-        this.client.logger.warn('Contract event listener failed', error);
+        this.client.warn('Contract event listener failed', error);
       }
     }
 
@@ -253,7 +260,7 @@ export class ContractEventEmitter {
         }
       }
     } catch (error) {
-      this.client.logger.error('ContractEventEmitter polling error', error);
+      this.client.error('ContractEventEmitter polling error', error);
     } finally {
       this.isPolling = false;
     }

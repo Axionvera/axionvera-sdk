@@ -245,6 +245,22 @@ export class StellarClient extends BaseStellarRpcClient {
   private readonly concurrencyConfig: ConcurrencyConfig;
   private readonly concurrencyEnabled: boolean;
   private readonly logger: Logger;
+  /** Public logging API for emitters and other helper classes that should not access private internals. */
+  warn(message: string, ...args: unknown[]): void {
+    this.logger.warn(message, ...args);
+  }
+
+  error(message: string, ...args: unknown[]): void {
+    this.logger.error(message, ...args);
+  }
+
+  info(message: string, ...args: unknown[]): void {
+    this.logger.info(message, ...args);
+  }
+
+  debug(message: string, ...args: unknown[]): void {
+    this.logger.debug(message, ...args);
+  }
   /** WebSocket manager for real-time event subscriptions, if configured. */
   readonly webSocketManager: WebSocketManager | null = null;
   /** Optional RPC endpoint health monitor. */

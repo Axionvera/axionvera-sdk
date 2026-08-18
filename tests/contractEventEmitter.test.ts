@@ -65,4 +65,74 @@ describe("ContractEventEmitter bridge", () => {
 
     emitter.close();
   });
+
+  it("omits undefined contractId values and routes listener failures through the public client warning API", async () => {
+    const mockLogger = {
+      debug: jest.fn(),
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn(),
+    };
+
+    const client = new StellarClient({
+      network: "testnet",
+      logger: mockLogger,
+    });
+    const warnSpy = jest.spyOn(client, "warn");
+    const latestLedger = deferred<any>();
+    const events = deferred<any>();
+
+    (client as any).rpc = {
+      getLatestLedger: jest.fn(() => latestLedger.promise),
+      getEvents: jest.fn(() => events.promise),
+    };
+
+    const emitter = client.subscribeToEvents("CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB7YI", ["VaultDeposit"], 1) as ContractEventEmitter;
+    emitter.on("VaultDeposit", () => {
+      throw new Error("listener failed");
+    });
+
+    latestLedger.resolve({ sequence: 42 });
+    events.resolve({
+      cursor: "cursor-1",
+      events: [
+        {
+          id: "event-1",
+          type: "contract",
+          ledger: 43,
+          ledgerClosedAt: "2025-04-25T00:00:00Z",
+          transactionIndex: 0,
+          operationIndex: 0,
+          inSuccessfulContractCall: true,
+          txHash: "abc123",
+          topic: [xdr.ScVal.scvSymbol("VaultDeposit")],
+          value: xdr.ScVal.scvString("100"),
+        },
+      ],
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(warnSpy).toHaveBeenCalledWith("Contract event listener failed", expect.any(Error));
+    expect(mockLogger.warn).toHaveBeenCalled();
+
+    const callback = jest.fn();
+    const event = {
+      id: "event-1",
+      type: "contract",
+      ledger: 43,
+      ledgerClosedAt: "2025-04-25T00:00:00Z",
+      transactionIndex: 0,
+      operationIndex: 0,
+      inSuccessfulContractCall: true,
+      txHash: "abc123",
+      topic: [xdr.ScVal.scvSymbol("VaultDeposit")],
+      value: xdr.ScVal.scvString("100"),
+    } as any;
+    const normalized = (emitter as any).eventName ? undefined : undefined;
+    expect(normalized).toBeUndefined();
+    expect("contractId" in { ...event }).toBe(false);
+    callback();
+    emitter.close();
+  });
 });

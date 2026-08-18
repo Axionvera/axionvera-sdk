@@ -328,7 +328,23 @@ export class StellarClient {
    * });
    * ```
    */
-   constructor(options?: StellarClientOptions) {
+   warn(message: string, ...args: unknown[]): void {
+    this.logger.warn(message, ...args);
+  }
+
+  error(message: string, ...args: unknown[]): void {
+    this.logger.error(message, ...args);
+  }
+
+  info(message: string, ...args: unknown[]): void {
+    this.logger.info(message, ...args);
+  }
+
+  debug(message: string, ...args: unknown[]): void {
+    this.logger.debug(message, ...args);
+  }
+
+  constructor(options?: StellarClientOptions) {
     let processedOptions = options || {};
     const usePluginManager = processedOptions.usePluginManager !== false;
     const pluginManager = processedOptions.pluginManager || getPluginManager();
