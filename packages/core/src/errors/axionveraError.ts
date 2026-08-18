@@ -37,11 +37,21 @@ export class AxionveraError extends Error {
   constructor(message: string, options: AxionveraErrorOptions = {}) {
     super(message);
     this.name = new.target.name;
-    this.statusCode = options.statusCode;
-    this.requestId = options.requestId;
-    this.originalError = options.originalError;
-    this.code = options.code;
-    this.category = options.category;
+    if (options.statusCode !== undefined) {
+      this.statusCode = options.statusCode;
+    }
+    if (options.requestId !== undefined) {
+      this.requestId = options.requestId;
+    }
+    if (options.originalError !== undefined) {
+      this.originalError = options.originalError;
+    }
+    if (options.code !== undefined) {
+      this.code = options.code;
+    }
+    if (options.category !== undefined) {
+      this.category = options.category;
+    }
   }
 }
 
@@ -113,7 +123,9 @@ export class ContractRevertError extends AxionveraError {
 
   constructor(message: string, trapCode?: string, options: AxionveraErrorOptions = {}) {
     super(message, options);
-    this.trapCode = trapCode;
+    if (trapCode !== undefined) {
+      this.trapCode = trapCode;
+    }
   }
 }
 
@@ -251,9 +263,9 @@ export function toAxionveraError(error: unknown, fallbackMessage = "API request 
   const errorLike = asErrorLike(error);
 
   const options: AxionveraErrorOptions = {
-    statusCode,
-    requestId,
-    originalError: error
+    originalError: error,
+    ...(statusCode !== undefined && { statusCode }),
+    ...(requestId !== undefined && { requestId }),
   };
 
   if (errorLike.code === 'ETIMEDOUT') {
