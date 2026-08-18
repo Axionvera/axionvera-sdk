@@ -1,5 +1,5 @@
 import { Middleware, MiddlewareContext } from '../middleware';
-import { AxionveraError, toAxionveraError } from '../errors/axionveraError';
+import { toAxionveraError } from '../errors/axionveraError';
 
 export function createErrorMiddleware(): Middleware {
   return {

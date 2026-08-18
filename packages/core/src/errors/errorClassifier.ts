@@ -1,4 +1,4 @@
-import { ErrorCodes } from './errorCodes';
+import { AxionveraError } from './axionveraError';
 
 export type ErrorCategory = 'retryable' | 'nonRetryable' | 'clientError' | 'serverError' | 'networkError';
 
