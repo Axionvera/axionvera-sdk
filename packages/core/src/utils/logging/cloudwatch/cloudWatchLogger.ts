@@ -13,7 +13,7 @@ type ResolvedCloudWatchConfig = CloudWatchConfig & {
 };
 
 export class CloudWatchLogger {
-  private client: any = null;
+  private client: CloudWatchLogsClient | null = null;
   private logQueue: LogEntry[] = [];
   private flushTimer: NodeJS.Timeout | null = null;
   private sequenceToken: string | null = null;
