@@ -5,7 +5,6 @@ import { TransactionSigner, ContractCallParams, TransactionResult } from '../tra
 import { WalletConnector } from '../wallet/walletConnector';
 import { buildContractCallOperation, ContractCallArg } from '../utils/transactionBuilder';
 import { addAuthEntry, SorobanAuthEntry } from '../utils/sorobanAuth';
-import { decodeXdrBase64 } from '../utils/xdrCache';
 
 /** Configuration required to instantiate any contract wrapper. */
 export type BaseContractConfig = {
@@ -135,7 +134,7 @@ export abstract class BaseContract {
         throw new Error(`Transaction simulation failed: ${(simulation as any).error}`);
       }
 
-      const preparedTx = await this.client.prepareTransaction(tx, simulation);
+      const preparedTx = await this.client.prepareTransaction(tx);
       let envelopeXdr = preparedTx.toXDR();
       for (const entry of options.authEntries) {
         envelopeXdr = addAuthEntry(envelopeXdr, entry);
@@ -145,13 +144,18 @@ export abstract class BaseContract {
         envelopeXdr,
         this.client.networkPassphrase,
       );
-      const sendResult = await this.client.sendTransaction(signedXdr);
+      const signedTransaction = TransactionBuilder.fromXDR(
+        signedXdr,
+        this.client.networkPassphrase,
+      );
+      const sendResult = await this.client.sendTransaction(signedTransaction);
       const finalResult = await this.client.pollTransaction(sendResult.hash);
+      const finalStatus = (finalResult as { status?: string } | null | undefined)?.status ?? 'UNKNOWN';
 
       return {
         hash: sendResult.hash,
-        status: finalResult.status,
-        successful: finalResult.status === 'SUCCESS',
+        status: finalStatus,
+        successful: finalStatus === 'SUCCESS',
         raw: finalResult,
         signedXdr,
         simulation,
@@ -184,9 +188,9 @@ export abstract class BaseContract {
       throw new Error(`Simulation failed for ${method}: ${(simulation as any).error}`);
     }
 
-    const result = simulation.results?.[0];
+    const result = simulation.result?.[0]?.retval;
     if (!result) throw new Error(`No simulation result for ${method}`);
-    return decodeXdrBase64(result.xdr);
+    return result;
   }
 
   // ── Typed decode helpers ───────────────────────────────────────────────
@@ -195,7 +199,7 @@ export abstract class BaseContract {
   protected decodeI128(val: xdr.ScVal): bigint {
     if (val.switch() !== xdr.ScValType.scvI128()) throw new Error('Expected i128');
     const i = val.i128();
-    return BigInt(i.low().toString()) + (BigInt(i.high().toString()) << 64n);
+    return BigInt(i.lo().toString()) + (BigInt(i.hi().toString()) << 64n);
   }
 
   /** Decode a u128 ScVal to bigint. */
