@@ -1,5 +1,11 @@
 import { useState, useCallback } from 'react';
-import { TransactionTimeoutError } from '../../core/src/errors/axionveraError';
+
+class TransactionTimeoutError extends Error {
+  constructor(hash: string) {
+    super(`Transaction confirmation timed out for ${hash}`);
+    this.name = 'TransactionTimeoutError';
+  }
+}
 
 /** The four steps of a Soroban transaction lifecycle. */
 export type TxStep = 'idle' | 'signed' | 'submitted' | 'confirmed';

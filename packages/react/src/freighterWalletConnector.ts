@@ -1,4 +1,6 @@
-import type { WalletConnector, AxionveraNetwork } from '@axionvera/core';
+import type { WalletConnector } from '@axionvera/core';
+
+type AxionveraNetwork = 'mainnet' | 'testnet' | (string & {});
 import { WalletNotInstalledError } from '@axionvera/core';
 
 type FreighterErrorLike =

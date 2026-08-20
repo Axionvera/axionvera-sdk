@@ -32,18 +32,20 @@ function normalizeEvent(event: rpc.Api.EventResponse): ContractEvent {
     .map((topic) => topicToName(topic))
     .filter((value): value is string => Boolean(value));
 
+  const { contractId, ...rest } = event;
   const normalized: ContractEvent = {
-    ...event,
+    ...rest,
     topicNames,
-    eventName: topicNames[0],
   };
 
-  if (event.contractId == null) {
-    delete (normalized as Partial<ContractEvent> & { contractId?: string }).contractId;
-    return normalized;
+  if (topicNames[0]) {
+    normalized.eventName = topicNames[0];
   }
 
-  normalized.contractId = event.contractId.toString();
+  if (contractId != null) {
+    normalized.contractId = contractId.toString();
+  }
+
   return normalized;
 }
 

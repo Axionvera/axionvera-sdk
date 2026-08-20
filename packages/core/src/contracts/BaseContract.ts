@@ -188,7 +188,7 @@ export abstract class BaseContract {
       throw new Error(`Simulation failed for ${method}: ${(simulation as any).error}`);
     }
 
-    const result = simulation.result?.[0]?.retval;
+    const result = simulation.result?.retval;
     if (!result) throw new Error(`No simulation result for ${method}`);
     return result;
   }

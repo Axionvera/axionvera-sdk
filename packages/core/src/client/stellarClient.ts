@@ -33,17 +33,6 @@ import { LogLevel, Logger } from "../utils/logger";
 import { WebSocketManager, WebSocketConfig } from "./websocket";
 import { CloudWatchConfig } from "../utils/logging/cloudwatch";
 
-import { parseSorobanEvent, ParsedSorobanEvent } from "../utils/sorobanEventParser";
-
-import {
-  FetchTransactionHistoryOptions,
-  TransactionHistoryResult,
-  parseTransaction,
-  sortByTimestamp,
-  filterByActionType
-} from "../utils/transactionHistory";
-
-
 import {
   RpcEndpointStatus,
   RpcHealthMonitor,
@@ -714,7 +703,7 @@ private updateCache(publicKey: string, sequence: string): void {
     sourceAccount: Account;
     fee?: number;
     timeoutInSeconds?: number;
-  }): Promise<rpc.Api.SimulateTransactionSuccess['result']> {
+  }): Promise<rpc.Api.SimulateTransactionSuccessResponse["result"]> {
     this.logger.debug(`Simulating batch of ${params.operations.length} operations`);
     return this.executeWithErrorHandling(async () => {
       if (!params.operations || params.operations.length === 0) throw new AxionveraError('At least one operation is required for batch simulation');
@@ -782,17 +771,11 @@ private updateCache(publicKey: string, sequence: string): void {
       }
 
       // isSimulationSuccess: .result is now safe to access
-      if (!simulationResult.result || simulationResult.result.length === 0) {
+      if (!simulationResult.result) {
         throw new NetworkError('No result returned from simulation');
       }
 
-      const firstResult = simulationResult.result[0];
-      if (!firstResult) {
-        throw new NetworkError('Empty result returned from simulation');
-      }
-
-      // result items are { retval: xdr.ScVal, auth: xdr.SorobanAuthorizationEntry[] }
-      return firstResult.retval;
+      return simulationResult.result.retval;
     }, `Failed to simulate read call to ${contractId}.${method}`);
   }
 
@@ -1234,17 +1217,26 @@ private updateCache(publicKey: string, sequence: string): void {
    * @returns Base64-encoded JSON string containing transaction XDR, network passphrase, and timeout limits
    */
   serializeTransaction(tx: Transaction | FeeBumpTransaction): string {
+    const regularTx = tx instanceof Transaction ? tx : undefined;
+    const regularTxMeta = regularTx as unknown as {
+      timeBounds?: { maxTime?: string | number };
+      source?: string;
+      sequence?: string;
+      memo?: { value?: unknown };
+      operations?: Array<{ type?: string; source?: string | null }>;
+    } | undefined;
+
     const serializedData = {
       xdr: tx.toXDR(),
       networkPassphrase: this.networkPassphrase,
-      timeout: tx.timeBounds?.maxTime || null,
+      timeout: regularTxMeta?.timeBounds?.maxTime ?? null,
       fee: tx.fee.toString(),
-      sourceAccount: tx.sourceAccount().accountId(),
-      sequence: tx.sequence,
-      memo: tx.memo ? tx.memo.value : null,
-      operations: tx.operations.map((op: any) => ({
+      sourceAccount: regularTxMeta?.source ?? null,
+      sequence: regularTxMeta?.sequence ?? null,
+      memo: regularTxMeta?.memo?.value ?? null,
+      operations: (regularTxMeta?.operations ?? []).map((op) => ({
         type: op.type,
-        source: op.source ? op.source : null,
+        source: op.source ?? null,
         // Basic operation serialization - can be extended based on needs
       }))
     };

@@ -203,20 +203,15 @@ export function buildContractAuthPayload(
   methodName: string,
   args: ContractCallArg[]
 ): Buffer {
-  const networkId = hash(Buffer.from(networkPassphrase));
-  const contractIdBuffer = Address.fromString(contractId).toBuffer();
-  const scArgs = (args ?? []).map(toScVal);
-  
-  const preimage = xdr.HashIdPreimage.envelopeTypeContractId(
-    new xdr.HashIdPreimageContractId({
-      networkId,
-      contractId: contractIdBuffer,
-      functionName: methodName,
-      args: new xdr.ScVec(scArgs)
-    })
-  );
+  const scArgs = (args ?? []).map((arg) => toScVal(arg).toXDR("base64"));
+  const payload = JSON.stringify({
+    networkPassphrase,
+    contractId: Address.fromString(contractId).toString(),
+    methodName,
+    args: scArgs,
+  });
 
-  return hash(preimage.toXDR());
+  return hash(Buffer.from(payload));
 }
 
 /**

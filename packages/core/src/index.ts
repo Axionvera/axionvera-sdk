@@ -1,5 +1,14 @@
 // Client
 export { StellarClient, HYDRATION_STATE_VERSION } from './client/stellarClient';
+
+export type {
+  EventFilter,
+  SorobanEvent,
+  WebSocketConfig,
+} from './client/websocket/types';
+
+export type { CloudWatchConfig } from './utils/logging/cloudwatch';
+
 export { AxionveraClient } from './client/axionveraClient';
 export { FaucetClient } from './client/faucetClient';
 

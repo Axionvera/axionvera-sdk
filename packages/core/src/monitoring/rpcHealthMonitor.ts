@@ -15,30 +15,30 @@ export type RpcHealthCheckClient = {
 
 export type RpcEndpointConfig = {
   /** Stable endpoint identifier used in reports. Defaults to the URL. */
-  id?: string;
+  id?: string | undefined;
   /** RPC endpoint URL. */
   url: string;
   /** Optional network label for reporting. */
-  network?: AxionveraNetwork;
+  network?: AxionveraNetwork | undefined;
   /** Optional prebuilt RPC client, useful for tests or shared SDK clients. */
-  rpcClient?: RpcHealthCheckClient;
+  rpcClient?: RpcHealthCheckClient | undefined;
   /** Allows http:// endpoints when creating a monitor-owned RPC client. */
-  allowHttp?: boolean;
+  allowHttp?: boolean | undefined;
 };
 
 export type RpcHealthMonitorConfig = {
   /** Endpoints to monitor. */
   endpoints: RpcEndpointConfig[];
   /** Time between automatic checks. Defaults to 30 seconds. */
-  intervalMs?: number;
+  intervalMs?: number | undefined;
   /** Per-endpoint health check timeout. Defaults to 5 seconds. */
-  timeoutMs?: number;
+  timeoutMs?: number | undefined;
   /** Latency above this threshold marks a successful endpoint as degraded. */
-  degradedLatencyMs?: number;
+  degradedLatencyMs?: number | undefined;
   /** Failed checks required before an endpoint becomes unhealthy. */
-  unhealthyAfterFailures?: number;
+  unhealthyAfterFailures?: number | undefined;
   /** Start the interval immediately after construction. Defaults to false. */
-  autoStart?: boolean;
+  autoStart?: boolean | undefined;
 };
 
 export type RpcEndpointMetrics = {
@@ -46,22 +46,22 @@ export type RpcEndpointMetrics = {
   successfulChecks: number;
   failedChecks: number;
   consecutiveFailures: number;
-  lastLatencyMs?: number;
-  averageLatencyMs?: number;
-  minLatencyMs?: number;
-  maxLatencyMs?: number;
+  lastLatencyMs?: number | undefined;
+  averageLatencyMs?: number | undefined;
+  minLatencyMs?: number | undefined;
+  maxLatencyMs?: number | undefined;
   availabilityPercentage: number;
 };
 
 export type RpcEndpointStatus = {
   id: string;
   url: string;
-  network?: AxionveraNetwork;
+  network?: AxionveraNetwork | undefined;
   state: EndpointHealthState;
   available: boolean;
-  checkedAt?: Date;
-  error?: string;
-  response?: RpcHealthResponse;
+  checkedAt?: Date | undefined;
+  error?: string | undefined;
+  response?: RpcHealthResponse | undefined;
   metrics: RpcEndpointMetrics;
 };
 
@@ -149,7 +149,7 @@ export class RpcHealthMonitor {
   readonly unhealthyAfterFailures: number;
 
   private readonly endpoints: InternalEndpoint[];
-  private intervalHandle?: ReturnType<typeof setInterval>;
+  private intervalHandle: ReturnType<typeof setInterval> | undefined;
   private checkInProgress = false;
 
   constructor(config: RpcHealthMonitorConfig) {
