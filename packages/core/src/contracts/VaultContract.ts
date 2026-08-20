@@ -1,6 +1,6 @@
 import { Account, Address, Keypair, nativeToScVal, rpc, scValToNative, TransactionBuilder } from '@stellar/stellar-sdk';
 
-import { BaseContract, BaseContractConfig } from './BaseContract';
+import { BaseContract, BaseContractConfig, InvokeMethodOptions } from './BaseContract';
 import { SlippageToleranceExceededError } from '../errors/axionveraError';
 import { SorobanAuthEntry } from '../utils/sorobanAuth';
 import { buildContractCallOperation } from '../utils/transactionBuilder';
@@ -141,6 +141,12 @@ export class VaultContract extends BaseContract {
       }
     }
 
+    const options: InvokeMethodOptions = {
+      sourceAccount: from,
+      ...(params.txBuilder !== undefined && { txBuilder: params.txBuilder }),
+      ...(params.authEntries !== undefined && { authEntries: params.authEntries }),
+    };
+
     return this.invokeMethod<DepositArgs>(
       'deposit',
       { amount: params.amount, from },
@@ -148,11 +154,7 @@ export class VaultContract extends BaseContract {
         nativeToScVal(args.amount, { type: 'i128' }),
         new Address(args.from!).toScVal(),
       ],
-      {
-        txBuilder: params.txBuilder,
-        authEntries: params.authEntries,
-        sourceAccount: from,
-      },
+      options,
     );
   }
 
@@ -183,6 +185,12 @@ export class VaultContract extends BaseContract {
       }
     }
 
+    const options: InvokeMethodOptions = {
+      sourceAccount,
+      ...(params.txBuilder !== undefined && { txBuilder: params.txBuilder }),
+      ...(params.authEntries !== undefined && { authEntries: params.authEntries }),
+    };
+
     return this.invokeMethod<WithdrawArgs>(
       'withdraw',
       { amount: params.amount, to },
@@ -190,11 +198,7 @@ export class VaultContract extends BaseContract {
         nativeToScVal(args.amount, { type: 'i128' }),
         new Address(args.to!).toScVal(),
       ],
-      {
-        txBuilder: params.txBuilder,
-        authEntries: params.authEntries,
-        sourceAccount,
-      },
+      options,
     );
   }
 
@@ -207,15 +211,17 @@ export class VaultContract extends BaseContract {
   async claimRewards(params?: ClaimRewardsParams): Promise<any> {
     const sourceAccount = await this.wallet.getPublicKey();
 
+    const options: InvokeMethodOptions = {
+      sourceAccount,
+      ...(params?.txBuilder !== undefined && { txBuilder: params.txBuilder }),
+      ...(params?.authEntries !== undefined && { authEntries: params.authEntries }),
+    };
+
     return this.invokeMethod<ClaimArgs>(
       'claim_rewards',
       {},
       () => [],
-      {
-        txBuilder: params?.txBuilder,
-        authEntries: params?.authEntries,
-        sourceAccount,
-      },
+      options,
     );
   }
 

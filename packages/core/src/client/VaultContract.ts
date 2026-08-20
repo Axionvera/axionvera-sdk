@@ -1,6 +1,6 @@
 import { StellarClient } from '../client/stellarClient';
 import { WalletConnector } from '../wallet/walletConnector';
-import { Address, scValToNative, xdr } from '@stellar/stellar-sdk';
+import { Address, scValToNative } from '@stellar/stellar-sdk';
 import { AxionveraError } from '../errors/axionveraError';
 
 /**
@@ -59,8 +59,8 @@ export interface VaultContractOptions {
 export class VaultContract {
   readonly contractId: string;
   private readonly client: StellarClient;
-  private readonly wallet?: WalletConnector;
-  private readonly methodNames: Required<VaultContractOptions['methodNames']>;
+  private readonly wallet: WalletConnector | undefined;
+  private readonly methodNames: { getVaultShares: string; getExchangeRate: string };
 
   /**
    * Creates a new VaultContract instance.

@@ -12,9 +12,9 @@ export class WebSocketManager {
 
   private readonly config: Required<WebSocketConfig>;
   private readonly rpcUrl: string;
-  private readonly onEvent?: (event: SorobanEvent) => void;
-  private readonly onConnectionChange?: (connected: boolean) => void;
-  private readonly logger?: Logger;
+  private readonly onEvent: ((event: SorobanEvent) => void) | undefined;
+  private readonly onConnectionChange: ((connected: boolean) => void) | undefined;
+  private readonly logger: Logger | undefined;
 
   constructor(
     rpcUrl: string,
