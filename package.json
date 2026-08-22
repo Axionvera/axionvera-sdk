@@ -16,7 +16,7 @@
     "lint": "npm run lint --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "build": "npm run build --workspaces",
-    "test": "npm run typecheck && npm run build"
+    "test": "npm run typecheck && npm run build && npm run test --workspaces --if-present"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
