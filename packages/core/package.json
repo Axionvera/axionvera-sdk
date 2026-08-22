@@ -22,11 +22,11 @@
     "clean": "rimraf dist",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "build": "npm run clean && tsup",
-    "test": "vitest run"
+    "test": "vitest run",
+    "build": "npm run clean && tsup"
   },
   "sideEffects": false,
   "devDependencies": {
-    "vitest": "^2.1.9"
+    "vitest": "^4.1.11"
   }
 }
