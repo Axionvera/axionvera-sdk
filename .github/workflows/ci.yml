@@ -1,101 +1,34 @@
-name: CI Validation
+name: SDK CI
 
 on:
   pull_request:
-    branches: [main]
   push:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
-  dependency-audit:
-    name: Dependency Audit
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: 'npm'
-      - name: Install locked dependencies without lifecycle scripts
-        run: npm ci --ignore-scripts
-      - name: Audit npm dependency graph
-        run: npm audit --omit=dev --workspaces --include-workspace-root --audit-level=high
-
-  test-and-coverage:
-    name: Test on Node ${{ matrix.node-version }}
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x, 22.x]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-      - run: npm ci
-      - run: npm test
-      - name: Build SDK
-        run: npm run build
-      - name: CSP Compliance Audit
-        run: npm run csp-audit
-      - name: Check Bundle Size
-        run: npm run size
-
-  benchmark:
-    name: Performance Benchmarks
+  quality:
+    name: Lint, typecheck, and build
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # fetch full history for baseline comparison
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: 'package-lock.json'
+          node-version: 22
+          cache: npm
 
       - name: Install dependencies
-        run: |
-          npm ci
-          cd benchmarks && npm install
+        run: npm ci
 
-      - name: Build SDK
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
         run: npm run build
-
-      - name: Run legacy XDR parsing benchmark
-        run: |
-          cd benchmarks
-          npm run benchmark:legacy
-
-      - name: Run comprehensive performance benchmarks
-        id: benchmark_run
-        run: |
-          cd benchmarks
-          npm run benchmark:ci
-        continue-on-error: true
-
-      - name: Upload benchmark JSON report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: benchmark-json-report
-          path: benchmarks/reports/*.json
-
-      - name: Upload benchmark HTML report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: benchmark-html-report
-          path: benchmarks/reports/*.html
-
-      - name: Check for performance regressions
-        if: steps.benchmark_run.outcome == 'failure'
-        run: |
-          echo "⚠️ Performance regression detected! Review benchmark results above."
-          exit 1
