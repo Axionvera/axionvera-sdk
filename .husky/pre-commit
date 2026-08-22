@@ -1,2 +1,6 @@
-npx lint-staged
-npx tsc --noEmit
+#!/usr/bin/env sh
+set -e
+
+npm run lint
+npm run typecheck
+npm run build

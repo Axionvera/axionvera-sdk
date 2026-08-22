@@ -2,8 +2,10 @@ import { defineConfig } from 'tsup';
 
 export default defineConfig({
   entry: ['src/index.ts'],
-  format: ['cjs', 'esm'],
+  format: ['esm', 'cjs'],
   dts: true,
+  sourcemap: true,
   clean: true,
-  external: ['react', '@axionvera/core'],
+  target: 'es2020',
+  external: ['react', '@axionvera/core']
 });

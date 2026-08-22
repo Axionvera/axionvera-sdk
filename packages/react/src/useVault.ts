@@ -1,137 +1,113 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import {
+  VaultContract,
+  type AmountInput,
+  type ContractInvoker,
+  type VaultBalance,
+  type VaultInfo,
+  type VaultReward,
+  type VaultTransaction
+} from '@axionvera/core';
 
-class TransactionTimeoutError extends Error {
-  constructor(hash: string) {
-    super(`Transaction confirmation timed out for ${hash}`);
-    this.name = 'TransactionTimeoutError';
-  }
+export interface UseVaultOptions {
+  contractId: string;
+  invoker: ContractInvoker;
+  walletAddress?: string | null;
 }
 
-/** The four steps of a Soroban transaction lifecycle. */
-export type TxStep = 'idle' | 'signed' | 'submitted' | 'confirmed';
-
-export type UseVaultState = {
-  step: TxStep;
-  isLoading: boolean;
+export interface UseVaultResult {
+  vault: VaultContract;
+  isSubmitting: boolean;
   error: Error | null;
-  txHash: string | null;
-};
-
-export type UseVaultActions = {
-  deposit: (amount: bigint) => Promise<void>;
-  withdraw: (amount: bigint) => Promise<void>;
-  reset: () => void;
-};
-
-/** Minimal interface required from StellarClient */
-interface PollingClient {
-  getTransaction(hash: string): Promise<unknown>;
+  getInfo(): Promise<VaultInfo>;
+  getBalance(address?: string): Promise<VaultBalance>;
+  getPendingRewards(address?: string): Promise<VaultReward>;
+  deposit(amount: AmountInput): Promise<VaultTransaction>;
+  withdraw(amount: AmountInput): Promise<VaultTransaction>;
+  claimRewards(): Promise<VaultTransaction>;
+  resetError(): void;
 }
 
-/** Minimal interface required from VaultContract */
-interface VaultContractLike {
-  deposit(params: { amount: bigint }): Promise<unknown>;
-  withdraw(params: { amount: bigint }): Promise<unknown>;
-}
-
-const POLL_TIMEOUT_MS = 60_000;
-const POLL_INTERVAL_MS = 2_000;
-
-async function pollUntilConfirmed(
-  client: PollingClient,
-  hash: string,
-  onStep: (step: TxStep) => void
-): Promise<void> {
-  const deadline = Date.now() + POLL_TIMEOUT_MS;
-
-  while (Date.now() < deadline) {
-    const res = await client.getTransaction(hash) as any;
-    const status: string = res?.status ?? 'NOT_FOUND';
-
-    if (status === 'SUCCESS') {
-      onStep('confirmed');
-      return;
-    }
-
-    if (status === 'FAILED') {
-      throw new Error(`Transaction ${hash} failed on-chain.`);
-    }
-
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-  }
-
-  throw new TransactionTimeoutError(hash);
-}
-
-/**
- * Hook for interacting with the Axionvera Vault contract with full
- * transaction lifecycle tracking (signed → submitted → confirmed).
- *
- * @example
- * ```tsx
- * const { step, isLoading, error, deposit } = useVault({ client, vault });
- * await deposit(1000n);
- * ```
- */
-export function useVault(deps: {
-  client: PollingClient;
-  vault: VaultContractLike;
-  onSuccess?: (hash: string) => void;
-}): UseVaultState & UseVaultActions {
-  const { client, vault, onSuccess } = deps;
-
-  const [step, setStep] = useState<TxStep>('idle');
-  const [isLoading, setIsLoading] = useState(false);
+export function useVault(options: UseVaultOptions): UseVaultResult {
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [txHash, setTxHash] = useState<string | null>(null);
 
-  const execute = useCallback(
-    async (action: () => Promise<unknown>) => {
-      setIsLoading(true);
+  const vault = useMemo(
+    () =>
+      new VaultContract({
+        contractId: options.contractId,
+        invoker: options.invoker
+      }),
+    [options.contractId, options.invoker]
+  );
+
+  const requireWalletAddress = useCallback((): string => {
+    if (!options.walletAddress) {
+      throw new Error('Connect a wallet before using vault write actions');
+    }
+
+    return options.walletAddress;
+  }, [options.walletAddress]);
+
+  const runAction = useCallback(
+    async <TResult,>(action: () => Promise<TResult>): Promise<TResult> => {
+      setIsSubmitting(true);
       setError(null);
-      setStep('idle');
-      setTxHash(null);
 
       try {
-        // Step 1: build + sign
-        const result = await action() as any;
-        setStep('signed');
-
-        // Step 2: submit — extract hash from result
-        const hash: string = result?.hash ?? result?.id ?? String(result);
-        setTxHash(hash);
-        setStep('submitted');
-
-        // Step 3: poll until confirmed
-        await pollUntilConfirmed(client, hash, setStep);
-
-        onSuccess?.(hash);
-      } catch (err) {
-        setError(err as Error);
-        setStep('idle');
+        return await action();
+      } catch (caught) {
+        const nextError = caught instanceof Error ? caught : new Error(String(caught));
+        setError(nextError);
+        throw nextError;
       } finally {
-        setIsLoading(false);
+        setIsSubmitting(false);
       }
     },
-    [client, onSuccess]
+    []
+  );
+
+  const getInfo = useCallback(() => vault.getInfo(), [vault]);
+
+  const getBalance = useCallback(
+    (address?: string) => vault.getBalance(address ?? requireWalletAddress()),
+    [vault, requireWalletAddress]
+  );
+
+  const getPendingRewards = useCallback(
+    (address?: string) => vault.getPendingRewards(address ?? requireWalletAddress()),
+    [vault, requireWalletAddress]
   );
 
   const deposit = useCallback(
-    (amount: bigint) => execute(() => vault.deposit({ amount })),
-    [execute, vault]
+    (amount: AmountInput) =>
+      runAction(() => vault.deposit(requireWalletAddress(), amount)),
+    [vault, requireWalletAddress, runAction]
   );
 
   const withdraw = useCallback(
-    (amount: bigint) => execute(() => vault.withdraw({ amount })),
-    [execute, vault]
+    (amount: AmountInput) =>
+      runAction(() => vault.withdraw(requireWalletAddress(), amount)),
+    [vault, requireWalletAddress, runAction]
   );
 
-  const reset = useCallback(() => {
-    setStep('idle');
-    setIsLoading(false);
-    setError(null);
-    setTxHash(null);
-  }, []);
+  const claimRewards = useCallback(
+    () => runAction(() => vault.claimRewards(requireWalletAddress())),
+    [vault, requireWalletAddress, runAction]
+  );
 
-  return { step, isLoading, error, txHash, deposit, withdraw, reset };
+  const resetError = useCallback(() => setError(null), []);
+
+  return {
+    vault,
+    isSubmitting,
+    error,
+    getInfo,
+    getBalance,
+    getPendingRewards,
+    deposit,
+    withdraw,
+    claimRewards,
+    resetError
+  };
 }

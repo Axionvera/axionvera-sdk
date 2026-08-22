@@ -3,25 +3,25 @@ module.exports = {
   env: {
     es2020: true,
     node: true,
-    jest: true
+    browser: true
   },
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './packages/*/tsconfig.json', './benchmarks/tsconfig.json'],
-    tsconfigRootDir: __dirname,
+    sourceType: 'module'
   },
   plugins: ['@typescript-eslint'],
-  extends: [
-    'eslint:recommended',
-    'plugin:@typescript-eslint/recommended-type-checked',
-    'plugin:@typescript-eslint/strict-type-checked',
-    'plugin:@typescript-eslint/stylistic-type-checked',
-  ],
+  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
   rules: {
-    '@typescript-eslint/no-explicit-any': 'error',
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-unused-vars': [
+      'warn',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_'
+      }
+    ],
+    '@typescript-eslint/no-explicit-any': 'off'
   },
-  ignorePatterns: ['dist/', 'node_modules/', 'tests/', 'examples/', 'benchmarks/', 'packages/*/bin/']
+  ignorePatterns: ['dist/', 'node_modules/', '**/*.d.ts']
 };

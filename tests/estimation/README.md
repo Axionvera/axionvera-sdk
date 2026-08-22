@@ -1,2 +1,0 @@
-### Estimation Methodology
-Resource metrics calculate structural fees by applying predefined weight parameters across evaluated CPU instructions, operational RAM consumption footprints, and explicit ledger read/write access keys. A 10%-15% proportional padding buffer is applied dynamically across computed metrics to safeguard transactions against unexpected edge-case runtime spikes during execution.
