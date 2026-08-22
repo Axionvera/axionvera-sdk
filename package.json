@@ -16,7 +16,7 @@
     "lint": "npm run lint --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "build": "npm run build --workspaces",
-    "test": "npm run typecheck && npm run build && npm run test --workspaces --if-present"
+    "test": "npm run typecheck && npm run build && vitest run"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
@@ -27,6 +27,7 @@
     "prettier": "^3.8.3",
     "rimraf": "^6.0.1",
     "tsup": "^8.3.6",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.1.11"
   }
 }
