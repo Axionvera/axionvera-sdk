@@ -1,5 +1,5 @@
 import { ValidationError } from './errors';
-import type { AmountInput } from './types';
+import type { AmountInput, TransactionResult, TransactionStatus } from './types';
 
 export interface ContractCallRequest {
   contractId: string;
@@ -35,4 +35,45 @@ export function normalizeAmount(amount: AmountInput): bigint {
   }
 
   return normalized;
+}
+
+export function normalizeTransactionResult(raw: unknown): TransactionResult {
+  if (!raw || typeof raw !== 'object') {
+    throw new ValidationError('Invalid raw transaction response');
+  }
+
+  const record = raw as Record<string, unknown>;
+
+  if (typeof record.hash !== 'string' || !record.hash.trim()) {
+    throw new ValidationError('Missing or invalid transaction hash');
+  }
+
+  const hash = record.hash.trim();
+  let status: TransactionStatus;
+
+  const rawStatus = typeof record.status === 'string' ? record.status.toUpperCase() : '';
+  
+  if (rawStatus === 'SUCCESS') {
+    status = 'success';
+  } else if (rawStatus === 'FAILED') {
+    status = 'failed';
+  } else if (rawStatus === 'PENDING') {
+    status = 'pending';
+  } else if (rawStatus === 'NOT_FOUND') {
+    status = 'not_found';
+  } else {
+    throw new ValidationError(`Unknown or missing transaction status: ${record.status}`);
+  }
+
+  const result: TransactionResult = { hash, status };
+
+  if (typeof record.ledger === 'number') {
+    result.ledger = record.ledger;
+  }
+
+  if (status === 'failed' && typeof record.error === 'string') {
+    result.error = record.error;
+  }
+
+  return result;
 }

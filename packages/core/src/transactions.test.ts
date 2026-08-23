@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ValidationError } from './errors';
-import { createContractCallRequest, normalizeAmount } from './transactions';
+import { createContractCallRequest, normalizeAmount, normalizeTransactionResult } from './transactions';
 
 const CONTRACT_ID = 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 const METHOD = 'transfer';
@@ -102,5 +102,51 @@ describe('normalizeAmount', () => {
 
   it('throws an error for invalid amount strings', () => {
     expect(() => normalizeAmount('invalid')).toThrow();
+  });
+});
+
+describe('normalizeTransactionResult', () => {
+  it('normalizes a successful transaction', () => {
+    const raw = { hash: 'hash123', status: 'SUCCESS', ledger: 100 };
+    expect(normalizeTransactionResult(raw)).toEqual({
+      hash: 'hash123',
+      status: 'success',
+      ledger: 100,
+    });
+  });
+
+  it('normalizes a failed transaction with an error message', () => {
+    const raw = { hash: 'hash456', status: 'FAILED', error: 'insufficient balance' };
+    expect(normalizeTransactionResult(raw)).toEqual({
+      hash: 'hash456',
+      status: 'failed',
+      error: 'insufficient balance',
+    });
+  });
+
+  it('normalizes a pending transaction', () => {
+    const raw = { hash: 'hash789', status: 'PENDING' };
+    expect(normalizeTransactionResult(raw)).toEqual({
+      hash: 'hash789',
+      status: 'pending',
+    });
+  });
+
+  it('normalizes a not_found transaction', () => {
+    const raw = { hash: 'hash000', status: 'NOT_FOUND' };
+    expect(normalizeTransactionResult(raw)).toEqual({
+      hash: 'hash000',
+      status: 'not_found',
+    });
+  });
+
+  it('throws a ValidationError for invalid inputs', () => {
+    expect(() => normalizeTransactionResult(null)).toThrow(ValidationError);
+    expect(() => normalizeTransactionResult(undefined)).toThrow(ValidationError);
+    expect(() => normalizeTransactionResult('string')).toThrow(ValidationError);
+    expect(() => normalizeTransactionResult({})).toThrow(ValidationError);
+    expect(() => normalizeTransactionResult({ hash: '' })).toThrow(ValidationError);
+    expect(() => normalizeTransactionResult({ hash: 'hash', status: 'UNKNOWN' })).toThrow(ValidationError);
+    expect(() => normalizeTransactionResult({ hash: 'hash', status: 123 })).toThrow(ValidationError);
   });
 });
