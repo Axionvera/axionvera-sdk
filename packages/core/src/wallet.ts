@@ -1,3 +1,4 @@
+import { ValidationError, WalletError } from './errors';
 import type { AxionveraNetwork } from './types';
 
 export interface WalletConnection {
@@ -17,6 +18,60 @@ export interface WalletConnector {
   disconnect?(): Promise<void>;
   isConnected?(): Promise<boolean>;
   signTransaction(transactionXdr: string, options: SignTransactionOptions): Promise<string>;
+}
+
+export interface SignWithWalletParams {
+  wallet: WalletConnector;
+  transactionXdr: string;
+  networkPassphrase: string;
+  accountToSign?: string;
+}
+
+/**
+ * Signs a transaction XDR through a {@link WalletConnector}.
+ * Validates required inputs and surfaces wallet failures as {@link WalletError}.
+ */
+export async function signWithWallet(params: SignWithWalletParams): Promise<string> {
+  const { wallet, transactionXdr, networkPassphrase, accountToSign } = params;
+
+  if (!wallet || typeof wallet.signTransaction !== 'function') {
+    throw new ValidationError('wallet is required');
+  }
+
+  if (typeof transactionXdr !== 'string' || !transactionXdr.trim()) {
+    throw new ValidationError('transaction XDR is required');
+  }
+
+  if (typeof networkPassphrase !== 'string' || !networkPassphrase.trim()) {
+    throw new ValidationError('networkPassphrase is required');
+  }
+
+  const trimmedXdr = transactionXdr.trim();
+  const options: SignTransactionOptions = {
+    networkPassphrase: networkPassphrase.trim()
+  };
+
+  if (accountToSign !== undefined) {
+    if (typeof accountToSign !== 'string' || !accountToSign.trim()) {
+      throw new ValidationError('accountToSign must be a non-empty string when provided');
+    }
+
+    options.accountToSign = accountToSign.trim();
+  }
+
+  try {
+    return await wallet.signTransaction(trimmedXdr, options);
+  } catch (caught) {
+    if (caught instanceof ValidationError || caught instanceof WalletError) {
+      throw caught;
+    }
+
+    if (caught instanceof Error) {
+      throw new WalletError(caught.message, caught);
+    }
+
+    throw new WalletError('Wallet signing failed', caught);
+  }
 }
 
 export class MockWalletConnector implements WalletConnector {
@@ -39,7 +94,7 @@ export class MockWalletConnector implements WalletConnector {
     return true;
   }
 
-  async signTransaction(transactionXdr: string): Promise<string> {
+  async signTransaction(transactionXdr: string, _options: SignTransactionOptions): Promise<string> {
     return `${this.signedPrefix}${transactionXdr}`;
   }
 }
