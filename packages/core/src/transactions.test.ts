@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { ValidationError } from './errors';
-import { createContractCallRequest, normalizeAmount, normalizeTransactionResult } from './transactions';
+import { TransactionTimeoutError, ValidationError } from './errors';
+import {
+  createContractCallRequest,
+  normalizeAmount,
+  normalizeTransactionResult,
+  waitForTransaction,
+} from './transactions';
+import type { TransactionResult } from './types';
 
 const CONTRACT_ID = 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 const METHOD = 'transfer';
@@ -148,5 +154,119 @@ describe('normalizeTransactionResult', () => {
     expect(() => normalizeTransactionResult({ hash: '' })).toThrow(ValidationError);
     expect(() => normalizeTransactionResult({ hash: 'hash', status: 'UNKNOWN' })).toThrow(ValidationError);
     expect(() => normalizeTransactionResult({ hash: 'hash', status: 123 })).toThrow(ValidationError);
+  });
+});
+
+describe('waitForTransaction', () => {
+  const HASH = 'tx_hash_123';
+  const noopDelay = async () => {};
+
+  it('returns immediately when the status is success', async () => {
+    const lookup = async () => ({ hash: HASH, status: 'success' }) as TransactionResult;
+    const result = await waitForTransaction({ lookup, hash: HASH, delay: noopDelay });
+    expect(result).toEqual({ hash: HASH, status: 'success' });
+  });
+
+  it('returns the result when the status is failed (terminal)', async () => {
+    const lookup = async () =>
+      ({ hash: HASH, status: 'failed', error: 'insufficient balance' }) as TransactionResult;
+    const result = await waitForTransaction({ lookup, hash: HASH, delay: noopDelay });
+    expect(result).toEqual({ hash: HASH, status: 'failed', error: 'insufficient balance' });
+  });
+
+  it('continues polling while pending and resolves once success is observed', async () => {
+    let calls = 0;
+    const lookup = async () => {
+      calls += 1;
+      return (calls < 3 ? { hash: HASH, status: 'pending' } : { hash: HASH, status: 'success' }) as TransactionResult;
+    };
+    const result = await waitForTransaction({ lookup, hash: HASH, maxAttempts: 5, delay: noopDelay });
+    expect(result.status).toBe('success');
+    expect(calls).toBe(3);
+  });
+
+  it('treats not_found as non-terminal and keeps polling', async () => {
+    let calls = 0;
+    const lookup = async () => {
+      calls += 1;
+      return (calls < 2 ? { hash: HASH, status: 'not_found' } : { hash: HASH, status: 'success' }) as TransactionResult;
+    };
+    const result = await waitForTransaction({ lookup, hash: HASH, maxAttempts: 5, delay: noopDelay });
+    expect(result.status).toBe('success');
+    expect(calls).toBe(2);
+  });
+
+  it('throws TransactionTimeoutError after maxAttempts of non-terminal statuses', async () => {
+    let calls = 0;
+    const lookup = async () => {
+      calls += 1;
+      return { hash: HASH, status: 'pending' } as TransactionResult;
+    };
+    await expect(
+      waitForTransaction({ lookup, hash: HASH, maxAttempts: 3, delay: noopDelay }),
+    ).rejects.toThrow(TransactionTimeoutError);
+    expect(calls).toBe(3);
+  });
+
+  it('throws TransactionTimeoutError when only not_found is ever observed', async () => {
+    let calls = 0;
+    const lookup = async () => {
+      calls += 1;
+      return { hash: HASH, status: 'not_found' } as TransactionResult;
+    };
+    await expect(
+      waitForTransaction({ lookup, hash: HASH, maxAttempts: 2, delay: noopDelay }),
+    ).rejects.toThrow(TransactionTimeoutError);
+    expect(calls).toBe(2);
+  });
+
+  it('uses the injected delay between polls', async () => {
+    const delays: number[] = [];
+    const delay = async (ms: number) => {
+      delays.push(ms);
+    };
+    let calls = 0;
+    const lookup = async () => {
+      calls += 1;
+      return (calls < 2 ? { hash: HASH, status: 'pending' } : { hash: HASH, status: 'success' }) as TransactionResult;
+    };
+    await waitForTransaction({ lookup, hash: HASH, interval: 250, maxAttempts: 5, delay });
+    expect(delays).toEqual([250]);
+  });
+
+  it('rejects when lookup is missing or not a function', async () => {
+    await expect(
+      waitForTransaction({ lookup: undefined as never, hash: HASH, delay: noopDelay }),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it('rejects when hash is empty or whitespace', async () => {
+    const lookup = async () => ({ hash: HASH, status: 'success' }) as TransactionResult;
+    await expect(
+      waitForTransaction({ lookup, hash: '', delay: noopDelay }),
+    ).rejects.toThrow(ValidationError);
+    await expect(
+      waitForTransaction({ lookup, hash: '   ', delay: noopDelay }),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it('rejects invalid interval and maxAttempts values', async () => {
+    const lookup = async () => ({ hash: HASH, status: 'success' }) as TransactionResult;
+    await expect(
+      waitForTransaction({ lookup, hash: HASH, interval: -1, delay: noopDelay }),
+    ).rejects.toThrow(ValidationError);
+    await expect(
+      waitForTransaction({ lookup, hash: HASH, maxAttempts: 0, delay: noopDelay }),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it('passes the trimmed hash to the lookup function', async () => {
+    let received = '';
+    const lookup = async (h: string) => {
+      received = h;
+      return { hash: HASH, status: 'success' } as TransactionResult;
+    };
+    await waitForTransaction({ lookup, hash: `  ${HASH}  `, delay: noopDelay });
+    expect(received).toBe(HASH);
   });
 });
