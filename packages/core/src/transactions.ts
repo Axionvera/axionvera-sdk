@@ -1,4 +1,4 @@
-import { ValidationError } from './errors';
+import { TransactionTimeoutError, ValidationError } from './errors';
 import type { AmountInput, TransactionResult, TransactionStatus } from './types';
 
 export interface ContractCallRequest {
@@ -76,4 +76,76 @@ export function normalizeTransactionResult(raw: unknown): TransactionResult {
   }
 
   return result;
+}
+
+export interface WaitForTransactionParams {
+  /** Resolves the current state of the transaction for the given hash. */
+  lookup: (hash: string) => Promise<TransactionResult> | TransactionResult;
+  /** Transaction hash to wait for. */
+  hash: string;
+  /** Milliseconds to wait between polls. Defaults to 1000. */
+  interval?: number;
+  /** Maximum number of polling attempts before timing out. Defaults to 30. */
+  maxAttempts?: number;
+  /** Injectable delay used between polls; defaults to a setTimeout-backed sleep. */
+  delay?: (ms: number) => Promise<void>;
+}
+
+const sleep = async (ms: number, delay?: (ms: number) => Promise<void>): Promise<void> => {
+  if (delay) return delay(ms);
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+/**
+ * Polls `lookup(hash)` until the transaction reaches a terminal status or the
+ * attempt budget is exhausted.
+ *
+ * `success` and `failed` are terminal: the resolved `TransactionResult` is
+ * returned (callers inspect `status` to distinguish success from failure).
+ *
+ * `pending` and `not_found` are treated as non-terminal. A `not_found` result
+ * means the transaction has not yet propagated, so polling continues — the
+ * caller does not have to special-case it. Once `maxAttempts` is reached
+ * without a terminal status, a `TransactionTimeoutError` is thrown.
+ */
+export async function waitForTransaction(
+  params: WaitForTransactionParams
+): Promise<TransactionResult> {
+  const { lookup, hash, interval = 1000, maxAttempts = 30, delay } = params;
+
+  if (typeof lookup !== 'function') {
+    throw new ValidationError('lookup must be a function');
+  }
+  if (typeof hash !== 'string' || !hash.trim()) {
+    throw new ValidationError('hash is required');
+  }
+  if (interval != null && (!Number.isFinite(interval) || interval < 0)) {
+    throw new ValidationError('interval must be a non-negative number');
+  }
+  if (maxAttempts != null && (!Number.isInteger(maxAttempts) || maxAttempts < 1)) {
+    throw new ValidationError('maxAttempts must be a positive integer');
+  }
+  if (delay != null && typeof delay !== 'function') {
+    throw new ValidationError('delay must be a function');
+  }
+
+  const trimmedHash = hash.trim();
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const result = await lookup(trimmedHash);
+
+    if (result.status === 'success' || result.status === 'failed') {
+      return result;
+    }
+
+    // pending or not_found: continue polling unless attempts are exhausted.
+    if (attempt === maxAttempts) {
+      throw new TransactionTimeoutError(trimmedHash);
+    }
+
+    await sleep(interval, delay);
+  }
+
+  // Unreachable given the loop bound above, but keeps the compiler happy.
+  throw new TransactionTimeoutError(trimmedHash);
 }
