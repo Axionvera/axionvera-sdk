@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ValidationError } from './errors';
-import { createContractCallRequest } from './transactions';
+import { createContractCallRequest, normalizeAmount } from './transactions';
 
 const CONTRACT_ID = 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
 const METHOD = 'transfer';
@@ -72,5 +72,35 @@ describe('createContractCallRequest', () => {
       expect(call).toThrow(ValidationError);
       expect(call).toThrow(new RegExp(`^${message}$`));
     });
+  });
+});
+
+describe('normalizeAmount', () => {
+  it('normalizes valid positive bigint inputs to bigint', () => {
+    expect(normalizeAmount(100n)).toBe(100n);
+  });
+
+  it('normalizes valid positive number inputs to bigint', () => {
+    expect(normalizeAmount(100)).toBe(100n);
+  });
+
+  it('normalizes valid positive string inputs to bigint', () => {
+    expect(normalizeAmount('100')).toBe(100n);
+  });
+
+  it('throws ValidationError for zero values', () => {
+    expect(() => normalizeAmount(0n)).toThrow(ValidationError);
+    expect(() => normalizeAmount(0)).toThrow(ValidationError);
+    expect(() => normalizeAmount('0')).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError for negative values', () => {
+    expect(() => normalizeAmount(-5n)).toThrow(ValidationError);
+    expect(() => normalizeAmount(-5)).toThrow(ValidationError);
+    expect(() => normalizeAmount('-5')).toThrow(ValidationError);
+  });
+
+  it('throws an error for invalid amount strings', () => {
+    expect(() => normalizeAmount('invalid')).toThrow();
   });
 });
