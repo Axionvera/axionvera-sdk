@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { FetchRpcTransport } from './client';
+import { AxionveraClient, FetchRpcTransport, type RpcTransport } from './client';
 import { NetworkError } from './errors';
+import type { TransactionResult } from './types';
 
 function jsonRpcResult<T>(id: number, result: T) {
   return { jsonrpc: '2.0' as const, id, result };
@@ -400,6 +401,143 @@ describe('FetchRpcTransport', () => {
       const realTransport = new FetchRpcTransport(RPC_URL);
       // Verify it was constructed (we cannot call it without mocking global fetch in a unit test)
       expect(realTransport).toBeInstanceOf(FetchRpcTransport);
+    });
+  });
+});
+
+describe('AxionveraClient', () => {
+  const TX_HASH = 'abc123';
+
+  function createMockTransport() {
+    const call = vi.fn();
+    const transport: RpcTransport = {
+      call: call as RpcTransport['call']
+    };
+    return { transport, call };
+  }
+
+  // ── Network config ──────────────────────────────────────────
+
+  describe('getNetworkConfig', () => {
+    it('returns the resolved testnet config by default', () => {
+      const client = new AxionveraClient();
+
+      expect(client.getNetworkConfig()).toEqual({
+        network: 'testnet',
+        rpcUrl: 'https://soroban-testnet.stellar.org',
+        horizonUrl: 'https://horizon-testnet.stellar.org',
+        networkPassphrase: 'Test SDF Network ; September 2015'
+      });
+    });
+
+    it('returns the resolved config for a known network preset', () => {
+      const client = new AxionveraClient({ network: 'mainnet' });
+
+      const config = client.getNetworkConfig();
+
+      expect(config.network).toBe('mainnet');
+      expect(config.rpcUrl).toBe('https://soroban-rpc.mainnet.stellar.gateway.fm');
+      expect(config.networkPassphrase).toBe('Public Global Stellar Network ; September 2015');
+    });
+
+    it('applies explicit overrides on top of the network preset', () => {
+      const client = new AxionveraClient({
+        network: 'testnet',
+        rpcUrl: 'https://custom-rpc.example.com',
+        networkPassphrase: 'Custom Passphrase ; 2026'
+      });
+
+      expect(client.getNetworkConfig()).toEqual({
+        network: 'testnet',
+        rpcUrl: 'https://custom-rpc.example.com',
+        horizonUrl: 'https://horizon-testnet.stellar.org',
+        networkPassphrase: 'Custom Passphrase ; 2026'
+      });
+    });
+  });
+
+  // ── Health ──────────────────────────────────────────────────
+
+  describe('getHealth', () => {
+    it('calls the transport with getHealth and returns the result', async () => {
+      const { transport, call } = createMockTransport();
+      call.mockResolvedValue({ status: 'healthy' });
+
+      const client = new AxionveraClient({ transport });
+      const result = await client.getHealth();
+
+      expect(call).toHaveBeenCalledTimes(1);
+      expect(call).toHaveBeenCalledWith('getHealth');
+      expect(result).toEqual({ status: 'healthy' });
+    });
+
+    it('propagates transport errors', async () => {
+      const { transport, call } = createMockTransport();
+      const error = new NetworkError('RPC request failed with HTTP 500');
+      call.mockRejectedValue(error);
+
+      const client = new AxionveraClient({ transport });
+
+      await expect(client.getHealth()).rejects.toBe(error);
+    });
+  });
+
+  // ── Transaction lookup ──────────────────────────────────────
+
+  describe('getTransaction', () => {
+    it('calls the transport with getTransaction and the hash param', async () => {
+      const { transport, call } = createMockTransport();
+      const tx: TransactionResult = { hash: TX_HASH, status: 'success' };
+      call.mockResolvedValue(tx);
+
+      const client = new AxionveraClient({ transport });
+      const result = await client.getTransaction(TX_HASH);
+
+      expect(call).toHaveBeenCalledTimes(1);
+      expect(call).toHaveBeenCalledWith('getTransaction', { hash: TX_HASH });
+      expect(result).toEqual(tx);
+    });
+
+    it('passes the hash through to the transport verbatim', async () => {
+      const { transport, call } = createMockTransport();
+      call.mockResolvedValue({ hash: TX_HASH, status: 'not_found' });
+
+      const client = new AxionveraClient({ transport });
+      await client.getTransaction(TX_HASH);
+
+      expect(call).toHaveBeenCalledWith('getTransaction', { hash: TX_HASH });
+    });
+
+    it('propagates transport errors', async () => {
+      const { transport, call } = createMockTransport();
+      const error = new NetworkError('RPC response for getTransaction did not include a result');
+      call.mockRejectedValue(error);
+
+      const client = new AxionveraClient({ transport });
+
+      await expect(client.getTransaction(TX_HASH)).rejects.toBe(error);
+    });
+  });
+
+  // ── Transport injection ─────────────────────────────────────
+
+  describe('transport', () => {
+    it('uses the injected transport instead of creating one', async () => {
+      const { transport, call } = createMockTransport();
+      call.mockResolvedValue({ status: 'healthy' });
+
+      const client = new AxionveraClient({ transport });
+
+      expect(client.transport).toBe(transport);
+
+      await client.getHealth();
+      expect(call).toHaveBeenCalledTimes(1);
+    });
+
+    it('defaults to a FetchRpcTransport when no transport is provided', () => {
+      const client = new AxionveraClient();
+
+      expect(client.transport).toBeInstanceOf(FetchRpcTransport);
     });
   });
 });
