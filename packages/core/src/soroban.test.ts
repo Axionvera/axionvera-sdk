@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { SorobanContractInvoker, type SorobanInvokerRequest } from './soroban';
+import {
+  SorobanContractInvoker,
+  type SorobanInvokerRequest,
+  buildSorobanInvokeRequest,
+  type SorobanInvokeRequestInput
+} from './soroban';
 import { AxionveraClient, type RpcTransport } from './client';
 import { ContractError, NetworkError, ValidationError } from './errors';
 import { VaultContract } from './contracts/vault';
@@ -286,6 +291,151 @@ describe('SorobanContractInvoker', () => {
         'sendTransaction',
         expect.objectContaining({ contractId: 'CVAULT', method: 'deposit' })
       );
+    });
+  });
+
+  // ── buildSorobanInvokeRequest ───────────────────────────────────
+
+  describe('buildSorobanInvokeRequest', () => {
+    const validInput: SorobanInvokeRequestInput = {
+      contractId: 'CABCDEF0000000000000000000000000000000000000000000000000000000001',
+      method: 'deposit',
+      args: ['GUSER', 100],
+      sourceAccount: 'GSOURCE'
+    };
+
+    describe('happy path', () => {
+      it('builds a valid request with all fields', () => {
+        const result = buildSorobanInvokeRequest(validInput);
+
+        expect(result.contractId).toBe(validInput.contractId);
+        expect(result.method).toBe(validInput.method);
+        expect(result.args).toEqual(validInput.args);
+        expect(result.sourceAccount).toBe(validInput.sourceAccount);
+      });
+
+      it('builds a valid request without args', () => {
+        const input = { contractId: 'C1', method: 'get_info' };
+        const result = buildSorobanInvokeRequest(input);
+
+        expect(result.contractId).toBe('C1');
+        expect(result.method).toBe('get_info');
+        expect(result.args).toEqual([]);
+        expect(result.sourceAccount).toBeUndefined();
+      });
+
+      it('builds a valid request without sourceAccount', () => {
+        const input = { contractId: 'C1', method: 'deposit', args: ['user'] };
+        const result = buildSorobanInvokeRequest(input);
+
+        expect(result.contractId).toBe('C1');
+        expect(result.method).toBe('deposit');
+        expect(result.args).toEqual(['user']);
+        expect(result.sourceAccount).toBeUndefined();
+      });
+
+      it('trims whitespace from contractId and method', () => {
+        const input = { contractId: '  C1  ', method: '  get_info  ' };
+        const result = buildSorobanInvokeRequest(input);
+
+        expect(result.contractId).toBe('C1');
+        expect(result.method).toBe('get_info');
+      });
+
+      it('preserves argument order', () => {
+        const input = { contractId: 'C1', method: 'transfer', args: ['from', 'to', 100, 'memo'] };
+        const result = buildSorobanInvokeRequest(input);
+
+        expect(result.args).toEqual(['from', 'to', 100, 'memo']);
+      });
+    });
+
+    describe('contractId validation', () => {
+      it('throws ValidationError when contractId is empty string', () => {
+        const input = { contractId: '', method: 'get_info' };
+
+        expect(() => buildSorobanInvokeRequest(input)).toThrow(ValidationError);
+        expect(() => buildSorobanInvokeRequest(input)).toThrow('contractId must be a non-empty string');
+      });
+
+      it('throws ValidationError when contractId is only whitespace', () => {
+        const input = { contractId: '   ', method: 'get_info' };
+
+        expect(() => buildSorobanInvokeRequest(input)).toThrow(ValidationError);
+      });
+
+      it('throws ValidationError when contractId is not a string', () => {
+        const input = { contractId: 123 as any, method: 'get_info' };
+
+        expect(() => buildSorobanInvokeRequest(input)).toThrow(ValidationError);
+      });
+    });
+
+    describe('method validation', () => {
+      it('throws ValidationError when method is empty string', () => {
+        const input = { contractId: 'C1', method: '' };
+
+        expect(() => buildSorobanInvokeRequest(input)).toThrow(ValidationError);
+        expect(() => buildSorobanInvokeRequest(input)).toThrow('method must be a non-empty string');
+      });
+
+      it('throws ValidationError when method is only whitespace', () => {
+        const input = { contractId: 'C1', method: '   ' };
+
+        expect(() => buildSorobanInvokeRequest(input)).toThrow(ValidationError);
+      });
+
+      it('throws ValidationError when method is not a string', () => {
+        const input = { contractId: 'C1', method: null as any };
+
+        expect(() => buildSorobanInvokeRequest(input)).toThrow(ValidationError);
+      });
+    });
+
+    describe('args validation', () => {
+      it('throws ValidationError when args is not an array', () => {
+        const input = { contractId: 'C1', method: 'deposit', args: 'not-an-array' as any };
+
+        expect(() => buildSorobanInvokeRequest(input)).toThrow(ValidationError);
+        expect(() => buildSorobanInvokeRequest(input)).toThrow('args must be an array when provided');
+      });
+
+      it('accepts empty array for args', () => {
+        const input = { contractId: 'C1', method: 'get_info', args: [] };
+        const result = buildSorobanInvokeRequest(input);
+
+        expect(result.args).toEqual([]);
+      });
+
+      it('accepts array with mixed types', () => {
+        const input = { contractId: 'C1', method: 'complex', args: ['string', 123, true, null] };
+        const result = buildSorobanInvokeRequest(input);
+
+        expect(result.args).toEqual(['string', 123, true, null]);
+      });
+    });
+
+    describe('sourceAccount validation', () => {
+      it('throws ValidationError when sourceAccount is not a string', () => {
+        const input = { contractId: 'C1', method: 'deposit', sourceAccount: 123 as any };
+
+        expect(() => buildSorobanInvokeRequest(input)).toThrow(ValidationError);
+        expect(() => buildSorobanInvokeRequest(input)).toThrow('sourceAccount must be a string when provided');
+      });
+
+      it('accepts valid string sourceAccount', () => {
+        const input = { contractId: 'C1', method: 'deposit', sourceAccount: 'GACCOUNT' };
+        const result = buildSorobanInvokeRequest(input);
+
+        expect(result.sourceAccount).toBe('GACCOUNT');
+      });
+
+      it('does not include sourceAccount when not provided', () => {
+        const input = { contractId: 'C1', method: 'deposit' };
+        const result = buildSorobanInvokeRequest(input);
+
+        expect('sourceAccount' in result).toBe(false);
+      });
     });
   });
 });

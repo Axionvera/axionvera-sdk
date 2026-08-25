@@ -19,6 +19,75 @@ export interface SorobanInvokerRequest {
   args: readonly unknown[];
 }
 
+/**
+ * Validated Soroban contract invocation request object.
+ * This is a stable intermediate shape used by SDK vault methods before
+ * real Soroban transaction submission is implemented.
+ */
+export interface SorobanInvokeRequest {
+  /** The Stellar contract ID to invoke */
+  contractId: string;
+  /** The method name to call on the contract */
+  method: string;
+  /** Arguments to pass to the contract method, preserved in order */
+  args: readonly unknown[];
+  /** Optional source account for the transaction */
+  sourceAccount?: string;
+}
+
+/**
+ * Input parameters for building a Soroban invocation request.
+ */
+export interface SorobanInvokeRequestInput {
+  /** The Stellar contract ID to invoke */
+  contractId: string;
+  /** The method name to call on the contract */
+  method: string;
+  /** Arguments to pass to the contract method */
+  args?: readonly unknown[];
+  /** Optional source account for the transaction */
+  sourceAccount?: string;
+}
+
+/**
+ * Builds and validates a Soroban contract invocation request.
+ *
+ * @param input - The request parameters to validate and build
+ * @returns A validated SorobanInvokeRequest object
+ * @throws ValidationError if contractId or method are invalid
+ */
+export function buildSorobanInvokeRequest(
+  input: SorobanInvokeRequestInput
+): SorobanInvokeRequest {
+  if (typeof input.contractId !== 'string' || !input.contractId.trim()) {
+    throw new ValidationError('contractId must be a non-empty string');
+  }
+
+  if (typeof input.method !== 'string' || !input.method.trim()) {
+    throw new ValidationError('method must be a non-empty string');
+  }
+
+  if (input.args !== undefined && !Array.isArray(input.args)) {
+    throw new ValidationError('args must be an array when provided');
+  }
+
+  if (input.sourceAccount !== undefined && typeof input.sourceAccount !== 'string') {
+    throw new ValidationError('sourceAccount must be a string when provided');
+  }
+
+  const result: SorobanInvokeRequest = {
+    contractId: input.contractId.trim(),
+    method: input.method.trim(),
+    args: input.args ?? [],
+  };
+
+  if (input.sourceAccount !== undefined) {
+    result.sourceAccount = input.sourceAccount;
+  }
+
+  return result;
+}
+
 export interface SorobanContractInvokerConfig {
   /** Reuse an existing client's transport and network config. */
   client?: AxionveraClient;
