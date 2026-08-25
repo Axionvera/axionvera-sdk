@@ -111,15 +111,56 @@ function App() {
 
 Complete, copyable examples for each package live in the package READMEs: [`@axionvera/core`](./packages/core/README.md) and [`@axionvera/react`](./packages/react/README.md).
 
-## Foundation layer
+## Architecture
+
+The SDK v2 is built in focused layers with clear separation of concerns:
+
+### ContractInvoker Pattern
+
+The `ContractInvoker` interface is the core abstraction for Soroban contract interactions. It defines two methods:
+
+- `invoke(request)` - For write operations that modify contract state
+- `read(request)` - For read-only operations that query contract state
+
+`VaultContract` uses this pattern to delegate all contract calls to your invoker implementation. This design allows:
+
+- **Flexibility**: Bring your own Soroban transaction layer, Stellar SDK integration, or custom signing logic
+- **Testability**: Use mock invokers in tests without hitting the network
+- **Progressive enhancement**: Start with mocks, swap in real implementation when ready
+
+### Current Implementation Status
+
+**Implemented:**
+- `AxionveraClient` with configurable `RpcTransport` for Stellar RPC calls
+- `VaultContract` with typed methods for vault operations (deposit, withdraw, claimRewards, etc.)
+- `SorobanContractInvoker` - adapter that routes requests through RPC transport
+- `buildSorobanInvokeRequest()` - validates and builds Soroban invocation request objects
+- `WalletConnector` interface with `MockWalletConnector` for development
+- React bindings (`AxionveraProvider`, `useWallet`, `useVault`)
+
+**Current Limitations:**
+- No live Soroban transaction submission - `SorobanContractInvoker` is a skeleton adapter
+- No Stellar transaction building (XDR assembly, fee handling, sequence numbers)
+- No wallet signing integration for transaction submission
+- RPC transport exists but Soroban-specific RPC methods are not fully implemented
+
+**Next Steps (Roadmap):**
+1. Complete Stellar transaction building with XDR assembly
+2. Implement fee estimation and sequence number management
+3. Add wallet signing integration for transaction submission
+4. Implement full Soroban RPC method support (simulateTransaction, sendTransaction)
+5. Add transaction lifecycle management (submission, polling, confirmation)
+
+### Foundation Layer
 
 v2 intentionally keeps RPC and Soroban invocation adapter-based:
 
 - `AxionveraClient` talks to RPC through an `RpcTransport` (default `FetchRpcTransport`), which you can replace with a custom transport.
 - `VaultContract` delegates every call to a `ContractInvoker` you provide.
+- `SorobanContractInvoker` provides a basic adapter that routes requests through the transport (currently a skeleton).
 - `MockWalletConnector` implements the `WalletConnector` interface for development and tests.
 
-A production Soroban invoker or transaction-building layer is not shipped yet — pass your own `transport` and `invoker`, or start with the mocks.
+A production-ready Soroban transaction submission layer is not shipped yet — pass your own `transport` and `invoker`, or start with the mocks.
 
 ## Documentation
 

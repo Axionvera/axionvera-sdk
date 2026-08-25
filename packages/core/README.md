@@ -57,6 +57,47 @@ const claim = await vault.claimRewards('G...');        // invokes claim_rewards
 
 When `invoker.read` is not provided, read methods fall back to `invoker.invoke`.
 
+### Using SorobanContractInvoker
+
+The SDK includes `SorobanContractInvoker`, a basic adapter that routes contract calls through an RPC transport:
+
+```ts
+import { SorobanContractInvoker, AxionveraClient } from '@axionvera/core';
+
+const client = new AxionveraClient({ network: 'testnet' });
+const invoker = new SorobanContractInvoker({ client });
+
+const vault = new VaultContract({
+  contractId: 'YOUR_CONTRACT_ID',
+  invoker
+});
+```
+
+**Important:** `SorobanContractInvoker` is currently a skeleton implementation. It validates request shapes and routes to RPC methods (`simulateTransaction` for reads, `sendTransaction` for invokes), but does not perform real Stellar transaction building, signing, or submission. Use it for testing the contract interface, or provide your own invoker for production use.
+
+### Building Soroban invocation requests
+
+Use `buildSorobanInvokeRequest()` to validate and construct Soroban invocation request objects:
+
+```ts
+import { buildSorobanInvokeRequest } from '@axionvera/core';
+
+const request = buildSorobanInvokeRequest({
+  contractId: 'CABCDEF0000000000000000000000000000000000000000000000000000000001',
+  method: 'deposit',
+  args: ['GUSER', 100],
+  sourceAccount: 'GSOURCE'
+});
+
+// Returns validated SorobanInvokeRequest with trimmed contractId/method
+```
+
+This helper validates:
+- `contractId` must be a non-empty string
+- `method` must be a non-empty string
+- `args` must be an array when provided (defaults to empty array)
+- `sourceAccount` must be a string when provided (optional)
+
 ### Use a mock wallet
 
 ```ts
@@ -75,6 +116,7 @@ RPC and Soroban invocation are adapter-based in v2:
 
 - `AxionveraClient` uses an `RpcTransport` (default: `FetchRpcTransport`) and accepts a custom `transport` in its config.
 - Contract calls go through a `ContractInvoker` that you supply.
+- `SorobanContractInvoker` provides a basic adapter that routes requests through the transport (currently a skeleton).
 - `MockWalletConnector` is a development/test implementation of `WalletConnector`.
 
 No production Soroban invoker or transaction builder is shipped yet — plug in your own via `transport` and `invoker`, or start with the mocks.
