@@ -91,6 +91,15 @@ function DepositButton() {
 
 Write helpers (`deposit`, `withdraw`, `claimRewards`) require a `walletAddress`; action errors are stored in `error` state and can be cleared with `resetError`.
 
+### Current Limitations
+
+The React bindings follow the same adapter-based pattern as the core package:
+
+- `useVault` requires you to provide a `ContractInvoker` implementation
+- No built-in Soroban transaction submission or wallet signing
+- Use `SorobanContractInvoker` from `@axionvera/core` for basic RPC routing (currently a skeleton)
+- Provide your own invoker for production use with real Stellar transaction building and signing
+
 ## Development commands
 
 ```bash
