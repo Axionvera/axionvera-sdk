@@ -3,8 +3,10 @@ import { ValidationError, WalletError } from './errors';
 import {
   MockWalletConnector,
   signWithWallet,
+  checkWalletReadiness,
   type WalletConnection,
   type WalletConnector,
+  type WalletReadinessParams,
 } from './wallet';
 
 const TESTNET_PASSPHRASE = 'Test SDF Network ; September 2015';
@@ -260,7 +262,7 @@ describe('signWithWallet', () => {
       { field: 'transaction XDR', params: { transactionXdr: '   ', networkPassphrase: TESTNET_PASSPHRASE } },
       { field: 'networkPassphrase', params: { transactionXdr: TRANSACTION_XDR, networkPassphrase: '' } },
       { field: 'networkPassphrase', params: { transactionXdr: TRANSACTION_XDR, networkPassphrase: '   ' } }
-    ])('throws ValidationError when $field is missing', async ({ params }) => {
+    ])('throws ValidationError when $field is missing', async ({ params }: { params: any }) => {
       await expect(signWithWallet({ wallet, ...params })).rejects.toThrow(ValidationError);
       expect(wallet.signTransaction).not.toHaveBeenCalled();
     });
@@ -366,6 +368,156 @@ describe('signWithWallet', () => {
           networkPassphrase: TESTNET_PASSPHRASE
         })
       ).rejects.toThrow(WalletError);
+    });
+  });
+});
+
+describe('checkWalletReadiness', () => {
+  describe('happy path', () => {
+    it('returns ready state for connected wallet with public key', () => {
+      const connector = new MockWalletConnector('GTEST1234567890');
+      const connection: WalletConnection = {
+        publicKey: 'GTEST1234567890',
+        network: 'testnet'
+      };
+
+      const result = checkWalletReadiness({ connector, connection });
+
+      expect(result.isReady).toBe(true);
+      expect(result.reason).toBeUndefined();
+    });
+
+    it('returns ready state when connection has only publicKey', () => {
+      const connector = new MockWalletConnector('GTEST1234567890');
+      const connection: WalletConnection = {
+        publicKey: 'GTEST1234567890'
+      };
+
+      const result = checkWalletReadiness({ connector, connection });
+
+      expect(result.isReady).toBe(true);
+    });
+  });
+
+  describe('missing connector', () => {
+    it('returns not-ready state when connector is null', () => {
+      const result = checkWalletReadiness({ connector: null, connection: null });
+
+      expect(result.isReady).toBe(false);
+      expect(result.reason).toBe('Wallet connector is not available');
+    });
+
+    it('returns not-ready state when connector is undefined', () => {
+      const result = checkWalletReadiness({ connector: undefined, connection: null });
+
+      expect(result.isReady).toBe(false);
+      expect(result.reason).toBe('Wallet connector is not available');
+    });
+
+    it('returns not-ready state when connector is not provided', () => {
+      const params: WalletReadinessParams = {};
+      const result = checkWalletReadiness(params);
+
+      expect(result.isReady).toBe(false);
+      expect(result.reason).toBe('Wallet connector is not available');
+    });
+  });
+
+  describe('disconnected wallet', () => {
+    it('returns not-ready state when connection is null', () => {
+      const connector = new MockWalletConnector();
+      const result = checkWalletReadiness({ connector, connection: null });
+
+      expect(result.isReady).toBe(false);
+      expect(result.reason).toBe('Wallet is not connected');
+    });
+
+    it('returns not-ready state when connection is undefined', () => {
+      const connector = new MockWalletConnector();
+      const result = checkWalletReadiness({ connector, connection: undefined });
+
+      expect(result.isReady).toBe(false);
+      expect(result.reason).toBe('Wallet is not connected');
+    });
+
+    it('returns not-ready state when connection is not provided', () => {
+      const connector = new MockWalletConnector();
+      const result = checkWalletReadiness({ connector });
+
+      expect(result.isReady).toBe(false);
+      expect(result.reason).toBe('Wallet is not connected');
+    });
+  });
+
+  describe('missing public key', () => {
+    it('returns not-ready state when publicKey is missing', () => {
+      const connector = new MockWalletConnector();
+      const connection: WalletConnection = {
+        publicKey: '',
+        network: 'testnet'
+      };
+
+      const result = checkWalletReadiness({ connector, connection });
+
+      expect(result.isReady).toBe(false);
+      expect(result.reason).toBe('Wallet public key is not available');
+    });
+
+    it('returns not-ready state when publicKey is whitespace only', () => {
+      const connector = new MockWalletConnector();
+      const connection: WalletConnection = {
+        publicKey: '   ',
+        network: 'testnet'
+      };
+
+      const result = checkWalletReadiness({ connector, connection });
+
+      expect(result.isReady).toBe(false);
+      expect(result.reason).toBe('Wallet public key is not available');
+    });
+
+    it('returns not-ready state when publicKey is null', () => {
+      const connector = new MockWalletConnector();
+      const connection = { publicKey: null as any, network: 'testnet' };
+
+      const result = checkWalletReadiness({ connector, connection });
+
+      expect(result.isReady).toBe(false);
+      expect(result.reason).toBe('Wallet public key is not available');
+    });
+
+    it('returns not-ready state when publicKey is undefined', () => {
+      const connector = new MockWalletConnector();
+      const connection = { publicKey: undefined as any, network: 'testnet' };
+
+      const result = checkWalletReadiness({ connector, connection });
+
+      expect(result.isReady).toBe(false);
+      expect(result.reason).toBe('Wallet public key is not available');
+    });
+  });
+
+  describe('error representation', () => {
+    it('provides consistent error messages for each failure mode', () => {
+      const connector = new MockWalletConnector();
+
+      const missingConnector = checkWalletReadiness({ connector: null, connection: null });
+      const missingConnection = checkWalletReadiness({ connector, connection: null });
+      const missingPublicKey = checkWalletReadiness({ connector, connection: { publicKey: '' } });
+
+      expect(missingConnector.reason).toBe('Wallet connector is not available');
+      expect(missingConnection.reason).toBe('Wallet is not connected');
+      expect(missingPublicKey.reason).toBe('Wallet public key is not available');
+    });
+
+    it('does not include reason when wallet is ready', () => {
+      const connector = new MockWalletConnector('GTEST');
+      const connection: WalletConnection = { publicKey: 'GTEST' };
+
+      const result = checkWalletReadiness({ connector, connection });
+
+      expect(result.isReady).toBe(true);
+      expect('reason' in result).toBe(false);
     });
   });
 });

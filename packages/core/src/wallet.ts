@@ -28,6 +28,56 @@ export interface SignWithWalletParams {
 }
 
 /**
+ * Result of checking wallet readiness.
+ */
+export interface WalletReadiness {
+  /** Whether the wallet is ready for use */
+  isReady: boolean;
+  /** Human-readable reason if not ready */
+  reason?: string;
+}
+
+/**
+ * Parameters for checking wallet readiness.
+ */
+export interface WalletReadinessParams {
+  /** The wallet connector to check */
+  connector?: WalletConnector | null;
+  /** The current wallet connection state */
+  connection?: WalletConnection | null;
+}
+
+/**
+ * Checks whether a wallet connector is available and ready for use.
+ *
+ * This helper validates connector presence, connected state, and public key availability
+ * to provide a predictable way to detect wallet readiness before SDK actions.
+ *
+ * @param params - The wallet readiness parameters to check
+ * @returns A WalletReadiness object indicating readiness status and reason if not ready
+ */
+export function checkWalletReadiness(params: WalletReadinessParams): WalletReadiness {
+  const { connector, connection } = params;
+
+  // Check if connector is present
+  if (!connector) {
+    return { isReady: false, reason: 'Wallet connector is not available' };
+  }
+
+  // Check if connection is present
+  if (!connection) {
+    return { isReady: false, reason: 'Wallet is not connected' };
+  }
+
+  // Check if public key is present and valid
+  if (!connection.publicKey || typeof connection.publicKey !== 'string' || !connection.publicKey.trim()) {
+    return { isReady: false, reason: 'Wallet public key is not available' };
+  }
+
+  return { isReady: true };
+}
+
+/**
  * Signs a transaction XDR through a {@link WalletConnector}.
  * Validates required inputs and surfaces wallet failures as {@link WalletError}.
  */
