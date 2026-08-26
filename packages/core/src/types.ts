@@ -34,3 +34,18 @@ export interface VaultReward {
   address: string;
   amount: bigint;
 }
+
+/**
+ * Typed request shape for Soroban transaction submission.
+ * This provides a stable intermediate type before real submit/sign/poll flows are connected.
+ */
+export interface TransactionSubmissionRequest {
+  /** The Stellar transaction XDR string to submit */
+  transactionXdr: string;
+  /** The network passphrase for the transaction (e.g., "Test SDF Network ; September 2015") */
+  networkPassphrase: string;
+  /** Optional public key of the signer for the transaction */
+  signerPublicKey?: string;
+  /** Optional metadata for the transaction submission */
+  metadata?: Record<string, unknown>;
+}

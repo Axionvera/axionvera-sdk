@@ -6,6 +6,8 @@ import {
   normalizeAmount,
   normalizeTransactionResult,
   waitForTransaction,
+  validateTransactionSubmissionRequest,
+  type TransactionSubmissionRequestInput,
 } from './transactions';
 import type { TransactionResult } from './types';
 
@@ -268,5 +270,222 @@ describe('waitForTransaction', () => {
     };
     await waitForTransaction({ lookup, hash: `  ${HASH}  `, delay: noopDelay });
     expect(received).toBe(HASH);
+  });
+});
+
+describe('validateTransactionSubmissionRequest', () => {
+  const VALID_XDR = 'AAAAAAAAAA==';
+  const VALID_PASSPHRASE = 'Test SDF Network ; September 2015';
+  const VALID_SIGNER = 'GAXIONVERAMOCKPUBLICKEY';
+
+  describe('happy path', () => {
+    it('validates a complete request with all fields', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        signerPublicKey: VALID_SIGNER,
+        metadata: { source: 'test' }
+      };
+
+      const result = validateTransactionSubmissionRequest(input);
+
+      expect(result.transactionXdr).toBe(VALID_XDR);
+      expect(result.networkPassphrase).toBe(VALID_PASSPHRASE);
+      expect(result.signerPublicKey).toBe(VALID_SIGNER);
+      expect(result.metadata).toEqual({ source: 'test' });
+    });
+
+    it('validates a request with only required fields', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      const result = validateTransactionSubmissionRequest(input);
+
+      expect(result.transactionXdr).toBe(VALID_XDR);
+      expect(result.networkPassphrase).toBe(VALID_PASSPHRASE);
+      expect(result.signerPublicKey).toBeUndefined();
+      expect(result.metadata).toBeUndefined();
+    });
+
+    it('trims whitespace from transactionXdr and networkPassphrase', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: `  ${VALID_XDR}  `,
+        networkPassphrase: `  ${VALID_PASSPHRASE}  `
+      };
+
+      const result = validateTransactionSubmissionRequest(input);
+
+      expect(result.transactionXdr).toBe(VALID_XDR);
+      expect(result.networkPassphrase).toBe(VALID_PASSPHRASE);
+    });
+
+    it('trims whitespace from signerPublicKey when provided', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        signerPublicKey: `  ${VALID_SIGNER}  `
+      };
+
+      const result = validateTransactionSubmissionRequest(input);
+
+      expect(result.signerPublicKey).toBe(VALID_SIGNER);
+    });
+
+    it('preserves optional metadata when provided', () => {
+      const metadata = { key1: 'value1', key2: 123, key3: true };
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        metadata
+      };
+
+      const result = validateTransactionSubmissionRequest(input);
+
+      expect(result.metadata).toBe(metadata);
+    });
+  });
+
+  describe('transactionXdr validation', () => {
+    it('throws ValidationError when transactionXdr is empty', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: '',
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow(ValidationError);
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow('transactionXdr is required');
+    });
+
+    it('throws ValidationError when transactionXdr is whitespace only', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: '   ',
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow(ValidationError);
+    });
+
+    it('throws ValidationError when transactionXdr is not a string', () => {
+      const input = {
+        transactionXdr: 123 as any,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow(ValidationError);
+    });
+  });
+
+  describe('networkPassphrase validation', () => {
+    it('throws ValidationError when networkPassphrase is empty', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: ''
+      };
+
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow(ValidationError);
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow('networkPassphrase is required');
+    });
+
+    it('throws ValidationError when networkPassphrase is whitespace only', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: '   '
+      };
+
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow(ValidationError);
+    });
+
+    it('throws ValidationError when networkPassphrase is not a string', () => {
+      const input = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: null as any
+      };
+
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow(ValidationError);
+    });
+  });
+
+  describe('signerPublicKey validation', () => {
+    it('throws ValidationError when signerPublicKey is empty string', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        signerPublicKey: ''
+      };
+
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow(ValidationError);
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow('signerPublicKey must be a non-empty string');
+    });
+
+    it('throws ValidationError when signerPublicKey is whitespace only', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        signerPublicKey: '   '
+      };
+
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow(ValidationError);
+    });
+
+    it('throws ValidationError when signerPublicKey is not a string', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        signerPublicKey: 123 as any
+      };
+
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow(ValidationError);
+    });
+
+    it('accepts valid signerPublicKey', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        signerPublicKey: VALID_SIGNER
+      };
+
+      const result = validateTransactionSubmissionRequest(input);
+
+      expect(result.signerPublicKey).toBe(VALID_SIGNER);
+    });
+  });
+
+  describe('metadata validation', () => {
+    it('throws ValidationError when metadata is not an object', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        metadata: 'not-an-object' as any
+      };
+
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow(ValidationError);
+      expect(() => validateTransactionSubmissionRequest(input)).toThrow('metadata must be an object');
+    });
+
+    it('accepts null as valid metadata (object type)', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        metadata: null as any
+      };
+
+      const result = validateTransactionSubmissionRequest(input);
+
+      expect(result.metadata).toBe(null);
+    });
+
+    it('accepts empty object as metadata', () => {
+      const input: TransactionSubmissionRequestInput = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        metadata: {}
+      };
+
+      const result = validateTransactionSubmissionRequest(input);
+
+      expect(result.metadata).toEqual({});
+    });
   });
 });
