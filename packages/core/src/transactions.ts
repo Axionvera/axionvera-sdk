@@ -1,5 +1,5 @@
 import { TransactionTimeoutError, ValidationError } from './errors';
-import type { AmountInput, TransactionResult, TransactionStatus } from './types';
+import type { AmountInput, TransactionResult, TransactionStatus, TransactionSubmissionRequest } from './types';
 
 export interface ContractCallRequest {
   contractId: string;
@@ -148,4 +148,62 @@ export async function waitForTransaction(
 
   // Unreachable given the loop bound above, but keeps the compiler happy.
   throw new TransactionTimeoutError(trimmedHash);
+}
+
+/**
+ * Input parameters for building a transaction submission request.
+ */
+export interface TransactionSubmissionRequestInput {
+  /** The Stellar transaction XDR string to submit */
+  transactionXdr: string;
+  /** The network passphrase for the transaction */
+  networkPassphrase: string;
+  /** Optional public key of the signer for the transaction */
+  signerPublicKey?: string;
+  /** Optional metadata for the transaction submission */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Validates and builds a transaction submission request.
+ *
+ * @param input - The request parameters to validate and build
+ * @returns A validated TransactionSubmissionRequest object
+ * @throws ValidationError if required fields are invalid
+ */
+export function validateTransactionSubmissionRequest(
+  input: TransactionSubmissionRequestInput
+): TransactionSubmissionRequest {
+  if (typeof input.transactionXdr !== 'string' || !input.transactionXdr.trim()) {
+    throw new ValidationError('transactionXdr is required and must be a non-empty string');
+  }
+
+  if (typeof input.networkPassphrase !== 'string' || !input.networkPassphrase.trim()) {
+    throw new ValidationError('networkPassphrase is required and must be a non-empty string');
+  }
+
+  if (input.signerPublicKey !== undefined) {
+    if (typeof input.signerPublicKey !== 'string' || !input.signerPublicKey.trim()) {
+      throw new ValidationError('signerPublicKey must be a non-empty string when provided');
+    }
+  }
+
+  if (input.metadata !== undefined && typeof input.metadata !== 'object') {
+    throw new ValidationError('metadata must be an object when provided');
+  }
+
+  const result: TransactionSubmissionRequest = {
+    transactionXdr: input.transactionXdr.trim(),
+    networkPassphrase: input.networkPassphrase.trim(),
+  };
+
+  if (input.signerPublicKey !== undefined) {
+    result.signerPublicKey = input.signerPublicKey.trim();
+  }
+
+  if (input.metadata !== undefined) {
+    result.metadata = input.metadata;
+  }
+
+  return result;
 }
