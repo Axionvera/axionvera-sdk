@@ -6,6 +6,7 @@ import type { Mock } from 'vitest';
 import {
   VaultContract,
   type ContractInvoker,
+  type TransactionActionResult,
   type VaultBalance,
   type VaultInfo,
   type VaultReward,
@@ -30,6 +31,11 @@ function createMockInvoker(): {
 }
 
 const tx: VaultTransaction = { status: 'success', hash: 'hash-1' };
+const normalizedTx: TransactionActionResult = {
+  status: 'success',
+  hash: 'hash-1',
+  raw: tx
+};
 
 afterEach(() => {
   cleanup();
@@ -170,7 +176,7 @@ describe('useVault', () => {
         expectedArgs: [WALLET]
       }
     ])(
-      '$name returns the mocked transaction response',
+      '$name returns the normalized transaction response',
       async ({ method, action, expectedArgs }) => {
         const { invoker, invoke } = createMockInvoker();
         invoke.mockResolvedValue(tx);
@@ -180,7 +186,7 @@ describe('useVault', () => {
         );
 
         await act(async () => {
-          await expect(action(result.current)).resolves.toBe(tx);
+          await expect(action(result.current)).resolves.toEqual(normalizedTx);
         });
 
         expect(invoke).toHaveBeenCalledWith({
@@ -190,6 +196,44 @@ describe('useVault', () => {
         });
       }
     );
+
+    it('returns normalized failed transaction result when status is FAILED', async () => {
+      const { invoker, invoke } = createMockInvoker();
+      const failedTx: VaultTransaction = { status: 'failed', hash: 'failed-hash' };
+      invoke.mockResolvedValue(failedTx);
+
+      const { result } = renderHook(() =>
+        useVault({ contractId: CONTRACT_ID, invoker, walletAddress: WALLET })
+      );
+
+      await act(async () => {
+        const actionResult = await result.current.deposit(100n);
+        expect(actionResult).toEqual({
+          status: 'failed',
+          hash: 'failed-hash',
+          raw: failedTx
+        });
+      });
+    });
+
+    it('sets error state when transaction results in non-terminal status', async () => {
+      const { invoker, invoke } = createMockInvoker();
+      const pendingTx: VaultTransaction = { status: 'pending', hash: 'pending-hash' };
+      invoke.mockResolvedValue(pendingTx);
+
+      const { result } = renderHook(() =>
+        useVault({ contractId: CONTRACT_ID, invoker, walletAddress: WALLET })
+      );
+
+      await act(async () => {
+        await expect(result.current.deposit(100n)).rejects.toThrow(
+          'Transaction action resulted in non-terminal status: pending'
+        );
+      });
+
+      expect(result.current.error).toBeInstanceOf(Error);
+      expect(result.current.error?.message).toContain('non-terminal status: pending');
+    });
 
     it.each([
       { name: 'deposit', action: (result: ReturnType<typeof useVault>) => result.deposit(100n) },
@@ -242,7 +286,7 @@ describe('useVault', () => {
         useVault({ contractId: CONTRACT_ID, invoker, walletAddress: WALLET })
       );
 
-      let promise!: Promise<VaultTransaction>;
+      let promise!: Promise<TransactionActionResult>;
       act(() => {
         promise = result.current.deposit(100n);
       });

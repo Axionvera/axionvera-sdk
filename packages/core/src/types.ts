@@ -36,6 +36,22 @@ export interface VaultReward {
 }
 
 /**
+ * Normalized result of a transaction action.
+ */
+export interface TransactionActionResult {
+  /** The transaction hash */
+  hash: string;
+  /** The terminal status of the transaction */
+  status: 'success' | 'failed';
+  /** Optional ledger number when the transaction was included */
+  ledger?: number;
+  /** Optional error message from the network or contract */
+  error?: string;
+  /** The raw result from the transport for debugging or advanced use */
+  raw?: unknown;
+}
+
+/**
  * Typed request shape for Soroban transaction submission.
  * This provides a stable intermediate type before real submit/sign/poll flows are connected.
  */

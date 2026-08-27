@@ -1,12 +1,13 @@
 import { useCallback, useMemo } from 'react';
 import {
   VaultContract,
+  toTransactionActionResult,
   type AmountInput,
   type ContractInvoker,
+  type TransactionActionResult,
   type VaultBalance,
   type VaultInfo,
-  type VaultReward,
-  type VaultTransaction
+  type VaultReward
 } from '@axionvera/core';
 
 import { useTransactionAction } from './useTransactionAction';
@@ -24,14 +25,14 @@ export interface UseVaultResult {
   getInfo(): Promise<VaultInfo>;
   getBalance(address?: string): Promise<VaultBalance>;
   getPendingRewards(address?: string): Promise<VaultReward>;
-  deposit(amount: AmountInput): Promise<VaultTransaction>;
-  withdraw(amount: AmountInput): Promise<VaultTransaction>;
-  claimRewards(): Promise<VaultTransaction>;
+  deposit(amount: AmountInput): Promise<TransactionActionResult>;
+  withdraw(amount: AmountInput): Promise<TransactionActionResult>;
+  claimRewards(): Promise<TransactionActionResult>;
   resetError(): void;
 }
 
 export function useVault(options: UseVaultOptions): UseVaultResult {
-  const { isSubmitting, error, run, reset } = useTransactionAction<VaultTransaction>();
+  const { isSubmitting, error, run, reset } = useTransactionAction<TransactionActionResult>();
 
   const vault = useMemo(
     () =>
@@ -63,17 +64,29 @@ export function useVault(options: UseVaultOptions): UseVaultResult {
   );
 
   const deposit = useCallback(
-    (amount: AmountInput) => run(() => vault.deposit(requireWalletAddress(), amount)),
+    (amount: AmountInput) =>
+      run(async () => {
+        const result = await vault.deposit(requireWalletAddress(), amount);
+        return toTransactionActionResult(result);
+      }),
     [vault, requireWalletAddress, run]
   );
 
   const withdraw = useCallback(
-    (amount: AmountInput) => run(() => vault.withdraw(requireWalletAddress(), amount)),
+    (amount: AmountInput) =>
+      run(async () => {
+        const result = await vault.withdraw(requireWalletAddress(), amount);
+        return toTransactionActionResult(result);
+      }),
     [vault, requireWalletAddress, run]
   );
 
   const claimRewards = useCallback(
-    () => run(() => vault.claimRewards(requireWalletAddress())),
+    () =>
+      run(async () => {
+        const result = await vault.claimRewards(requireWalletAddress());
+        return toTransactionActionResult(result);
+      }),
     [vault, requireWalletAddress, run]
   );
 
