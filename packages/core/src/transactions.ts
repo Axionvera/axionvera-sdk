@@ -1,5 +1,11 @@
 import { TransactionTimeoutError, ValidationError } from './errors';
-import type { AmountInput, TransactionResult, TransactionStatus, TransactionSubmissionRequest } from './types';
+import type {
+  AmountInput,
+  TransactionActionResult,
+  TransactionResult,
+  TransactionStatus,
+  TransactionSubmissionRequest
+} from './types';
 
 export interface ContractCallRequest {
   contractId: string;
@@ -76,6 +82,33 @@ export function normalizeTransactionResult(raw: unknown): TransactionResult {
   }
 
   return result;
+}
+
+/**
+ * Normalizes a raw transaction response into a terminal TransactionActionResult.
+ * 
+ * @param raw - The raw response from the transport or contract invoker
+ * @returns A normalized TransactionActionResult with status 'success' or 'failed'
+ * @throws ValidationError if the result is missing terminal status or invalid
+ */
+export function toTransactionActionResult(raw: unknown): TransactionActionResult {
+  if (!raw || typeof raw !== 'object') {
+    throw new ValidationError('Invalid raw transaction action response');
+  }
+
+  const result = normalizeTransactionResult(raw);
+
+  if (result.status !== 'success' && result.status !== 'failed') {
+    throw new ValidationError(`Transaction action resulted in non-terminal status: ${result.status}`);
+  }
+
+  return {
+    hash: result.hash,
+    status: result.status,
+    ledger: result.ledger,
+    error: result.error,
+    raw
+  };
 }
 
 export interface WaitForTransactionParams {
