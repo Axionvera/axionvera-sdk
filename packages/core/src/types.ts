@@ -7,8 +7,8 @@ export type TransactionStatus = 'pending' | 'success' | 'failed' | 'not_found';
 export interface TransactionResult {
   hash: string;
   status: TransactionStatus;
-  ledger?: number;
-  error?: string;
+  ledger?: number | undefined;
+  error?: string | undefined;
 }
 
 export interface VaultInfo {
@@ -44,9 +44,9 @@ export interface TransactionActionResult {
   /** The terminal status of the transaction */
   status: 'success' | 'failed';
   /** Optional ledger number when the transaction was included */
-  ledger?: number;
+  ledger?: number | undefined;
   /** Optional error message from the network or contract */
-  error?: string;
+  error?: string | undefined;
   /** The raw result from the transport for debugging or advanced use */
   raw?: unknown;
 }

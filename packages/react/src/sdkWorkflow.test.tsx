@@ -16,7 +16,7 @@ import { useVault } from './useVault';
 import { useWallet } from './useWallet';
 
 const CONTRACT_ID = 'CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
-const MOCK_PUBLIC_KEY = 'GAXIONVERAMOCKPUBLICKEY';
+const MOCK_PUBLIC_KEY = "GSDKWORKFLOWWALLETADDRESS";
 
 describe('Vault SDK Workflow (Mocked Integration)', () => {
   afterEach(() => {
@@ -39,7 +39,7 @@ describe('Vault SDK Workflow (Mocked Integration)', () => {
         useVault({
           contractId: CONTRACT_ID,
           invoker,
-          walletAddress: walletResult.current.publicKey
+          walletAddress: "GSDKWORKFLOWWALLETADDRESS"
         }),
       { wrapper }
     );
@@ -134,7 +134,7 @@ describe('Vault SDK Workflow (Mocked Integration)', () => {
         useVault({
           contractId: CONTRACT_ID,
           invoker,
-          walletAddress: walletResult.current.publicKey
+          walletAddress: "GSDKWORKFLOWWALLETADDRESS"
         }),
       { wrapper }
     );
