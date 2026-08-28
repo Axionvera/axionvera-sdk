@@ -107,3 +107,31 @@ npm run lint
 npm run typecheck
 npm run build
 ```
+## Complete Vault & Wallet Example
+
+For a fully typed end-to-end component illustrating provider setup, wallet connection, vault reads, deposit execution, and error handling, see [`examples/react-vault-example.tsx`](../../examples/react-vault-example.tsx).
+
+```tsx
+import { AxionveraProvider, useWallet, useVault } from '@axionvera/react';
+
+function VaultManager({ contractId, invoker }) {
+  const { publicKey, connect, isConnected } = useWallet();
+  const { deposit, isSubmitting, error } = useVault({
+    contractId,
+    invoker,
+    walletAddress: publicKey,
+  });
+
+  if (!isConnected) {
+    return <button onClick={connect}>Connect Wallet</button>;
+  }
+
+  return (
+    <div>
+      <button onClick={() => deposit('100')} disabled={isSubmitting}>
+        {isSubmitting ? 'Depositing...' : 'Deposit 100'}
+      </button>
+      {error && <p style={{ color: 'red' }}>{error.message}</p>}
+    </div>
+  );
+}
