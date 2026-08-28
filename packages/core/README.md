@@ -106,9 +106,104 @@ import { MockWalletConnector } from '@axionvera/core';
 const wallet = new MockWalletConnector('GABC1234567890');
 const { publicKey, network } = await wallet.connect();
 // { publicKey: 'GABC1234567890', network: 'testnet' }
+
+await wallet.disconnect();
+const connected = await wallet.isConnected();
+// false
 ```
 
+`MockWalletConnector` tracks connection state and provides a predictable interface for testing. It includes:
+- `connect()` - Sets connection state and returns a connection object with public key and network
+- `disconnect()` - Clears connection state
+- `isConnected()` - Returns current connection status
+- `signTransaction(xdr, options)` - Returns a prefixed signature for testing
+
 Implement the `WalletConnector` interface to integrate a browser wallet extension or a backend signer.
+
+### Wallet signing
+
+Use `signWithWallet()` to sign transactions through a wallet connector:
+
+```ts
+import { signWithWallet } from '@axionvera/core';
+
+const signedXdr = await signWithWallet({
+  wallet,
+  transactionXdr: 'AAAA...',
+  networkPassphrase: 'Test SDF Network ; September 2015'
+});
+```
+
+This helper wraps wallet signing errors in `WalletError` for consistent error handling.
+
+### Transaction result types
+
+The SDK provides normalized transaction result types for write actions:
+
+```ts
+import {
+  TransactionActionResult,
+  transactionSuccess,
+  transactionPending,
+  transactionFailed,
+  transactionTimeout
+} from '@axionvera/core';
+
+// Create result objects
+const success = transactionSuccess('abc123', 100);
+// { hash: 'abc123', status: 'success', ledger: 100 }
+
+const pending = transactionPending('abc123');
+// { hash: 'abc123', status: 'pending' }
+
+const failed = transactionFailed('abc123', 'insufficient balance');
+// { hash: 'abc123', status: 'failed', error: 'insufficient balance' }
+
+const timeout = transactionTimeout('abc123');
+// { hash: 'abc123', status: 'timeout' }
+```
+
+All helper functions validate inputs and trim whitespace from hashes.
+
+### Transaction polling
+
+Use `waitForTransaction()` to poll for transaction status:
+
+```ts
+import { waitForTransaction } from '@axionvera/core';
+
+const result = await waitForTransaction({
+  hash: 'abc123',
+  lookup: async (hash) => {
+    // Your transaction lookup function
+    return { hash, status: 'success' };
+  },
+  interval: 1000,      // Poll every 1s (default)
+  maxAttempts: 30,    // Max 30 attempts (default)
+  delay: (ms) => new Promise(resolve => setTimeout(resolve, ms)) // Optional custom delay
+});
+```
+
+The helper treats `pending` and `not_found` as non-terminal (continues polling), and `success` and `failed` as terminal (returns result). Throws `TransactionTimeoutError` after max attempts.
+
+### Wallet readiness checking
+
+Use `checkWalletReadiness()` to validate wallet state before operations:
+
+```ts
+import { checkWalletReadiness } from '@axionvera/core';
+
+const connector = new MockWalletConnector('GABC1234567890');
+const connection = await connector.connect();
+
+const readiness = checkWalletReadiness({ connector, connection });
+
+if (readiness.isReady) {
+  // Wallet is ready for operations
+} else {
+  console.error(readiness.reason);
+}
+```
 
 ## Foundation layer
 

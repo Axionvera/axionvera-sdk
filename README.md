@@ -128,6 +128,68 @@ The `ContractInvoker` interface is the core abstraction for Soroban contract int
 - **Testability**: Use mock invokers in tests without hitting the network
 - **Progressive enhancement**: Start with mocks, swap in real implementation when ready
 
+### Wallet Layer
+
+The SDK provides a wallet abstraction for connecting to Stellar-compatible wallets:
+
+- `WalletConnector` interface - Standard interface for wallet implementations
+- `MockWalletConnector` - Development/testing wallet with connection state tracking
+- `signWithWallet()` - Helper for signing transactions through wallet connectors
+- `checkWalletReadiness()` - Validates wallet state before operations
+
+**Wallet Readiness Flow:**
+1. Connect wallet using `wallet.connect()` - returns public key and network
+2. Check connection status with `wallet.isConnected()` - returns boolean
+3. Validate readiness with `checkWalletReadiness()` - ensures connector and connection are valid
+4. Sign transactions with `signWithWallet()` - wraps signing errors consistently
+
+### Transaction Layer
+
+The SDK provides normalized types and helpers for transaction management:
+
+- `TransactionActionResult` - Standardized result shape with status, hash, ledger, error
+- Helper functions: `transactionSuccess()`, `transactionPending()`, `transactionFailed()`, `transactionTimeout()`
+- `waitForTransaction()` - Polls for transaction status with configurable intervals
+- `TransactionTimeoutError` - Thrown when polling exceeds max attempts
+
+**Transaction Status Flow:**
+1. Submit transaction - receive hash
+2. Poll with `waitForTransaction()` - uses lookup function to check status
+3. Handle terminal states (`success`, `failed`) - return result
+4. Handle non-terminal states (`pending`, `not_found`) - continue polling
+5. Handle timeout - throw `TransactionTimeoutError` after max attempts
+
+### React Hook Layer
+
+React bindings provide stateful hooks for wallet, vault, and transaction management:
+
+- `AxionveraProvider` - Context provider for wallet and configuration
+- `useWallet` - Wallet connection state and operations
+- `useVault` - Vault contract operations with submission state
+- `useTransactionAction` - Generic async action state management
+- `useTransactionStatus` - Transaction polling with React state
+
+**React Hook Flow:**
+1. Wrap app with `AxionveraProvider` and wallet connector
+2. Use `useWallet` to manage connection (connect, disconnect, check status)
+3. Use `useVault` to read vault state (`getInfo`, `getBalance`, `getPendingRewards`)
+4. Use `useVault` write methods for operations (`deposit`, `withdraw`, `claimRewards`)
+5. Use `useTransactionStatus` to poll and track transaction confirmation
+
+### Mocked Integration Testing
+
+The SDK includes comprehensive mock utilities for integration-style testing:
+
+- `MockWalletConnector` - Predictable wallet behavior for tests
+- `TestContractInvoker` - Mock contract invoker with response configuration
+- `sdkWorkflow.test.tsx` - Full workflow tests covering connect → read → write → poll
+
+**Mocked Integration Behavior:**
+- Wallet connection/disconnection is simulated with state tracking
+- Contract calls return configured responses without network calls
+- Transaction polling uses vitest mocked timers for fast tests
+- All scenarios (success, failure, timeout, disconnection) are testable
+
 ### Current Implementation Status
 
 **Implemented:**
@@ -136,20 +198,24 @@ The `ContractInvoker` interface is the core abstraction for Soroban contract int
 - `SorobanContractInvoker` - adapter that routes requests through RPC transport
 - `buildSorobanInvokeRequest()` - validates and builds Soroban invocation request objects
 - `WalletConnector` interface with `MockWalletConnector` for development
-- React bindings (`AxionveraProvider`, `useWallet`, `useVault`)
+- Transaction result types and polling helpers
+- React bindings (`AxionveraProvider`, `useWallet`, `useVault`, `useTransactionAction`, `useTransactionStatus`)
+- Comprehensive test coverage with mocked integration tests
 
 **Current Limitations:**
 - No live Soroban transaction submission - `SorobanContractInvoker` is a skeleton adapter
 - No Stellar transaction building (XDR assembly, fee handling, sequence numbers)
 - No wallet signing integration for transaction submission
 - RPC transport exists but Soroban-specific RPC methods are not fully implemented
+- Transaction polling requires custom lookup function (no built-in RPC integration)
 
 **Next Steps (Roadmap):**
 1. Complete Stellar transaction building with XDR assembly
 2. Implement fee estimation and sequence number management
 3. Add wallet signing integration for transaction submission
 4. Implement full Soroban RPC method support (simulateTransaction, sendTransaction)
-5. Add transaction lifecycle management (submission, polling, confirmation)
+5. Add built-in transaction lookup function for `waitForTransaction` using RPC
+6. Add transaction lifecycle management (submission, polling, confirmation) with automatic retry
 
 ### Foundation Layer
 
