@@ -128,20 +128,27 @@ export class MockWalletConnector implements WalletConnector {
   readonly id = 'mock';
   readonly name = 'Mock Wallet';
 
+  private connected = false;
+
   constructor(
     private readonly publicKey: string = 'GAXIONVERAMOCKPUBLICKEY',
     private readonly signedPrefix: string = 'signed:'
   ) {}
 
   async connect(): Promise<WalletConnection> {
+    this.connected = true;
     return {
       publicKey: this.publicKey,
       network: 'testnet'
     };
   }
 
+  async disconnect(): Promise<void> {
+    this.connected = false;
+  }
+
   async isConnected(): Promise<boolean> {
-    return true;
+    return this.connected;
   }
 
   async signTransaction(transactionXdr: string, _options: SignTransactionOptions): Promise<string> {
