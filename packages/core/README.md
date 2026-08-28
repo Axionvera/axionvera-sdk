@@ -216,6 +216,56 @@ RPC and Soroban invocation are adapter-based in v2:
 
 No production Soroban invoker or transaction builder is shipped yet — plug in your own via `transport` and `invoker`, or start with the mocks.
 
+### Soroban Transaction Execution Schema
+
+The SDK provides a comprehensive schema for Soroban transaction execution requests and results. This schema is currently in a mocked/testnet-ready state and does not require real wallet secrets or live network submissions.
+
+```ts
+import {
+  buildSorobanExecutionRequest,
+  executionSuccess,
+  executionFailed,
+  validateSorobanExecutionRequestSchema
+} from '@axionvera/core';
+
+// Build an execution request
+const request = buildSorobanExecutionRequest({
+  sourceAccount: 'GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  contractId: 'C123...',
+  method: 'deposit',
+  args: ['GUSER', '100'],
+  network: {
+    network: 'testnet',
+    networkPassphrase: 'Test SDF Network ; September 2015',
+    rpcUrl: 'https://soroban-testnet.stellar.org'
+  }
+});
+
+// Create execution results
+const successResult = executionSuccess(request, 'tx-hash-123', {
+  ledger: 12345
+});
+
+const failedResult = executionFailed(request, 'Insufficient balance');
+
+// Validate external data
+try {
+  const validRequest = validateSorobanExecutionRequestSchema(externalRequest);
+  console.log('Valid request:', validRequest);
+} catch (error) {
+  console.error('Invalid request:', error);
+}
+```
+
+**Current Status:**
+- ✅ Complete schema definition and validation
+- ✅ Comprehensive test coverage
+- ✅ Extensive examples (valid and invalid)
+- ✅ No real secrets or live submission required
+- ⏳ Real transaction execution to be implemented later
+
+See [execution.md](./src/execution.md) for detailed documentation and usage examples.
+
 ## Development commands
 
 ```bash

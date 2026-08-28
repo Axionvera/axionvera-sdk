@@ -199,6 +199,7 @@ The SDK includes comprehensive mock utilities for integration-style testing:
 - `buildSorobanInvokeRequest()` - validates and builds Soroban invocation request objects
 - `WalletConnector` interface with `MockWalletConnector` for development
 - Transaction result types and polling helpers
+- **Soroban Transaction Execution Schema** - comprehensive schema for execution requests and results (mocked/testnet-ready)
 - React bindings (`AxionveraProvider`, `useWallet`, `useVault`, `useTransactionAction`, `useTransactionStatus`)
 - Comprehensive test coverage with mocked integration tests
 
