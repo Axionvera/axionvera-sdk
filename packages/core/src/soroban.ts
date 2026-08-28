@@ -8,6 +8,8 @@ import { AxionveraClient, type RpcTransport } from './client';
 import type { NetworkConfig } from './network';
 import type { ContractInvoker } from './contracts/vault';
 
+// For testing transaction flows without real RPC calls, see ./testing/mockSimulationAdapter.ts
+
 /**
  * Request shape accepted by {@link ContractInvoker} methods. Mirrors the
  * object produced by `createContractCallRequest` so the invoker can be wired
@@ -23,6 +25,9 @@ export interface SorobanInvokerRequest {
  * Validated Soroban contract invocation request object.
  * This is a stable intermediate shape used by SDK vault methods before
  * real Soroban transaction submission is implemented.
+ * 
+ * This interface is also used by the mock simulation adapter for testing.
+ * See `./testing/mockSimulationAdapter.ts` for usage examples.
  */
 export interface SorobanInvokeRequest {
   /** The Stellar contract ID to invoke */
