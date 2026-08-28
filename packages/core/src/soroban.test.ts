@@ -9,6 +9,8 @@ import { AxionveraClient, type RpcTransport } from './client';
 import { ContractError, NetworkError, ValidationError } from './errors';
 import { VaultContract } from './contracts/vault';
 
+// For testing with mocked simulation, see ./testing/mockSimulationAdapter.ts
+
 function makeRequest(overrides: Partial<SorobanInvokerRequest> = {}): SorobanInvokerRequest {
   return {
     contractId: 'CABCDEF0000000000000000000000000000000000000000000000000000000001',
@@ -436,6 +438,84 @@ describe('SorobanContractInvoker', () => {
 
         expect('sourceAccount' in result).toBe(false);
       });
+    });
+  });
+
+  // ── Mock Simulation Adapter Integration ────────────────────────
+
+  describe('Mock Simulation Adapter Integration', () => {
+    it('integrates mock simulation adapter with SorobanInvokeRequest', async () => {
+      const { MockSimulationAdapter } = await import('./testing');
+      
+      const adapter = new MockSimulationAdapter({
+        responses: [
+          {
+            method: 'deposit',
+            response: {
+              status: 'success' as const,
+              hash: 'simulated-deposit-hash',
+              result: { amount: '100' },
+              fee: 100n
+            }
+          }
+        ]
+      });
+
+      const request: SorobanInvokeRequest = {
+        contractId: 'C123...',
+        method: 'deposit',
+        args: ['GUSER', '100']
+      };
+
+      const result = await adapter.simulate(request);
+
+      expect(result.status).toBe('success');
+      expect(result.hash).toBe('simulated-deposit-hash');
+      expect(result.result).toEqual({ amount: '100' });
+    });
+
+    it('validates SorobanInvokeRequest before simulation', async () => {
+      const { MockSimulationAdapter } = await import('./testing');
+      
+      const adapter = new MockSimulationAdapter({
+        defaultResponse: { status: 'success' as const, hash: 'hash' }
+      });
+
+      const validRequest = buildSorobanInvokeRequest({
+        contractId: 'C123...',
+        method: 'deposit',
+        args: ['GUSER', '100']
+      });
+
+      const result = await adapter.simulate(validRequest);
+      expect(result.status).toBe('success');
+    });
+
+    it('handles simulation failures with proper error types', async () => {
+      const { MockSimulationAdapter } = await import('./testing');
+      
+      const adapter = new MockSimulationAdapter({
+        responses: [
+          {
+            method: 'withdraw',
+            response: {
+              status: 'failure' as const,
+              error: { message: 'Insufficient balance', code: 1 }
+            }
+          }
+        ]
+      });
+
+      const request: SorobanInvokeRequest = {
+        contractId: 'C123...',
+        method: 'withdraw',
+        args: ['GUSER', '1000']
+      };
+
+      const result = await adapter.simulate(request);
+
+      expect(result.status).toBe('failure');
+      expect(result.error?.message).toBe('Insufficient balance');
     });
   });
 });

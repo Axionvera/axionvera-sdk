@@ -5,3 +5,14 @@ export {
   type TestInvokerCall,
   type TestInvokerCallKind
 } from './testInvoker';
+
+export {
+  MockSimulationAdapter,
+  createMockSimulationAdapter,
+  createSuccessSimulationAdapter,
+  createFailureSimulationAdapter,
+  type SimulationResult,
+  type SimulationStatus,
+  type SimulationResponseConfig,
+  type MockSimulationAdapterOptions
+} from './mockSimulationAdapter';
