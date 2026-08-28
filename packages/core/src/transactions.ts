@@ -111,6 +111,126 @@ export function toTransactionActionResult(raw: unknown): TransactionActionResult
   };
 }
 
+/**
+ * Creates a successful TransactionActionResult.
+ * 
+ * @param hash - The transaction hash
+ * @param ledger - Optional ledger number when the transaction was included
+ * @param raw - Optional raw result from the transport
+ * @returns A TransactionActionResult with status 'success'
+ */
+export function transactionSuccess(
+  hash: string,
+  ledger?: number,
+  raw?: unknown
+): TransactionActionResult {
+  if (!hash || typeof hash !== 'string' || !hash.trim()) {
+    throw new ValidationError('hash is required and must be a non-empty string');
+  }
+
+  const result: TransactionActionResult = {
+    hash: hash.trim(),
+    status: 'success'
+  };
+
+  if (ledger !== undefined) {
+    result.ledger = ledger;
+  }
+
+  if (raw !== undefined) {
+    result.raw = raw;
+  }
+
+  return result;
+}
+
+/**
+ * Creates a pending TransactionActionResult.
+ * 
+ * @param hash - The transaction hash
+ * @param raw - Optional raw result from the transport
+ * @returns A TransactionActionResult with status 'pending'
+ */
+export function transactionPending(
+  hash: string,
+  raw?: unknown
+): TransactionActionResult {
+  if (!hash || typeof hash !== 'string' || !hash.trim()) {
+    throw new ValidationError('hash is required and must be a non-empty string');
+  }
+
+  const result: TransactionActionResult = {
+    hash: hash.trim(),
+    status: 'pending'
+  };
+
+  if (raw !== undefined) {
+    result.raw = raw;
+  }
+
+  return result;
+}
+
+/**
+ * Creates a failed TransactionActionResult.
+ * 
+ * @param hash - The transaction hash
+ * @param error - Optional error message from the network or contract
+ * @param raw - Optional raw result from the transport
+ * @returns A TransactionActionResult with status 'failed'
+ */
+export function transactionFailed(
+  hash: string,
+  error?: string,
+  raw?: unknown
+): TransactionActionResult {
+  if (!hash || typeof hash !== 'string' || !hash.trim()) {
+    throw new ValidationError('hash is required and must be a non-empty string');
+  }
+
+  const result: TransactionActionResult = {
+    hash: hash.trim(),
+    status: 'failed'
+  };
+
+  if (error !== undefined) {
+    result.error = error;
+  }
+
+  if (raw !== undefined) {
+    result.raw = raw;
+  }
+
+  return result;
+}
+
+/**
+ * Creates a timeout TransactionActionResult.
+ * 
+ * @param hash - The transaction hash
+ * @param raw - Optional raw result from the transport
+ * @returns A TransactionActionResult with status 'timeout'
+ */
+export function transactionTimeout(
+  hash: string,
+  raw?: unknown
+): TransactionActionResult {
+  if (!hash || typeof hash !== 'string' || !hash.trim()) {
+    throw new ValidationError('hash is required and must be a non-empty string');
+  }
+
+  const result: TransactionActionResult = {
+    hash: hash.trim(),
+    status: 'timeout'
+  };
+
+  if (raw !== undefined) {
+    result.raw = raw;
+  }
+
+  return result;
+}
+
 export interface WaitForTransactionParams {
   /** Resolves the current state of the transaction for the given hash. */
   lookup: (hash: string) => Promise<TransactionResult> | TransactionResult;

@@ -41,8 +41,8 @@ export interface VaultReward {
 export interface TransactionActionResult {
   /** The transaction hash */
   hash: string;
-  /** The terminal status of the transaction */
-  status: 'success' | 'failed';
+  /** The status of the transaction */
+  status: 'success' | 'pending' | 'failed' | 'timeout';
   /** Optional ledger number when the transaction was included */
   ledger?: number | undefined;
   /** Optional error message from the network or contract */
