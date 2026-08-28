@@ -7,6 +7,10 @@ import {
   normalizeTransactionResult,
   waitForTransaction,
   validateTransactionSubmissionRequest,
+  transactionSuccess,
+  transactionPending,
+  transactionFailed,
+  transactionTimeout,
   type TransactionSubmissionRequestInput,
 } from './transactions';
 import type { TransactionResult } from './types';
@@ -487,5 +491,201 @@ describe('validateTransactionSubmissionRequest', () => {
 
       expect(result.metadata).toEqual({});
     });
+  });
+});
+
+describe('transactionSuccess', () => {
+  it('creates a success result with required hash', () => {
+    const result = transactionSuccess('hash123');
+    expect(result).toEqual({
+      hash: 'hash123',
+      status: 'success'
+    });
+  });
+
+  it('creates a success result with ledger', () => {
+    const result = transactionSuccess('hash123', 100);
+    expect(result).toEqual({
+      hash: 'hash123',
+      status: 'success',
+      ledger: 100
+    });
+  });
+
+  it('creates a success result with raw data', () => {
+    const raw = { xdr: 'AAAA' };
+    const result = transactionSuccess('hash123', undefined, raw);
+    expect(result).toEqual({
+      hash: 'hash123',
+      status: 'success',
+      raw
+    });
+  });
+
+  it('creates a success result with all optional fields', () => {
+    const raw = { xdr: 'AAAA' };
+    const result = transactionSuccess('hash123', 100, raw);
+    expect(result).toEqual({
+      hash: 'hash123',
+      status: 'success',
+      ledger: 100,
+      raw
+    });
+  });
+
+  it('trims whitespace from hash', () => {
+    const result = transactionSuccess('  hash123  ');
+    expect(result.hash).toBe('hash123');
+  });
+
+  it('throws ValidationError for empty hash', () => {
+    expect(() => transactionSuccess('')).toThrow(ValidationError);
+    expect(() => transactionSuccess('')).toThrow('hash is required');
+  });
+
+  it('throws ValidationError for whitespace-only hash', () => {
+    expect(() => transactionSuccess('   ')).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError for non-string hash', () => {
+    expect(() => transactionSuccess(null as any)).toThrow(ValidationError);
+    expect(() => transactionSuccess(undefined as any)).toThrow(ValidationError);
+  });
+});
+
+describe('transactionPending', () => {
+  it('creates a pending result with required hash', () => {
+    const result = transactionPending('hash456');
+    expect(result).toEqual({
+      hash: 'hash456',
+      status: 'pending'
+    });
+  });
+
+  it('creates a pending result with raw data', () => {
+    const raw = { xdr: 'BBBB' };
+    const result = transactionPending('hash456', raw);
+    expect(result).toEqual({
+      hash: 'hash456',
+      status: 'pending',
+      raw
+    });
+  });
+
+  it('trims whitespace from hash', () => {
+    const result = transactionPending('  hash456  ');
+    expect(result.hash).toBe('hash456');
+  });
+
+  it('throws ValidationError for empty hash', () => {
+    expect(() => transactionPending('')).toThrow(ValidationError);
+    expect(() => transactionPending('')).toThrow('hash is required');
+  });
+
+  it('throws ValidationError for whitespace-only hash', () => {
+    expect(() => transactionPending('   ')).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError for non-string hash', () => {
+    expect(() => transactionPending(null as any)).toThrow(ValidationError);
+    expect(() => transactionPending(undefined as any)).toThrow(ValidationError);
+  });
+});
+
+describe('transactionFailed', () => {
+  it('creates a failed result with required hash', () => {
+    const result = transactionFailed('hash789');
+    expect(result).toEqual({
+      hash: 'hash789',
+      status: 'failed'
+    });
+  });
+
+  it('creates a failed result with error message', () => {
+    const result = transactionFailed('hash789', 'insufficient balance');
+    expect(result).toEqual({
+      hash: 'hash789',
+      status: 'failed',
+      error: 'insufficient balance'
+    });
+  });
+
+  it('creates a failed result with raw data', () => {
+    const raw = { xdr: 'CCCC' };
+    const result = transactionFailed('hash789', undefined, raw);
+    expect(result).toEqual({
+      hash: 'hash789',
+      status: 'failed',
+      raw
+    });
+  });
+
+  it('creates a failed result with all optional fields', () => {
+    const raw = { xdr: 'CCCC' };
+    const result = transactionFailed('hash789', 'insufficient balance', raw);
+    expect(result).toEqual({
+      hash: 'hash789',
+      status: 'failed',
+      error: 'insufficient balance',
+      raw
+    });
+  });
+
+  it('trims whitespace from hash', () => {
+    const result = transactionFailed('  hash789  ');
+    expect(result.hash).toBe('hash789');
+  });
+
+  it('throws ValidationError for empty hash', () => {
+    expect(() => transactionFailed('')).toThrow(ValidationError);
+    expect(() => transactionFailed('')).toThrow('hash is required');
+  });
+
+  it('throws ValidationError for whitespace-only hash', () => {
+    expect(() => transactionFailed('   ')).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError for non-string hash', () => {
+    expect(() => transactionFailed(null as any)).toThrow(ValidationError);
+    expect(() => transactionFailed(undefined as any)).toThrow(ValidationError);
+  });
+});
+
+describe('transactionTimeout', () => {
+  it('creates a timeout result with required hash', () => {
+    const result = transactionTimeout('hash000');
+    expect(result).toEqual({
+      hash: 'hash000',
+      status: 'timeout'
+    });
+  });
+
+  it('creates a timeout result with raw data', () => {
+    const raw = { xdr: 'DDDD' };
+    const result = transactionTimeout('hash000', raw);
+    expect(result).toEqual({
+      hash: 'hash000',
+      status: 'timeout',
+      raw
+    });
+  });
+
+  it('trims whitespace from hash', () => {
+    const result = transactionTimeout('  hash000  ');
+    expect(result.hash).toBe('hash000');
+  });
+
+  it('throws ValidationError for empty hash', () => {
+    expect(() => transactionTimeout('')).toThrow(ValidationError);
+    expect(() => transactionTimeout('')).toThrow('hash is required');
+  });
+
+  it('throws ValidationError for whitespace-only hash', () => {
+    expect(() => transactionTimeout('   ')).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError for non-string hash', () => {
+    expect(() => transactionTimeout(null as any)).toThrow(ValidationError);
+    expect(() => transactionTimeout(undefined as any)).toThrow(ValidationError);
   });
 });
