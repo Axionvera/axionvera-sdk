@@ -20,6 +20,8 @@ test double.
   request with any `WalletConnector`.
 - `createTransactionSigningPipeline({ wallet, prepareUnsignedTransaction })`
   wires preparation and signing into one reusable object.
+- `signedResultToTransactionSubmissionRequest(result)` converts a signed
+  pipeline result into the existing `TransactionSubmissionRequest` shape.
 
 ## Example
 
@@ -48,6 +50,14 @@ const pipeline = createTransactionSigningPipeline({
 
 const signed = await pipeline.prepareAndSign(undefined);
 console.log(signed.signedXdr);
+```
+
+After signing, convert the result to the existing submission request shape:
+
+```ts
+import { signedResultToTransactionSubmissionRequest } from '@axionvera/core';
+
+const submission = signedResultToTransactionSubmissionRequest(signed);
 ```
 
 ## Provider-Generic Behavior
