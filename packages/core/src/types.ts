@@ -65,3 +65,37 @@ export interface TransactionSubmissionRequest {
   /** Optional metadata for the transaction submission */
   metadata?: Record<string, unknown>;
 }
+
+/**
+ * Provider-agnostic request for asking a wallet to sign an unsigned transaction.
+ */
+export interface UnsignedTransactionSigningRequest {
+  /** The unsigned Stellar transaction envelope XDR */
+  unsignedXdr: string;
+  /** The network passphrase the XDR was prepared for */
+  networkPassphrase: string;
+  /** Optional account that should sign when a wallet supports account selection */
+  accountToSign?: string;
+  /** Optional app metadata kept outside provider-specific wallet options */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Result returned after a wallet signs a prepared unsigned transaction.
+ */
+export interface SignedTransactionResult {
+  /** Original unsigned transaction envelope XDR */
+  unsignedXdr: string;
+  /** Wallet-returned signed transaction envelope XDR */
+  signedXdr: string;
+  /** Network passphrase used for signing */
+  networkPassphrase: string;
+  /** Optional account requested for signing */
+  accountToSign?: string;
+  /** Optional metadata copied from the unsigned request */
+  metadata?: Record<string, unknown>;
+  /** Wallet connector id that produced the signature */
+  walletId: string;
+  /** Wallet connector display name that produced the signature */
+  walletName: string;
+}

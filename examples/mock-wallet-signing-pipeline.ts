@@ -1,0 +1,64 @@
+/**
+ * Example: provider-generic transaction signing pipeline with MockWalletConnector.
+ *
+ * This example keeps transaction preparation separate from wallet signing and
+ * does not require a real wallet extension.
+ */
+
+import {
+  MockWalletConnector,
+  createTransactionSigningPipeline,
+  signedResultToTransactionSubmissionRequest,
+  type UnsignedTransactionSigningRequestInput,
+} from '../packages/core/src';
+
+const TESTNET_PASSPHRASE = 'Test SDF Network ; September 2015';
+
+interface DepositPreparationInput {
+  amount: bigint;
+  sourceAccount: string;
+}
+
+async function prepareUnsignedDepositXdr(
+  input: DepositPreparationInput
+): Promise<UnsignedTransactionSigningRequestInput> {
+  // In a real app this function would build and simulate a Stellar/Soroban
+  // transaction, then return transaction.toXDR() before any wallet signature.
+  const mockedUnsignedXdr = 'AAAAAAAAAA==';
+
+  return {
+    unsignedXdr: mockedUnsignedXdr,
+    networkPassphrase: TESTNET_PASSPHRASE,
+    accountToSign: input.sourceAccount,
+    metadata: {
+      action: 'deposit',
+      amount: input.amount.toString(),
+    },
+  };
+}
+
+async function runExample() {
+  const wallet = new MockWalletConnector('GAXIONVERAMOCKPUBLICKEY');
+  await wallet.connect();
+
+  const signingPipeline = createTransactionSigningPipeline({
+    wallet,
+    prepareUnsignedTransaction: prepareUnsignedDepositXdr,
+  });
+
+  const result = await signingPipeline.prepareAndSign({
+    amount: 100n,
+    sourceAccount: 'GAXIONVERAMOCKPUBLICKEY',
+  });
+  const submission = signedResultToTransactionSubmissionRequest(result);
+
+  console.log({
+    unsignedXdr: result.unsignedXdr,
+    signedXdr: result.signedXdr,
+    submission,
+    walletId: result.walletId,
+    metadata: result.metadata,
+  });
+}
+
+void runExample();

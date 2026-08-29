@@ -136,6 +136,49 @@ const signedXdr = await signWithWallet({
 
 This helper wraps wallet signing errors in `WalletError` for consistent error handling.
 
+### Transaction signing pipeline
+
+Use `prepareUnsignedTransactionSigningRequest()`, `requestWalletSignature()`, or
+`createTransactionSigningPipeline()` when your app prepares unsigned XDR in one
+layer and asks a wallet to sign it in another:
+
+```ts
+import {
+  MockWalletConnector,
+  createTransactionSigningPipeline
+} from '@axionvera/core';
+
+const wallet = new MockWalletConnector('GABC1234567890');
+
+const pipeline = createTransactionSigningPipeline({
+  wallet,
+  async prepareUnsignedTransaction({ amount }: { amount: bigint }) {
+    return {
+      unsignedXdr: 'AAAAAAAAAA==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+      metadata: { action: 'deposit', amount: amount.toString() }
+    };
+  }
+});
+
+const signed = await pipeline.prepareAndSign({ amount: 100n });
+// { unsignedXdr, signedXdr, networkPassphrase, walletId, walletName, metadata }
+```
+
+The pipeline is provider-generic: the core SDK only calls the `WalletConnector`
+interface and does not know whether the connector is a mock, browser extension,
+backend signer, or test double. The prepared request carries app metadata, but
+only XDR, network passphrase, and optional signing account are passed to the
+wallet. No real wallet extension is required for tests or examples.
+
+Related helpers:
+
+- `validateUnsignedTransactionXdr()` checks unsigned XDR at the SDK boundary.
+- `prepareUnsignedTransactionSigningRequest()` normalizes a signing request.
+- `requestWalletSignature()` signs an already prepared request.
+- `signedResultToTransactionSubmissionRequest()` maps signed output to the
+  existing submission request shape.
+
 ### Transaction result types
 
 The SDK provides normalized transaction result types for write actions:

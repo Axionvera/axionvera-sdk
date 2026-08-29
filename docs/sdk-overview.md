@@ -42,6 +42,12 @@ Axionvera SDK provides a small, modular TypeScript API for interacting with Axio
 
 The SDK includes a `LocalKeypairWalletConnector` implementation for Node.js usage and testing.
 
+The transaction signing pipeline keeps unsigned XDR preparation outside wallet
+provider code. Apps can prepare and validate an unsigned XDR request, pass it to
+any `WalletConnector`, and receive a signed result without importing a specific
+browser extension adapter. `MockWalletConnector` covers this flow in tests and
+examples without secrets or user prompts.
+
 ### Contract Modules (`src/contracts`)
 
 Contract modules provide developer-friendly APIs for specific Axionvera contracts. Each module:

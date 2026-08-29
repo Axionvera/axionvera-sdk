@@ -3,8 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { TransactionTimeoutError, ValidationError } from './errors';
 import {
   createContractCallRequest,
+  isUnsignedTransactionSigningRequest,
   normalizeAmount,
   normalizeTransactionResult,
+  prepareUnsignedTransactionSigningRequest,
+  signedResultToTransactionSubmissionRequest,
+  validateUnsignedTransactionXdr,
   waitForTransaction,
   validateTransactionSubmissionRequest,
   transactionSuccess,
@@ -12,6 +16,7 @@ import {
   transactionFailed,
   transactionTimeout,
   type TransactionSubmissionRequestInput,
+  type UnsignedTransactionSigningRequestInput,
 } from './transactions';
 import type { TransactionResult } from './types';
 
@@ -491,6 +496,168 @@ describe('validateTransactionSubmissionRequest', () => {
 
       expect(result.metadata).toEqual({});
     });
+  });
+});
+
+describe('signedResultToTransactionSubmissionRequest', () => {
+  it('maps a signed pipeline result to a validated submission request', () => {
+    const metadata = { source: 'pipeline' };
+    const result = signedResultToTransactionSubmissionRequest({
+      unsignedXdr: 'AAAAAAAAAA==',
+      signedXdr: 'BBBBBBBBBB==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+      accountToSign: 'GAXIONVERAMOCKPUBLICKEY',
+      metadata,
+      walletId: 'mock',
+      walletName: 'Mock Wallet',
+    });
+
+    expect(result).toEqual({
+      transactionXdr: 'BBBBBBBBBB==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+      signerPublicKey: 'GAXIONVERAMOCKPUBLICKEY',
+      metadata,
+    });
+  });
+
+  it('omits optional submission fields when they are absent', () => {
+    const result = signedResultToTransactionSubmissionRequest({
+      unsignedXdr: 'AAAAAAAAAA==',
+      signedXdr: 'BBBBBBBBBB==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+      walletId: 'mock',
+      walletName: 'Mock Wallet',
+    });
+
+    expect(result).toEqual({
+      transactionXdr: 'BBBBBBBBBB==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+    });
+  });
+});
+
+describe('validateUnsignedTransactionXdr', () => {
+  const VALID_UNSIGNED_XDR = 'AAAAAAAAAA==';
+
+  it('returns a trimmed valid base64 XDR string', () => {
+    expect(validateUnsignedTransactionXdr(`  ${VALID_UNSIGNED_XDR}  `)).toBe(VALID_UNSIGNED_XDR);
+  });
+
+  it.each([
+    { description: 'empty string', value: '' },
+    { description: 'whitespace string', value: '   ' },
+    { description: 'number value', value: 123 },
+    { description: 'null value', value: null },
+    { description: 'undefined value', value: undefined },
+  ])('throws ValidationError for $description', ({ value }) => {
+    expect(() => validateUnsignedTransactionXdr(value)).toThrow(ValidationError);
+  });
+
+  it.each([
+    'not-xdr',
+    'AAAA*===',
+    'abc',
+    'AAAA AA==',
+  ])('throws ValidationError for malformed base64 XDR %s', (value) => {
+    expect(() => validateUnsignedTransactionXdr(value)).toThrow(ValidationError);
+    expect(() => validateUnsignedTransactionXdr(value)).toThrow('unsignedXdr must be a base64-encoded XDR string');
+  });
+});
+
+describe('prepareUnsignedTransactionSigningRequest', () => {
+  const VALID_UNSIGNED_XDR = 'AAAAAAAAAA==';
+  const VALID_PASSPHRASE = 'Test SDF Network ; September 2015';
+  const VALID_SIGNER = 'GAXIONVERAMOCKPUBLICKEY';
+
+  it('builds a normalized provider-generic signing request', () => {
+    const metadata = { requestId: 'req-1' };
+    const input: UnsignedTransactionSigningRequestInput = {
+      unsignedXdr: `  ${VALID_UNSIGNED_XDR}  `,
+      networkPassphrase: `  ${VALID_PASSPHRASE}  `,
+      accountToSign: `  ${VALID_SIGNER}  `,
+      metadata,
+    };
+
+    const result = prepareUnsignedTransactionSigningRequest(input);
+
+    expect(result).toEqual({
+      unsignedXdr: VALID_UNSIGNED_XDR,
+      networkPassphrase: VALID_PASSPHRASE,
+      accountToSign: VALID_SIGNER,
+      metadata,
+    });
+  });
+
+  it('builds a request with only required fields', () => {
+    const result = prepareUnsignedTransactionSigningRequest({
+      unsignedXdr: VALID_UNSIGNED_XDR,
+      networkPassphrase: VALID_PASSPHRASE,
+    });
+
+    expect(result).toEqual({
+      unsignedXdr: VALID_UNSIGNED_XDR,
+      networkPassphrase: VALID_PASSPHRASE,
+    });
+  });
+
+  it('rejects an invalid unsigned XDR before building the request', () => {
+    expect(() =>
+      prepareUnsignedTransactionSigningRequest({
+        unsignedXdr: 'not-xdr',
+        networkPassphrase: VALID_PASSPHRASE,
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('rejects missing network passphrase', () => {
+    expect(() =>
+      prepareUnsignedTransactionSigningRequest({
+        unsignedXdr: VALID_UNSIGNED_XDR,
+        networkPassphrase: '   ',
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('rejects empty accountToSign when provided', () => {
+    expect(() =>
+      prepareUnsignedTransactionSigningRequest({
+        unsignedXdr: VALID_UNSIGNED_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        accountToSign: '',
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('rejects null metadata', () => {
+    expect(() =>
+      prepareUnsignedTransactionSigningRequest({
+        unsignedXdr: VALID_UNSIGNED_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        metadata: null as any,
+      }),
+    ).toThrow(ValidationError);
+  });
+});
+
+describe('isUnsignedTransactionSigningRequest', () => {
+  it('returns true for a normalizable unsigned signing request', () => {
+    expect(
+      isUnsignedTransactionSigningRequest({
+        unsignedXdr: 'AAAAAAAAAA==',
+        networkPassphrase: 'Test SDF Network ; September 2015',
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for invalid unsigned signing request values', () => {
+    expect(isUnsignedTransactionSigningRequest(null)).toBe(false);
+    expect(isUnsignedTransactionSigningRequest({})).toBe(false);
+    expect(
+      isUnsignedTransactionSigningRequest({
+        unsignedXdr: 'not-xdr',
+        networkPassphrase: 'Test SDF Network ; September 2015',
+      }),
+    ).toBe(false);
   });
 });
 
