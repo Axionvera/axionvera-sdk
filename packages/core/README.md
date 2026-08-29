@@ -331,3 +331,7 @@ npm run lint
 npm run typecheck
 npm run build
 ```
+
+## Maintainer Integration
+
+For information about connecting to real Network vault contracts and implementing live transaction submission, see the [Maintainer Handoff Guide](../../docs/maintainer-handoff.md). This guide explains the maintainer-only actions required for real testnet integration, including contract ID handoff, wallet signing, RPC submission, and transaction polling.
