@@ -10,6 +10,7 @@ import {
   formatVaultCompatibilityReport,
   type NetworkVaultInterfaceFixture,
 } from './compatibility';
+import { VaultContract, type ContractInvoker } from './contracts/vault';
 
 const NETWORK_FIXTURE_PATH = new URL(
   '../../../schemas/network-vault-interface.fixture.json',
@@ -18,6 +19,30 @@ const NETWORK_FIXTURE_PATH = new URL(
 
 function loadNetworkFixture(): NetworkVaultInterfaceFixture {
   return JSON.parse(readFileSync(NETWORK_FIXTURE_PATH, 'utf8')) as NetworkVaultInterfaceFixture;
+}
+
+async function collectVaultContractCalls() {
+  const calls: { method: string; args: readonly unknown[]; kind: 'read' | 'write' }[] = [];
+  const invoker: ContractInvoker = {
+    invoke: async (request) => {
+      calls.push({ method: request.method, args: request.args, kind: 'write' });
+      return { status: 'success' };
+    },
+    read: async (request) => {
+      calls.push({ method: request.method, args: request.args, kind: 'read' });
+      return {};
+    },
+  };
+  const vault = new VaultContract({ contractId: 'CVaultCompatibilityFixture', invoker });
+
+  await vault.getInfo();
+  await vault.getBalance('GUSER');
+  await vault.getPendingRewards('GUSER');
+  await vault.deposit('GUSER', 100n);
+  await vault.withdraw('GUSER', 50n);
+  await vault.claimRewards('GUSER');
+
+  return calls;
 }
 
 describe('SDK-to-Network vault compatibility fixtures', () => {
@@ -58,6 +83,27 @@ describe('SDK-to-Network vault compatibility fixtures', () => {
     expect(result.find((method) => method.networkName === 'withdraw')?.actualArguments).toEqual([
       { name: 'to', type: 'Address' },
       { name: 'amount', type: 'i128' },
+    ]);
+  });
+
+  it('matches actual VaultContract method names to SDK fixture expectations', async () => {
+    const calls = await collectVaultContractCalls();
+
+    expect(calls.map((call) => call.method)).toEqual(
+      SDK_VAULT_INTERFACE_FIXTURE.methods.map((method) => method.networkName)
+    );
+  });
+
+  it('matches actual VaultContract argument order to SDK fixture expectations', async () => {
+    const calls = await collectVaultContractCalls();
+
+    expect(calls.map((call) => call.args)).toEqual([
+      [],
+      ['GUSER'],
+      ['GUSER'],
+      ['GUSER', '100'],
+      ['GUSER', '50'],
+      ['GUSER'],
     ]);
   });
 
