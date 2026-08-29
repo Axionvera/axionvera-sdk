@@ -8,6 +8,7 @@
 import {
   MockWalletConnector,
   createTransactionSigningPipeline,
+  signedResultToTransactionSubmissionRequest,
   type UnsignedTransactionSigningRequestInput,
 } from '../packages/core/src';
 
@@ -49,10 +50,12 @@ async function runExample() {
     amount: 100n,
     sourceAccount: 'GAXIONVERAMOCKPUBLICKEY',
   });
+  const submission = signedResultToTransactionSubmissionRequest(result);
 
   console.log({
     unsignedXdr: result.unsignedXdr,
     signedXdr: result.signedXdr,
+    submission,
     walletId: result.walletId,
     metadata: result.metadata,
   });
