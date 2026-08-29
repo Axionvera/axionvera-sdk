@@ -29,3 +29,5 @@ export AXIONVERA_RPC_URL="https://horizon.stellar.org"
 export AXIONVERA_NETWORK="public"
 export AXIONVERA_LOG_LEVEL="debug"
 ```
+
+For local development, copy [`.env.example`](../.env.example) to `.env` and fill in your values. **Never commit the `.env` file with real values.**

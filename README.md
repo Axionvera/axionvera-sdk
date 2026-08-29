@@ -271,6 +271,10 @@ The script verifies:
 
 See [scripts/release-readiness.js](./scripts/release-readiness.js) for details.
 
+## Maintainer Integration
+
+For information about connecting the SDK to the deployed Network vault contract, see the [Maintainer Handoff Guide](./docs/maintainer-handoff.md). This guide separates contributor-safe work from maintainer-only actions and explains how SDK config, wallet signing, RPC submission, and transaction polling fit together.
+
 ## Contributing
 
 Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for details on the code of conduct and the process for submitting pull requests.

@@ -265,6 +265,11 @@ npm run lint
 npm run typecheck
 npm run build
 ```
+
+## Maintainer Integration
+
+For information about connecting React applications to real Network vault contracts and implementing live wallet integration, see the [Maintainer Handoff Guide](../../docs/maintainer-handoff.md). This guide explains the maintainer-only actions required for real testnet integration, including real wallet connector implementation and transaction polling.
+
 ## Complete Vault & Wallet Example
 
 For a fully typed end-to-end component illustrating provider setup, wallet connection, vault reads, deposit execution, and error handling, see [`examples/react-vault-example.tsx`](../../examples/react-vault-example.tsx).
