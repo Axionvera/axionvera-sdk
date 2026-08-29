@@ -251,6 +251,17 @@ The metadata extractor **never** exposes sensitive headers such as
 `Authorization`, `X-Api-Key`, `Cookie`, or `Set-Cookie`. Only safe correlation
 and tracing headers are captured.
 
+## 10) Check SDK-to-Network compatibility fixtures
+
+Before wiring live testnet integration, compare the SDK Vault expectations with
+the local Network Vault fixture:
+
+```bash
+npx vitest run packages/core/src/compatibility.test.ts
+```
+
+See `docs/sdk-network-compatibility.md` for the fixture update process.
+
 ## TODO
 
 - Add CLI examples that compile to plain JS under `dist/`
