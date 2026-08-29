@@ -58,6 +58,13 @@ Contract modules provide developer-friendly APIs for specific Axionvera contract
 
 `VaultContract` is the initial module and serves as the reference implementation for future modules.
 
+### Compatibility Fixtures
+
+The SDK includes local SDK-to-Network compatibility fixtures for the Vault
+interface. These fixtures compare the SDK's method, argument, and event
+expectations against a mirrored Network schema without external repository,
+GitHub, RPC, or testnet access.
+
 ## Extending the SDK
 
 To add a new contract module:
