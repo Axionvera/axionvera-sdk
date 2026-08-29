@@ -135,6 +135,7 @@ The SDK provides a wallet abstraction for connecting to Stellar-compatible walle
 - `WalletConnector` interface - Standard interface for wallet implementations
 - `MockWalletConnector` - Development/testing wallet with connection state tracking
 - `signWithWallet()` - Helper for signing transactions through wallet connectors
+- `createTransactionSigningPipeline()` - Provider-generic prepare unsigned XDR -> wallet signing flow
 - `checkWalletReadiness()` - Validates wallet state before operations
 
 **Wallet Readiness Flow:**
@@ -142,6 +143,7 @@ The SDK provides a wallet abstraction for connecting to Stellar-compatible walle
 2. Check connection status with `wallet.isConnected()` - returns boolean
 3. Validate readiness with `checkWalletReadiness()` - ensures connector and connection are valid
 4. Sign transactions with `signWithWallet()` - wraps signing errors consistently
+5. For prepared unsigned XDR, use `createTransactionSigningPipeline()` to keep wallet provider details outside transaction preparation
 
 ### Transaction Layer
 
@@ -233,6 +235,7 @@ A production-ready Soroban transaction submission layer is not shipped yet — p
 
 - [SDK Overview](./docs/sdk-overview.md)
 - [Usage Guide](./docs/usage-guide.md)
+- [Transaction Signing Pipeline](./docs/transaction-signing-pipeline.md)
 - [Configuration](./docs/configuration.md)
 
 ## Development
