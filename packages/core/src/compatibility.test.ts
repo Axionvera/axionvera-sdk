@@ -16,9 +16,25 @@ const NETWORK_FIXTURE_PATH = new URL(
   '../../../schemas/network-vault-interface.fixture.json',
   import.meta.url
 );
+const EXAMPLE_OUTPUT_PATH = new URL(
+  '../../../examples/sdk-network-compatibility-output.json',
+  import.meta.url
+);
 
 function loadNetworkFixture(): NetworkVaultInterfaceFixture {
   return JSON.parse(readFileSync(NETWORK_FIXTURE_PATH, 'utf8')) as NetworkVaultInterfaceFixture;
+}
+
+function loadExampleOutput(): {
+  compatible: boolean;
+  methods: { sdkName: string; networkName: string; status: string }[];
+  events: { name: string; status: string }[];
+} {
+  return JSON.parse(readFileSync(EXAMPLE_OUTPUT_PATH, 'utf8')) as {
+    compatible: boolean;
+    methods: { sdkName: string; networkName: string; status: string }[];
+    events: { name: string; status: string }[];
+  };
 }
 
 async function collectVaultContractCalls() {
@@ -139,6 +155,35 @@ describe('SDK-to-Network vault compatibility fixtures', () => {
     expect(formatVaultCompatibilityReport(result)).toContain('Vault compatibility: compatible');
     expect(formatVaultCompatibilityReport(result)).toContain('- deposit -> deposit: ok');
     expect(formatVaultCompatibilityReport(result)).toContain('- claim_rewards: ok');
+  });
+
+  it('keeps the example JSON output aligned with generated compatibility results', () => {
+    const result = compareVaultInterfaceCompatibility(
+      SDK_VAULT_INTERFACE_FIXTURE,
+      loadNetworkFixture()
+    );
+    const output = loadExampleOutput();
+
+    expect(output.compatible).toBe(result.compatible);
+    expect(output.methods).toEqual(
+      result.methods.map((method) => ({
+        sdkName: method.sdkName,
+        networkName: method.networkName,
+        status:
+          method.methodExists && method.methodKindMatches && method.argumentOrderMatches
+            ? 'ok'
+            : 'mismatch',
+      }))
+    );
+    expect(output.events).toEqual(
+      result.events.map((event) => ({
+        name: event.name,
+        status:
+          event.eventExists && event.topicsMatch && event.dataShapeMatches
+            ? 'ok'
+            : 'mismatch',
+      }))
+    );
   });
 
   it('detects missing Network methods', () => {
