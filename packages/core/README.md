@@ -208,6 +208,21 @@ const timeout = transactionTimeout('abc123');
 
 All helper functions validate inputs and trim whitespace from hashes.
 
+### SDK-to-Network compatibility fixtures
+
+The core package exports static Vault compatibility expectations:
+
+```ts
+import {
+  SDK_VAULT_INTERFACE_FIXTURE,
+  compareVaultInterfaceCompatibility
+} from '@axionvera/core';
+```
+
+Use these helpers with `schemas/network-vault-interface.fixture.json` to check
+that SDK method names, argument order, and event expectations still match the
+Network Vault interface before live testnet integration is available.
+
 ### Transaction polling
 
 Use `waitForTransaction()` to poll for transaction status:
