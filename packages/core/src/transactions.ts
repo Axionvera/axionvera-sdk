@@ -1,6 +1,7 @@
 import { TransactionTimeoutError, ValidationError } from './errors';
 import type {
   AmountInput,
+  UnsignedTransactionSigningRequest,
   TransactionActionResult,
   TransactionResult,
   TransactionStatus,
@@ -315,6 +316,76 @@ export interface TransactionSubmissionRequestInput {
   signerPublicKey?: string;
   /** Optional metadata for the transaction submission */
   metadata?: Record<string, unknown>;
+}
+
+export interface UnsignedTransactionSigningRequestInput {
+  /** The unsigned Stellar transaction envelope XDR to send to a wallet */
+  unsignedXdr: string;
+  /** The network passphrase used when preparing the unsigned transaction */
+  networkPassphrase: string;
+  /** Optional account public key to request as the signing account */
+  accountToSign?: string;
+  /** Optional app metadata to carry through the signing pipeline */
+  metadata?: Record<string, unknown>;
+}
+
+const BASE64_XDR_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
+
+/**
+ * Validates a Stellar transaction envelope XDR string enough for SDK boundary
+ * checks before handing it to a wallet provider.
+ */
+export function validateUnsignedTransactionXdr(unsignedXdr: unknown): string {
+  if (typeof unsignedXdr !== 'string' || !unsignedXdr.trim()) {
+    throw new ValidationError('unsignedXdr is required and must be a non-empty string');
+  }
+
+  const trimmed = unsignedXdr.trim();
+
+  if (trimmed.length % 4 !== 0 || !BASE64_XDR_PATTERN.test(trimmed)) {
+    throw new ValidationError('unsignedXdr must be a base64-encoded XDR string');
+  }
+
+  return trimmed;
+}
+
+/**
+ * Validates and builds a provider-generic wallet signing request from an
+ * unsigned transaction XDR.
+ */
+export function prepareUnsignedTransactionSigningRequest(
+  input: UnsignedTransactionSigningRequestInput
+): UnsignedTransactionSigningRequest {
+  const unsignedXdr = validateUnsignedTransactionXdr(input.unsignedXdr);
+
+  if (typeof input.networkPassphrase !== 'string' || !input.networkPassphrase.trim()) {
+    throw new ValidationError('networkPassphrase is required and must be a non-empty string');
+  }
+
+  if (input.accountToSign !== undefined) {
+    if (typeof input.accountToSign !== 'string' || !input.accountToSign.trim()) {
+      throw new ValidationError('accountToSign must be a non-empty string when provided');
+    }
+  }
+
+  if (input.metadata !== undefined && (typeof input.metadata !== 'object' || input.metadata === null)) {
+    throw new ValidationError('metadata must be an object when provided');
+  }
+
+  const request: UnsignedTransactionSigningRequest = {
+    unsignedXdr,
+    networkPassphrase: input.networkPassphrase.trim(),
+  };
+
+  if (input.accountToSign !== undefined) {
+    request.accountToSign = input.accountToSign.trim();
+  }
+
+  if (input.metadata !== undefined) {
+    request.metadata = input.metadata;
+  }
+
+  return request;
 }
 
 /**
