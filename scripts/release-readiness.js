@@ -73,6 +73,7 @@ const CONFIG = {
     'examples/execution-examples.ts',
     'examples/mock-simulation-example.ts',
     'examples/mock-wallet-signing-pipeline.ts',
+    'examples/react-testnet-flow.tsx',
     'examples/react-vault-example.tsx',
     'examples/sdk-network-compatibility-example.ts',
   ],
