@@ -1,4 +1,5 @@
 export * from './client';
+export * from './compatibility';
 export * from './contracts/vault';
 export * from './soroban';
 export * from './errors';
