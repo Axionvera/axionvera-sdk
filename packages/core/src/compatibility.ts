@@ -152,6 +152,28 @@ function argumentsMatch(
   });
 }
 
+function stringArraysMatch(expected: readonly string[], actual: readonly string[]): boolean {
+  if (expected.length !== actual.length) {
+    return false;
+  }
+
+  return expected.every((value, index) => actual[index] === value);
+}
+
+function dataShapeMatches(
+  expected: Record<string, string>,
+  actual: Record<string, string>
+): boolean {
+  const expectedEntries = Object.entries(expected);
+  const actualEntries = Object.entries(actual);
+
+  if (expectedEntries.length !== actualEntries.length) {
+    return false;
+  }
+
+  return expectedEntries.every(([key, value]) => actual[key] === value);
+}
+
 export function compareVaultInterfaceMethods(
   sdkFixture: VaultInterfaceCompatibilityFixture,
   networkFixture: NetworkVaultInterfaceFixture
@@ -170,6 +192,28 @@ export function compareVaultInterfaceMethods(
       argumentOrderMatches: argumentsMatch(sdkMethod.arguments, actualArguments),
       expectedArguments: sdkMethod.arguments,
       actualArguments,
+    };
+  });
+}
+
+export function compareVaultInterfaceEvents(
+  sdkFixture: VaultInterfaceCompatibilityFixture,
+  networkFixture: NetworkVaultInterfaceFixture
+): EventCompatibilityResult[] {
+  return sdkFixture.events.map((sdkEvent) => {
+    const networkEvent = networkFixture.events.find((event) => event.name === sdkEvent.name);
+    const actualTopics = networkEvent?.topics ?? [];
+    const actualData = networkEvent?.data ?? {};
+
+    return {
+      name: sdkEvent.name,
+      eventExists: Boolean(networkEvent),
+      topicsMatch: stringArraysMatch(sdkEvent.topics, actualTopics),
+      dataShapeMatches: dataShapeMatches(sdkEvent.data, actualData),
+      expectedTopics: sdkEvent.topics,
+      actualTopics,
+      expectedData: sdkEvent.data,
+      actualData,
     };
   });
 }
