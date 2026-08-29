@@ -112,7 +112,7 @@ function App() {
 Complete, copyable examples for each package live in the package READMEs: [`@axionvera/core`](./packages/core/README.md) and [`@axionvera/react`](./packages/react/README.md).
 
 The repository also includes a provider-generic signing example at
-[`examples/mock-wallet-signing-pipeline.ts`](./examples/mock-wallet-signing-pipeline.ts).
+[`examples/mock-wallet-signing-pipeline.ts`](./examples/mock-wallet-signing-pipeline.ts) and a React testnet flow at [`examples/react-testnet-flow.tsx`](./examples/react-testnet-flow.tsx).
 
 ## Architecture
 

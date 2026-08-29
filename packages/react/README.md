@@ -274,6 +274,10 @@ For information about connecting React applications to real Network vault contra
 
 For a fully typed end-to-end component illustrating provider setup, wallet connection, vault reads, deposit execution, and error handling, see [`examples/react-vault-example.tsx`](../../examples/react-vault-example.tsx).
 
+## Testnet Flow Example
+
+For an example demonstrating the intended future testnet flow (including transaction polling, wallet readiness, and mocked config notes), see [`examples/react-testnet-flow.tsx`](../../examples/react-testnet-flow.tsx).
+
 ```tsx
 import { AxionveraProvider, useWallet, useVault } from '@axionvera/react';
 
