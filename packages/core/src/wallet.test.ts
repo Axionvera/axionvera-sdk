@@ -712,6 +712,44 @@ describe('createTransactionSigningPipeline', () => {
 
     await expect(pipeline.prepareAndSign(undefined)).rejects.toThrow(WalletError);
   });
+
+  it('throws ValidationError when created without a wallet', () => {
+    expect(() =>
+      createTransactionSigningPipeline({
+        wallet: null as unknown as WalletConnector,
+        prepareUnsignedTransaction: () => ({
+          unsignedXdr: TRANSACTION_XDR,
+          networkPassphrase: TESTNET_PASSPHRASE,
+        }),
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError when created without a preparer function', () => {
+    expect(() =>
+      createTransactionSigningPipeline({
+        wallet: new MockWalletConnector(),
+        prepareUnsignedTransaction: null as never,
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('surfaces preparation failures without calling wallet signing', async () => {
+    const wallet: WalletConnector = {
+      id: 'test',
+      name: 'Test Wallet',
+      connect: async () => ({ publicKey: 'GTEST' }),
+      signTransaction: vi.fn().mockResolvedValue('signed-xdr'),
+    };
+    const preparationError = new Error('simulation failed');
+    const pipeline = createTransactionSigningPipeline({
+      wallet,
+      prepareUnsignedTransaction: vi.fn().mockRejectedValue(preparationError),
+    });
+
+    await expect(pipeline.prepareAndSign(undefined)).rejects.toBe(preparationError);
+    expect(wallet.signTransaction).not.toHaveBeenCalled();
+  });
 });
 
 describe('checkWalletReadiness', () => {
