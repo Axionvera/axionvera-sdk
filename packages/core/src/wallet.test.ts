@@ -574,6 +574,31 @@ describe('requestWalletSignature', () => {
     });
   });
 
+  it('normalizes request fields before wallet signing', async () => {
+    const wallet: WalletConnector = {
+      id: 'test',
+      name: 'Test Wallet',
+      connect: async () => ({ publicKey: 'GTEST' }),
+      signTransaction: vi.fn().mockResolvedValue('signed-xdr'),
+    };
+
+    const result = await requestWalletSignature({
+      wallet,
+      request: {
+        unsignedXdr: `  ${TRANSACTION_XDR}  `,
+        networkPassphrase: `  ${TESTNET_PASSPHRASE}  `,
+        accountToSign: '  GTEST  ',
+      },
+    });
+
+    expect(wallet.signTransaction).toHaveBeenCalledWith(TRANSACTION_XDR, {
+      networkPassphrase: TESTNET_PASSPHRASE,
+      accountToSign: 'GTEST',
+    });
+    expect(result.unsignedXdr).toBe(TRANSACTION_XDR);
+    expect(result.accountToSign).toBe('GTEST');
+  });
+
   it('preserves request metadata outside wallet provider options', async () => {
     const metadata = { source: 'unit-test' };
     const wallet: WalletConnector = {
