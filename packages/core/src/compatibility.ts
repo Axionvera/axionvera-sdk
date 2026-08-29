@@ -137,3 +137,39 @@ export const SDK_VAULT_INTERFACE_FIXTURE: VaultInterfaceCompatibilityFixture = {
     },
   ],
 };
+
+function argumentsMatch(
+  expected: readonly CompatibilityArgumentExpectation[],
+  actual: readonly CompatibilityArgumentExpectation[]
+): boolean {
+  if (expected.length !== actual.length) {
+    return false;
+  }
+
+  return expected.every((argument, index) => {
+    const actualArgument = actual[index];
+    return actualArgument?.name === argument.name && actualArgument.type === argument.type;
+  });
+}
+
+export function compareVaultInterfaceMethods(
+  sdkFixture: VaultInterfaceCompatibilityFixture,
+  networkFixture: NetworkVaultInterfaceFixture
+): MethodCompatibilityResult[] {
+  return sdkFixture.methods.map((sdkMethod) => {
+    const networkMethod = networkFixture.methods.find(
+      (method) => method.name === sdkMethod.networkName
+    );
+    const actualArguments = networkMethod?.arguments ?? [];
+
+    return {
+      sdkName: sdkMethod.sdkName,
+      networkName: sdkMethod.networkName,
+      methodExists: Boolean(networkMethod),
+      methodKindMatches: networkMethod?.kind === sdkMethod.kind,
+      argumentOrderMatches: argumentsMatch(sdkMethod.arguments, actualArguments),
+      expectedArguments: sdkMethod.arguments,
+      actualArguments,
+    };
+  });
+}
