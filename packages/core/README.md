@@ -171,6 +171,14 @@ backend signer, or test double. The prepared request carries app metadata, but
 only XDR, network passphrase, and optional signing account are passed to the
 wallet. No real wallet extension is required for tests or examples.
 
+Related helpers:
+
+- `validateUnsignedTransactionXdr()` checks unsigned XDR at the SDK boundary.
+- `prepareUnsignedTransactionSigningRequest()` normalizes a signing request.
+- `requestWalletSignature()` signs an already prepared request.
+- `signedResultToTransactionSubmissionRequest()` maps signed output to the
+  existing submission request shape.
+
 ### Transaction result types
 
 The SDK provides normalized transaction result types for write actions:
