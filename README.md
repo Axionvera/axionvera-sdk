@@ -252,6 +252,25 @@ npm run build      # build all packages
 npm run test       # typecheck + build + unit tests
 ```
 
+### Release Readiness Check
+
+Before connecting to live testnet deployment, run the release readiness script to verify the SDK is ready:
+
+```bash
+node scripts/release-readiness.js          # Full check with quality commands
+node scripts/release-readiness.js --dry-run # File existence checks only
+```
+
+The script verifies:
+- Required documentation files (README.md, CONTRIBUTING.md, LICENSE, SECURITY.md)
+- Package README files (packages/core/README.md, packages/react/README.md)
+- Example files (execution, mock simulation, wallet signing, React vault, SDK compatibility)
+- Schema files (network-vault-interface.fixture.json)
+- Build outputs (packages/*/dist directories)
+- Quality commands (lint, typecheck, build, vitest)
+
+See [scripts/release-readiness.js](./scripts/release-readiness.js) for details.
+
 ## Contributing
 
 Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for details on the code of conduct and the process for submitting pull requests.
