@@ -16,7 +16,10 @@
     "lint": "npm run lint --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "build": "npm run build --workspaces",
-    "test": "npm run typecheck && npm run build && vitest run"
+    "test": "npm run typecheck && npm run build && vitest run",
+    "release-readiness": "node scripts/release-readiness.js",
+    "release-readiness:dry-run": "node scripts/release-readiness.js --dry-run",
+    "test-release-readiness": "node scripts/test-release-readiness.js"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
