@@ -24,7 +24,7 @@ async function prepareUnsignedDepositXdr(
 ): Promise<UnsignedTransactionSigningRequestInput> {
   // In a real app this function would build and simulate a Stellar/Soroban
   // transaction, then return transaction.toXDR() before any wallet signature.
-  const mockedUnsignedXdr = Buffer.from(`deposit:${input.sourceAccount}:${input.amount}`).toString('base64');
+  const mockedUnsignedXdr = 'AAAAAAAAAA==';
 
   return {
     unsignedXdr: mockedUnsignedXdr,
