@@ -94,4 +94,57 @@ describe('SDK-to-Network vault compatibility fixtures', () => {
     expect(formatVaultCompatibilityReport(result)).toContain('- deposit -> deposit: ok');
     expect(formatVaultCompatibilityReport(result)).toContain('- claim_rewards: ok');
   });
+
+  it('detects missing Network methods', () => {
+    const networkFixture = loadNetworkFixture();
+    const missingDeposit: NetworkVaultInterfaceFixture = {
+      ...networkFixture,
+      methods: networkFixture.methods.filter((method) => method.name !== 'deposit'),
+    };
+
+    const result = compareVaultInterfaceMethods(SDK_VAULT_INTERFACE_FIXTURE, missingDeposit);
+
+    expect(result.find((method) => method.networkName === 'deposit')?.methodExists).toBe(false);
+  });
+
+  it('detects argument order mismatches', () => {
+    const networkFixture = loadNetworkFixture();
+    const reorderedDeposit: NetworkVaultInterfaceFixture = {
+      ...networkFixture,
+      methods: networkFixture.methods.map((method) =>
+        method.name === 'deposit'
+          ? {
+              ...method,
+              arguments: [
+                { name: 'amount', type: 'i128' },
+                { name: 'from', type: 'Address' },
+              ],
+            }
+          : method
+      ),
+    };
+
+    const result = compareVaultInterfaceMethods(SDK_VAULT_INTERFACE_FIXTURE, reorderedDeposit);
+
+    expect(result.find((method) => method.networkName === 'deposit')?.argumentOrderMatches).toBe(false);
+  });
+
+  it('detects event topic mismatches', () => {
+    const networkFixture = loadNetworkFixture();
+    const renamedWithdrawTopic: NetworkVaultInterfaceFixture = {
+      ...networkFixture,
+      events: networkFixture.events.map((event) =>
+        event.name === 'withdraw'
+          ? {
+              ...event,
+              topics: ['withdraw', 'address'],
+            }
+          : event
+      ),
+    };
+
+    const result = compareVaultInterfaceEvents(SDK_VAULT_INTERFACE_FIXTURE, renamedWithdrawTopic);
+
+    expect(result.find((event) => event.name === 'withdraw')?.topicsMatch).toBe(false);
+  });
 });
