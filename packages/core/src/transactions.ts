@@ -389,6 +389,24 @@ export function prepareUnsignedTransactionSigningRequest(
 }
 
 /**
+ * Type guard for values that can be normalized as unsigned signing requests.
+ */
+export function isUnsignedTransactionSigningRequest(
+  value: unknown
+): value is UnsignedTransactionSigningRequest {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  try {
+    prepareUnsignedTransactionSigningRequest(value as UnsignedTransactionSigningRequestInput);
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
+/**
  * Validates and builds a transaction submission request.
  *
  * @param input - The request parameters to validate and build

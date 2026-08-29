@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { TransactionTimeoutError, ValidationError } from './errors';
 import {
   createContractCallRequest,
+  isUnsignedTransactionSigningRequest,
   normalizeAmount,
   normalizeTransactionResult,
   prepareUnsignedTransactionSigningRequest,
@@ -597,6 +598,28 @@ describe('prepareUnsignedTransactionSigningRequest', () => {
         metadata: null as any,
       }),
     ).toThrow(ValidationError);
+  });
+});
+
+describe('isUnsignedTransactionSigningRequest', () => {
+  it('returns true for a normalizable unsigned signing request', () => {
+    expect(
+      isUnsignedTransactionSigningRequest({
+        unsignedXdr: 'AAAAAAAAAA==',
+        networkPassphrase: 'Test SDF Network ; September 2015',
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for invalid unsigned signing request values', () => {
+    expect(isUnsignedTransactionSigningRequest(null)).toBe(false);
+    expect(isUnsignedTransactionSigningRequest({})).toBe(false);
+    expect(
+      isUnsignedTransactionSigningRequest({
+        unsignedXdr: 'not-xdr',
+        networkPassphrase: 'Test SDF Network ; September 2015',
+      }),
+    ).toBe(false);
   });
 });
 
