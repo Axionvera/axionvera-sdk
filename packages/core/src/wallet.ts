@@ -156,13 +156,17 @@ export async function requestWalletSignature(
 ): Promise<SignedTransactionResult> {
   const { wallet, request } = params;
   const prepared = prepareUnsignedTransactionSigningRequest(request);
-
-  const signedXdr = await signWithWallet({
+  const signParams: SignWithWalletParams = {
     wallet,
     transactionXdr: prepared.unsignedXdr,
     networkPassphrase: prepared.networkPassphrase,
-    accountToSign: prepared.accountToSign,
-  });
+  };
+
+  if (prepared.accountToSign !== undefined) {
+    signParams.accountToSign = prepared.accountToSign;
+  }
+
+  const signedXdr = await signWithWallet(signParams);
 
   return {
     ...prepared,
