@@ -193,4 +193,23 @@ describe('SDK-to-Network vault compatibility fixtures', () => {
 
     expect(result.find((event) => event.name === 'withdraw')?.topicsMatch).toBe(false);
   });
+
+  it('detects event data shape mismatches', () => {
+    const networkFixture = loadNetworkFixture();
+    const wrongDepositData: NetworkVaultInterfaceFixture = {
+      ...networkFixture,
+      events: networkFixture.events.map((event) =>
+        event.name === 'deposit'
+          ? {
+              ...event,
+              data: { value: 'i128' },
+            }
+          : event
+      ),
+    };
+
+    const result = compareVaultInterfaceEvents(SDK_VAULT_INTERFACE_FIXTURE, wrongDepositData);
+
+    expect(result.find((event) => event.name === 'deposit')?.dataShapeMatches).toBe(false);
+  });
 });
