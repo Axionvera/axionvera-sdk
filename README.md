@@ -239,6 +239,7 @@ A production-ready Soroban transaction submission layer is not shipped yet — p
 - [SDK Overview](./docs/sdk-overview.md)
 - [Usage Guide](./docs/usage-guide.md)
 - [Transaction Signing Pipeline](./docs/transaction-signing-pipeline.md)
+- [SDK-to-Network Compatibility Fixtures](./docs/sdk-network-compatibility.md)
 - [Configuration](./docs/configuration.md)
 
 ## Development
