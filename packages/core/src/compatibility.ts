@@ -1,10 +1,13 @@
+/** Read/write classification for a Network contract method. */
 export type CompatibilityMethodKind = 'read' | 'write';
 
+/** Expected argument name and Soroban-facing type for a contract method. */
 export interface CompatibilityArgumentExpectation {
   name: string;
   type: string;
 }
 
+/** SDK expectation for one Vault method and its Network method counterpart. */
 export interface CompatibilityMethodExpectation {
   sdkName: string;
   networkName: string;
@@ -12,12 +15,14 @@ export interface CompatibilityMethodExpectation {
   arguments: readonly CompatibilityArgumentExpectation[];
 }
 
+/** Expected event shape mirrored from the Network Vault interface. */
 export interface CompatibilityEventExpectation {
   name: string;
   topics: readonly string[];
   data: Record<string, string>;
 }
 
+/** SDK-side fixture describing the Vault interface expected by core helpers. */
 export interface VaultInterfaceCompatibilityFixture {
   schemaName: string;
   schemaVersion: string;
@@ -26,6 +31,7 @@ export interface VaultInterfaceCompatibilityFixture {
   events: readonly CompatibilityEventExpectation[];
 }
 
+/** Local static Network-side fixture used for SDK compatibility checks. */
 export interface NetworkVaultInterfaceFixture {
   schemaName: string;
   schemaVersion: string;
@@ -39,6 +45,7 @@ export interface NetworkVaultInterfaceFixture {
   events: readonly CompatibilityEventExpectation[];
 }
 
+/** Comparison result for one SDK method expectation against the Network fixture. */
 export interface MethodCompatibilityResult {
   sdkName: string;
   networkName: string;
@@ -49,6 +56,7 @@ export interface MethodCompatibilityResult {
   actualArguments: readonly CompatibilityArgumentExpectation[];
 }
 
+/** Comparison result for one SDK event expectation against the Network fixture. */
 export interface EventCompatibilityResult {
   name: string;
   eventExists: boolean;
@@ -60,12 +68,14 @@ export interface EventCompatibilityResult {
   actualData: Record<string, string>;
 }
 
+/** Complete Vault compatibility result for methods and events. */
 export interface VaultInterfaceCompatibilityResult {
   compatible: boolean;
   methods: readonly MethodCompatibilityResult[];
   events: readonly EventCompatibilityResult[];
 }
 
+/** SDK's static expectations for the Network Vault interface. */
 export const SDK_VAULT_INTERFACE_FIXTURE: VaultInterfaceCompatibilityFixture = {
   schemaName: 'sdk-vault-interface',
   schemaVersion: '2026-08-29.static',
@@ -174,6 +184,9 @@ function dataShapeMatches(
   return expectedEntries.every(([key, value]) => actual[key] === value);
 }
 
+/**
+ * Compares SDK Vault method expectations against a local Network fixture.
+ */
 export function compareVaultInterfaceMethods(
   sdkFixture: VaultInterfaceCompatibilityFixture,
   networkFixture: NetworkVaultInterfaceFixture
@@ -196,6 +209,9 @@ export function compareVaultInterfaceMethods(
   });
 }
 
+/**
+ * Compares SDK Vault event expectations against a local Network fixture.
+ */
 export function compareVaultInterfaceEvents(
   sdkFixture: VaultInterfaceCompatibilityFixture,
   networkFixture: NetworkVaultInterfaceFixture
@@ -218,6 +234,9 @@ export function compareVaultInterfaceEvents(
   });
 }
 
+/**
+ * Compares all SDK Vault method and event expectations against a Network fixture.
+ */
 export function compareVaultInterfaceCompatibility(
   sdkFixture: VaultInterfaceCompatibilityFixture,
   networkFixture: NetworkVaultInterfaceFixture
@@ -237,6 +256,9 @@ export function compareVaultInterfaceCompatibility(
   };
 }
 
+/**
+ * Formats a compact human-readable Vault compatibility report.
+ */
 export function formatVaultCompatibilityReport(
   result: VaultInterfaceCompatibilityResult
 ): string {
