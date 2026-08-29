@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { ValidationError, WalletError } from './errors';
 import {
+  createTransactionSigningPipeline,
   MockWalletConnector,
+  requestWalletSignature,
   signWithWallet,
   checkWalletReadiness,
   type WalletConnection,
@@ -526,6 +528,189 @@ describe('signWithWallet', () => {
         expect((error as WalletError).cause).toBe(originalError);
       }
     });
+  });
+});
+
+describe('requestWalletSignature', () => {
+  it('signs a provider-generic unsigned request with MockWalletConnector', async () => {
+    const wallet = new MockWalletConnector();
+    const result = await requestWalletSignature({
+      wallet,
+      request: {
+        unsignedXdr: TRANSACTION_XDR,
+        networkPassphrase: TESTNET_PASSPHRASE,
+      },
+    });
+
+    expect(result).toEqual({
+      unsignedXdr: TRANSACTION_XDR,
+      signedXdr: `signed:${TRANSACTION_XDR}`,
+      networkPassphrase: TESTNET_PASSPHRASE,
+      walletId: 'mock',
+      walletName: 'Mock Wallet',
+    });
+  });
+
+  it('passes accountToSign to the wallet connector', async () => {
+    const wallet: WalletConnector = {
+      id: 'test',
+      name: 'Test Wallet',
+      connect: async () => ({ publicKey: 'GTEST' }),
+      signTransaction: vi.fn().mockResolvedValue('signed-xdr'),
+    };
+
+    await requestWalletSignature({
+      wallet,
+      request: {
+        unsignedXdr: TRANSACTION_XDR,
+        networkPassphrase: TESTNET_PASSPHRASE,
+        accountToSign: 'GTEST',
+      },
+    });
+
+    expect(wallet.signTransaction).toHaveBeenCalledWith(TRANSACTION_XDR, {
+      networkPassphrase: TESTNET_PASSPHRASE,
+      accountToSign: 'GTEST',
+    });
+  });
+
+  it('preserves request metadata outside wallet provider options', async () => {
+    const metadata = { source: 'unit-test' };
+    const wallet: WalletConnector = {
+      id: 'test',
+      name: 'Test Wallet',
+      connect: async () => ({ publicKey: 'GTEST' }),
+      signTransaction: vi.fn().mockResolvedValue('signed-xdr'),
+    };
+
+    const result = await requestWalletSignature({
+      wallet,
+      request: {
+        unsignedXdr: TRANSACTION_XDR,
+        networkPassphrase: TESTNET_PASSPHRASE,
+        metadata,
+      },
+    });
+
+    expect(wallet.signTransaction).toHaveBeenCalledWith(TRANSACTION_XDR, {
+      networkPassphrase: TESTNET_PASSPHRASE,
+    });
+    expect(result.metadata).toBe(metadata);
+  });
+
+  it('validates unsigned XDR before calling the wallet', async () => {
+    const wallet: WalletConnector = {
+      id: 'test',
+      name: 'Test Wallet',
+      connect: async () => ({ publicKey: 'GTEST' }),
+      signTransaction: vi.fn().mockResolvedValue('signed-xdr'),
+    };
+
+    await expect(
+      requestWalletSignature({
+        wallet,
+        request: {
+          unsignedXdr: 'not-xdr',
+          networkPassphrase: TESTNET_PASSPHRASE,
+        },
+      }),
+    ).rejects.toThrow(ValidationError);
+
+    expect(wallet.signTransaction).not.toHaveBeenCalled();
+  });
+
+  it('wraps wallet signing failures as WalletError', async () => {
+    const wallet: WalletConnector = {
+      id: 'test',
+      name: 'Test Wallet',
+      connect: async () => ({ publicKey: 'GTEST' }),
+      signTransaction: vi.fn().mockRejectedValue(new Error('user rejected')),
+    };
+
+    await expect(
+      requestWalletSignature({
+        wallet,
+        request: {
+          unsignedXdr: TRANSACTION_XDR,
+          networkPassphrase: TESTNET_PASSPHRASE,
+        },
+      }),
+    ).rejects.toThrow(WalletError);
+  });
+});
+
+describe('createTransactionSigningPipeline', () => {
+  it('prepares and signs an unsigned transaction without provider-specific behavior', async () => {
+    const wallet = new MockWalletConnector('GTEST');
+    const pipeline = createTransactionSigningPipeline({
+      wallet,
+      prepareUnsignedTransaction: async ({ xdr }: { xdr: string }) => ({
+        unsignedXdr: xdr,
+        networkPassphrase: TESTNET_PASSPHRASE,
+        accountToSign: 'GTEST',
+      }),
+    });
+
+    const result = await pipeline.prepareAndSign({ xdr: TRANSACTION_XDR });
+
+    expect(result).toMatchObject({
+      unsignedXdr: TRANSACTION_XDR,
+      signedXdr: `signed:${TRANSACTION_XDR}`,
+      networkPassphrase: TESTNET_PASSPHRASE,
+      accountToSign: 'GTEST',
+      walletId: 'mock',
+    });
+  });
+
+  it('exposes prepare and sign steps independently', async () => {
+    const wallet = new MockWalletConnector();
+    const pipeline = createTransactionSigningPipeline({
+      wallet,
+      prepareUnsignedTransaction: () => ({
+        unsignedXdr: TRANSACTION_XDR,
+        networkPassphrase: TESTNET_PASSPHRASE,
+      }),
+    });
+
+    const prepared = await pipeline.prepare(undefined);
+    const signed = await pipeline.sign(prepared);
+
+    expect(prepared).toEqual({
+      unsignedXdr: TRANSACTION_XDR,
+      networkPassphrase: TESTNET_PASSPHRASE,
+    });
+    expect(signed.signedXdr).toBe(`signed:${TRANSACTION_XDR}`);
+  });
+
+  it('rejects invalid prepared unsigned XDR before signing', async () => {
+    const wallet = new MockWalletConnector();
+    const pipeline = createTransactionSigningPipeline({
+      wallet,
+      prepareUnsignedTransaction: () => ({
+        unsignedXdr: 'not-xdr',
+        networkPassphrase: TESTNET_PASSPHRASE,
+      }),
+    });
+
+    await expect(pipeline.prepareAndSign(undefined)).rejects.toThrow(ValidationError);
+  });
+
+  it('surfaces wallet signing failure from the pipeline', async () => {
+    const wallet: WalletConnector = {
+      id: 'test',
+      name: 'Test Wallet',
+      connect: async () => ({ publicKey: 'GTEST' }),
+      signTransaction: vi.fn().mockRejectedValue(new Error('signature declined')),
+    };
+    const pipeline = createTransactionSigningPipeline({
+      wallet,
+      prepareUnsignedTransaction: () => ({
+        unsignedXdr: TRANSACTION_XDR,
+        networkPassphrase: TESTNET_PASSPHRASE,
+      }),
+    });
+
+    await expect(pipeline.prepareAndSign(undefined)).rejects.toThrow(WalletError);
   });
 });
 
