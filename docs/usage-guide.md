@@ -111,7 +111,35 @@ STELLAR_PUBLIC_KEY=G... \
 npx ts-node examples/balanceExample.ts
 ```
 
-## 7) Recover a stuck transaction with a sponsor fee bump
+## 7) Prepare unsigned XDR and request wallet signing
+
+Use the signing pipeline when transaction construction and wallet signing live
+in different layers of your app:
+
+```ts
+import { MockWalletConnector, createTransactionSigningPipeline } from "axionvera-sdk";
+
+const wallet = new MockWalletConnector("G...");
+
+const pipeline = createTransactionSigningPipeline({
+  wallet,
+  async prepareUnsignedTransaction() {
+    return {
+      unsignedXdr: "AAAAAAAAAA==",
+      networkPassphrase: "Test SDF Network ; September 2015"
+    };
+  }
+});
+
+const signed = await pipeline.prepareAndSign(undefined);
+console.log(signed.signedXdr);
+```
+
+The SDK validates unsigned XDR before calling the wallet and only depends on the
+provider-generic `WalletConnector` interface. Tests and examples can use
+`MockWalletConnector`; no real wallet extension is required.
+
+## 8) Recover a stuck transaction with a sponsor fee bump
 
 Use `bumpTransactionFee` when the user already signed the original contract transaction, but the transaction is stuck in the mempool and a backend sponsor needs to raise the fee.
 
@@ -141,7 +169,7 @@ Workflow:
 
 This keeps the original contract payload intact while letting enterprise apps react to volatile fee markets.
 
-## 8) Access response metadata for diagnostics
+## 9) Access response metadata for diagnostics
 
 When debugging issues or filing support tickets, you can opt into **response metadata**
 that includes request IDs, timing information, and correlation identifiers. This is an
