@@ -7,6 +7,7 @@ import {
   normalizeAmount,
   normalizeTransactionResult,
   prepareUnsignedTransactionSigningRequest,
+  signedResultToTransactionSubmissionRequest,
   validateUnsignedTransactionXdr,
   waitForTransaction,
   validateTransactionSubmissionRequest,
@@ -494,6 +495,43 @@ describe('validateTransactionSubmissionRequest', () => {
       const result = validateTransactionSubmissionRequest(input);
 
       expect(result.metadata).toEqual({});
+    });
+  });
+});
+
+describe('signedResultToTransactionSubmissionRequest', () => {
+  it('maps a signed pipeline result to a validated submission request', () => {
+    const metadata = { source: 'pipeline' };
+    const result = signedResultToTransactionSubmissionRequest({
+      unsignedXdr: 'AAAAAAAAAA==',
+      signedXdr: 'BBBBBBBBBB==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+      accountToSign: 'GAXIONVERAMOCKPUBLICKEY',
+      metadata,
+      walletId: 'mock',
+      walletName: 'Mock Wallet',
+    });
+
+    expect(result).toEqual({
+      transactionXdr: 'BBBBBBBBBB==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+      signerPublicKey: 'GAXIONVERAMOCKPUBLICKEY',
+      metadata,
+    });
+  });
+
+  it('omits optional submission fields when they are absent', () => {
+    const result = signedResultToTransactionSubmissionRequest({
+      unsignedXdr: 'AAAAAAAAAA==',
+      signedXdr: 'BBBBBBBBBB==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+      walletId: 'mock',
+      walletName: 'Mock Wallet',
+    });
+
+    expect(result).toEqual({
+      transactionXdr: 'BBBBBBBBBB==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
     });
   });
 });

@@ -1,6 +1,7 @@
 import { TransactionTimeoutError, ValidationError } from './errors';
 import type {
   AmountInput,
+  SignedTransactionResult,
   UnsignedTransactionSigningRequest,
   TransactionActionResult,
   TransactionResult,
@@ -448,4 +449,26 @@ export function validateTransactionSubmissionRequest(
   }
 
   return result;
+}
+
+/**
+ * Builds a submission request from a wallet-signed transaction pipeline result.
+ */
+export function signedResultToTransactionSubmissionRequest(
+  result: SignedTransactionResult
+): TransactionSubmissionRequest {
+  const input: TransactionSubmissionRequestInput = {
+    transactionXdr: result.signedXdr,
+    networkPassphrase: result.networkPassphrase,
+  };
+
+  if (result.accountToSign !== undefined) {
+    input.signerPublicKey = result.accountToSign;
+  }
+
+  if (result.metadata !== undefined) {
+    input.metadata = result.metadata;
+  }
+
+  return validateTransactionSubmissionRequest(input);
 }
