@@ -217,3 +217,48 @@ export function compareVaultInterfaceEvents(
     };
   });
 }
+
+export function compareVaultInterfaceCompatibility(
+  sdkFixture: VaultInterfaceCompatibilityFixture,
+  networkFixture: NetworkVaultInterfaceFixture
+): VaultInterfaceCompatibilityResult {
+  const methods = compareVaultInterfaceMethods(sdkFixture, networkFixture);
+  const events = compareVaultInterfaceEvents(sdkFixture, networkFixture);
+  const compatible =
+    methods.every(
+      (method) => method.methodExists && method.methodKindMatches && method.argumentOrderMatches
+    ) &&
+    events.every((event) => event.eventExists && event.topicsMatch && event.dataShapeMatches);
+
+  return {
+    compatible,
+    methods,
+    events,
+  };
+}
+
+export function formatVaultCompatibilityReport(
+  result: VaultInterfaceCompatibilityResult
+): string {
+  const lines = [
+    `Vault compatibility: ${result.compatible ? 'compatible' : 'incompatible'}`,
+    'Methods:',
+    ...result.methods.map(
+      (method) =>
+        `- ${method.sdkName} -> ${method.networkName}: ${
+          method.methodExists && method.methodKindMatches && method.argumentOrderMatches
+            ? 'ok'
+            : 'mismatch'
+        }`
+    ),
+    'Events:',
+    ...result.events.map(
+      (event) =>
+        `- ${event.name}: ${
+          event.eventExists && event.topicsMatch && event.dataShapeMatches ? 'ok' : 'mismatch'
+        }`
+    ),
+  ];
+
+  return lines.join('\n');
+}
