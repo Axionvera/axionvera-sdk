@@ -148,6 +148,8 @@ const requiredFiles = [
   'packages/core/README.md',
   'packages/react/README.md',
   'examples/execution-examples.ts',
+  'examples/testnet-sdk-config.ts',
+  'examples/testnet-sdk-config.json',
   'schemas/network-vault-interface.fixture.json',
 ];
 

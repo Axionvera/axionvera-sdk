@@ -112,7 +112,7 @@ function App() {
 Complete, copyable examples for each package live in the package READMEs: [`@axionvera/core`](./packages/core/README.md) and [`@axionvera/react`](./packages/react/README.md).
 
 The repository also includes a provider-generic signing example at
-[`examples/mock-wallet-signing-pipeline.ts`](./examples/mock-wallet-signing-pipeline.ts) and a React testnet flow at [`examples/react-testnet-flow.tsx`](./examples/react-testnet-flow.tsx).
+[`examples/mock-wallet-signing-pipeline.ts`](./examples/mock-wallet-signing-pipeline.ts), a placeholder-only SDK testnet configuration at [`examples/testnet-sdk-config.ts`](./examples/testnet-sdk-config.ts), and a React testnet flow at [`examples/react-testnet-flow.tsx`](./examples/react-testnet-flow.tsx).
 
 ## Architecture
 
@@ -240,7 +240,7 @@ A production-ready Soroban transaction submission layer is not shipped yet — p
 - [Usage Guide](./docs/usage-guide.md)
 - [Transaction Signing Pipeline](./docs/transaction-signing-pipeline.md)
 - [SDK-to-Network Compatibility Fixtures](./docs/sdk-network-compatibility.md)
-- [Configuration](./docs/configuration.md)
+- [Configuration](./docs/configuration.md) — including testnet RPC, passphrase, token, and placeholder contract examples
 
 ## Development
 

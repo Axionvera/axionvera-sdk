@@ -24,6 +24,24 @@ const health = await client.getHealth();
 const transaction = await client.getTransaction('TX_HASH');
 ```
 
+### Testnet configuration
+
+The `testnet` preset uses the Stellar testnet RPC endpoint and the exact passphrase
+`Test SDF Network ; September 2015`:
+
+```ts
+import { AxionveraClient } from '@axionvera/core';
+
+const client = new AxionveraClient({ network: 'testnet' });
+console.log(client.getNetworkConfig());
+```
+
+Use [`examples/testnet-sdk-config.json`](../../examples/testnet-sdk-config.json) as a
+complete placeholder-only configuration. It includes the vault, deposit-token, and
+reward-token contract ID fields. Maintainers will provide real deployed contract IDs
+after deployment; replace every `YOUR_...` value before live integration. The SDK
+configuration example is intentionally safe and contains no secrets or private keys.
+
 ### Configure a vault contract with a mock invoker
 
 `VaultContract` delegates every call to a `ContractInvoker`. Provide a real adapter for production, or a mock for development and tests:
