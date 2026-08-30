@@ -88,4 +88,24 @@ export class AxionveraClient {
   async getTransaction(hash: string): Promise<TransactionResult> {
     return this.transport.call<TransactionResult, { hash: string }>('getTransaction', { hash });
   }
+
+  /**
+   * Submits a signed transaction XDR to the network.
+   * 
+   * @param transactionXdr - The base64-encoded signed transaction envelope XDR
+   * @returns The raw RPC response result
+   */
+  async sendTransaction(transactionXdr: string): Promise<unknown> {
+    return this.transport.call('sendTransaction', { transaction: transactionXdr });
+  }
+
+  /**
+   * Simulates a transaction XDR to estimate resources and preview results.
+   * 
+   * @param transactionXdr - The base64-encoded transaction envelope XDR
+   * @returns The raw RPC response result
+   */
+  async simulateTransaction(transactionXdr: string): Promise<unknown> {
+    return this.transport.call('simulateTransaction', { transaction: transactionXdr });
+  }
 }
