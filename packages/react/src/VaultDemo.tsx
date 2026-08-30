@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useVault, type UseVaultOptions } from './useVault';
 import { useWallet } from './useWallet';
 import type { VaultInfo, VaultBalance, VaultReward } from '@axionvera/core';
@@ -37,7 +37,7 @@ export function VaultDemo({ contractId, invoker }: VaultDemoProps) {
   } = useVault({
     contractId,
     invoker,
-    walletAddress: publicKey
+    walletAddress: publicKey ?? null
   });
 
   const [vaultInfo, setVaultInfo] = useState<VaultInfo | null>(null);
@@ -86,7 +86,7 @@ export function VaultDemo({ contractId, invoker }: VaultDemoProps) {
         {isConnected ? (
           <div>
             <p>Connected: <code title={publicKey ?? ''}>{publicKey?.slice(0, 6)}...{publicKey?.slice(-6)}</code></p>
-            <p>Readiness: <strong>{readiness}</strong> {isReady ? '✅' : '❌'}</p>
+            <p>Readiness: <strong>{isReady ? 'Ready' : readiness.reason ?? 'Not Ready'}</strong> {isReady ? '✅' : '❌'}</p>
             <button onClick={() => disconnect()}>Disconnect</button>
           </div>
         ) : (

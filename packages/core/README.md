@@ -370,6 +370,31 @@ npm run typecheck
 npm run build
 ```
 
+### SDK Smoke Test (Core Contributor Workflow)
+
+The core SDK ships a contributor-safe smoke test script template that defaults to
+mocked/dry-run mode — no live RPC calls and no real contract IDs required.
+
+```bash
+# From the monorepo root (SAFE DEFAULT):
+npm run smoke-test
+
+# Or directly from the core package workspace:
+cd packages/core && node ../../scripts/smoke-test-sdk.js
+```
+
+The script validates the smoke config against
+[schemas/smoke-test-config.schema.json](file:///c:/Users/Muhammad/.trae/Grantfox/axionvera-sdk/schemas/smoke-test-config.schema.json),
+exercises each required contract method in `mocked` mode, and emits a JSON report
+listing the number of live RPC calls and write submissions (both zero for
+contributor runs).
+
+For maintainer-only live testnet validation, see the full walkthrough in
+[docs/smoke-test-maintainer-guide.md](../../docs/smoke-test-maintainer-guide.md),
+which covers the dual `--mode live --no-dry-run` invocation, local env guards
+(`AXIONVERA_MAINTAINER=1`, `NODE_ENV=maintenance`), and real contract ID handoff
+requirements.
+
 ## Maintainer Integration
 
 For information about connecting to real Network vault contracts and implementing live transaction submission, see the [Maintainer Handoff Guide](../../docs/maintainer-handoff.md). This guide explains the maintainer-only actions required for real testnet integration, including contract ID handoff, wallet signing, RPC submission, and transaction polling.
