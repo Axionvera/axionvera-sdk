@@ -6,15 +6,17 @@ import {
   useState,
   type ReactNode
 } from 'react';
-import { checkWalletReadiness, type WalletConnection, type WalletConnector, type WalletReadiness } from '@axionvera/core';
+import { checkWalletReadiness, type WalletConnection, type WalletConnector, type WalletReadiness, type ContractInvoker } from '@axionvera/core';
 
 export interface AxionveraProviderProps {
   wallet?: WalletConnector;
+  invoker?: ContractInvoker;
   children: ReactNode;
 }
 
 export interface AxionveraReactContextValue {
   wallet: WalletConnector | null;
+  invoker: ContractInvoker | null;
   connection: WalletConnection | null;
   isConnected: boolean;
   isReady: boolean;
@@ -27,7 +29,7 @@ export interface AxionveraReactContextValue {
 
 const AxionveraReactContext = createContext<AxionveraReactContextValue | undefined>(undefined);
 
-export function AxionveraProvider({ wallet, children }: AxionveraProviderProps): JSX.Element {
+export function AxionveraProvider({ wallet, invoker, children }: AxionveraProviderProps): JSX.Element {
   const [connection, setConnection] = useState<WalletConnection | null>(null);
   const [error, setError] = useState<Error | null>(null);
 
@@ -76,6 +78,7 @@ export function AxionveraProvider({ wallet, children }: AxionveraProviderProps):
   const value = useMemo<AxionveraReactContextValue>(
     () => ({
       wallet: wallet ?? null,
+      invoker: invoker ?? null,
       connection,
       isConnected: connection !== null,
       isReady: readiness.isReady,
@@ -85,7 +88,7 @@ export function AxionveraProvider({ wallet, children }: AxionveraProviderProps):
       disconnect,
       clearError
     }),
-    [wallet, connection, readiness, error, connect, disconnect, clearError]
+    [wallet, invoker, connection, readiness, error, connect, disconnect, clearError]
   );
 
   return (
