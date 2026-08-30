@@ -1,0 +1,25 @@
+{
+  "network": "testnet",
+  "mode": "mocked",
+  "contracts": {
+    "vault": {
+      "contractId": "PLACEHOLDER_VAULT_AFTER_NETWORK_DEPLOY",
+      "requiredMethods": ["getInfo", "getBalance", "getPendingRewards", "deposit", "withdraw", "claimRewards"],
+      "readArgs": {
+        "getBalance": ["GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"],
+        "getPendingRewards": ["GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"]
+      },
+      "writeDisabled": true
+    }
+  },
+  "wallet": {
+    "useMock": true,
+    "address": "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"
+  },
+  "options": {
+    "dryRun": true,
+    "timeoutMs": 30000,
+    "verbose": false,
+    "outputFile": "examples/smoke-test-output.json"
+  }
+}

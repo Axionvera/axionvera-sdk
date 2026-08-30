@@ -11,6 +11,7 @@
 - 📦 **Placeholder Support**: Support for development-time placeholder contract IDs with explicit opt-in.
 - 🚀 **MVP Demo Workflow**: A ready-to-use React component (`VaultDemo`) demonstrating a complete vault interaction workflow.
 - 📦 **Release Packet Generator**: A maintainer tool for collecting and verifying non-secret artifacts before release.
+- 🧪 **Contributor-Safe Smoke Tests**: Repeatable offline smoke test template for SDK validation (mocked by default; live mode is maintainer-only).
 - 🏗 **Soroban Native**: Built for the latest Soroban smart contract features.
 
 ## Packages
@@ -257,6 +258,41 @@ npm run typecheck  # TypeScript type checking
 npm run build      # build all packages
 npm run test       # typecheck + build + unit tests
 ```
+
+### SDK Smoke Test (Contributor-Safe by Default)
+
+After any meaningful change to the SDK, run the offline-safe smoke test template to
+validate the plumbing. This always defaults to **mocked + dry-run** mode — no real
+RPC calls, no secrets, and no write submissions are ever required:
+
+```bash
+# Safe default: mocked mode, reads examples/smoke-test-input.json
+npm run smoke-test
+
+# Same with explicit plan-only dry-run and a custom config:
+npm run smoke-test -- --config examples/smoke-test-input.json --mode dry-run
+
+# Example output written to examples/smoke-test-output.json (already committed)
+```
+
+Under the hood this runs `node scripts/smoke-test-sdk.js`.  The script:
+
+- Validates your config against the schema in
+  [schemas/smoke-test-config.schema.json](file:///c:/Users/Muhammad/.trae/Grantfox/axionvera-sdk/schemas/smoke-test-config.schema.json).
+- Accepts `PLACEHOLDER_*` contract IDs so contributors never need real IDs.
+- Generates a report to `options.outputFile` with exact counts of live RPC calls /
+  write submissions.
+- **Refuses** to enter maintainer live mode unless both `--mode live` AND
+  `--no-dry-run` are passed AND the env guards `AXIONVERA_MAINTAINER=1` +
+  `NODE_ENV=maintenance` are set locally.
+
+The dry-run validation harness exercises all eight safe paths and runs in <5 s:
+
+```bash
+node scripts/test-smoke-test.js
+```
+
+See the full guide at [docs/smoke-test-maintainer-guide.md](./docs/smoke-test-maintainer-guide.md).
 
 ### Release Readiness Check
 

@@ -17,6 +17,10 @@
     "typecheck": "npm run typecheck --workspaces",
     "build": "npm run build --workspaces",
     "test": "npm run typecheck && npm run build && vitest run",
+    "smoke-test": "node scripts/smoke-test-sdk.js",
+    "smoke-test:dry-run": "node scripts/smoke-test-sdk.js --mode dry-run",
+    "smoke-test:plan": "node scripts/smoke-test-sdk.js --mode dry-run --verbose",
+    "test-smoke-test": "node scripts/test-smoke-test.js",
     "release-readiness": "node scripts/release-readiness.js",
     "release-readiness:dry-run": "node scripts/release-readiness.js --dry-run",
     "test-release-readiness": "node scripts/test-release-readiness.js"
