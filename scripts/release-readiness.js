@@ -76,6 +76,8 @@ const CONFIG = {
     'examples/react-testnet-flow.tsx',
     'examples/react-vault-example.tsx',
     'examples/sdk-network-compatibility-example.ts',
+    'examples/testnet-sdk-config.ts',
+    'examples/testnet-sdk-config.json',
   ],
   requiredSchemas: [
     'schemas/network-vault-interface.fixture.json',
