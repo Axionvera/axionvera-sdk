@@ -50,6 +50,33 @@ function WalletStatus() {
 }
 ```
 
+### VaultDemo (MVP Demo Workflow)
+
+`VaultDemo` is a ready-to-use component for demonstrating the vault interaction workflow. It's useful for building MVP dashboards or understanding how the hooks fit together:
+
+```tsx
+import { VaultDemo } from '@axionvera/react';
+import { TestContractInvoker } from '@axionvera/core';
+
+const invoker = new TestContractInvoker();
+
+function App() {
+  return (
+    <VaultDemo 
+      contractId="CA..." 
+      invoker={invoker} 
+    />
+  );
+}
+```
+
+The component displays:
+- Wallet connection and readiness status
+- Vault statistics (Total deposits, Reward pool)
+- User position (Balance, Pending rewards)
+- Actions for deposit, withdraw, and claim
+- Real-time transaction status and error handling
+
 ### useVault
 
 `useVault` creates a `VaultContract` and exposes its read and write helpers plus submitting and error state:
