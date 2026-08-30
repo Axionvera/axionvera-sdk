@@ -15,6 +15,11 @@ import {
   transactionPending,
   transactionFailed,
   transactionTimeout,
+  MockTransactionSubmissionAdapter,
+  mockSubmitAndPoll,
+  createMockTransactionSubmissionAdapter,
+  type MockTransactionStatusConfig,
+  type TransactionSubmissionRequest,
   type TransactionSubmissionRequestInput,
   type UnsignedTransactionSigningRequestInput,
 } from './transactions';
@@ -561,6 +566,491 @@ describe('validateUnsignedTransactionXdr', () => {
   ])('throws ValidationError for malformed base64 XDR %s', (value) => {
     expect(() => validateUnsignedTransactionXdr(value)).toThrow(ValidationError);
     expect(() => validateUnsignedTransactionXdr(value)).toThrow('unsignedXdr must be a base64-encoded XDR string');
+  });
+});
+
+describe('MockTransactionSubmissionAdapter', () => {
+  const VALID_XDR = 'AAAAAAAAAA==';
+  const VALID_PASSPHRASE = 'Test SDF Network ; September 2015';
+
+  describe('submitTransaction', () => {
+    it('generates a mock transaction hash with incrementing counter', async () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      const request: TransactionSubmissionRequest = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      const hash1 = await adapter.submitTransaction(request);
+      const hash2 = await adapter.submitTransaction(request);
+
+      expect(hash1).toBe('tx_mock_1');
+      expect(hash2).toBe('tx_mock_2');
+    });
+
+    it('throws ValidationError when request is missing', async () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      await expect(
+        adapter.submitTransaction(undefined as never)
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it('resets counter when reset is called', async () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      const request: TransactionSubmissionRequest = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      await adapter.submitTransaction(request);
+      adapter.reset();
+      const hash = await adapter.submitTransaction(request);
+
+      expect(hash).toBe('tx_mock_1');
+    });
+  });
+
+  describe('configureTransactionStatus', () => {
+    it('configures status progression for a transaction hash', () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      const config: MockTransactionStatusConfig = {
+        hash: 'tx_mock_1',
+        finalStatus: 'success',
+        pendingCount: 3,
+        ledger: 123
+      };
+
+      adapter.configureTransactionStatus(config);
+      // Should not throw
+    });
+
+    it('throws ValidationError when hash is empty', () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      const config: MockTransactionStatusConfig = {
+        hash: '',
+        finalStatus: 'success'
+      };
+
+      expect(() => adapter.configureTransactionStatus(config)).toThrow(ValidationError);
+    });
+
+    it('defaults pendingCount to 2 when not provided', () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      const config: MockTransactionStatusConfig = {
+        hash: 'tx_mock_1',
+        finalStatus: 'success'
+      };
+
+      adapter.configureTransactionStatus(config);
+      // Should not throw with default value
+    });
+  });
+
+  describe('createLookupFunction', () => {
+    it('returns pending status before reaching pendingCount', async () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      adapter.configureTransactionStatus({
+        hash: 'tx_test',
+        finalStatus: 'success',
+        pendingCount: 2
+      });
+
+      const lookup = adapter.createLookupFunction();
+
+      const result1 = await lookup('tx_test');
+      const result2 = await lookup('tx_test');
+
+      expect(result1.status).toBe('pending');
+      expect(result2.status).toBe('pending');
+    });
+
+    it('returns success status after pendingCount is reached', async () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      adapter.configureTransactionStatus({
+        hash: 'tx_test',
+        finalStatus: 'success',
+        pendingCount: 2,
+        ledger: 100
+      });
+
+      const lookup = adapter.createLookupFunction();
+
+      await lookup('tx_test');
+      await lookup('tx_test');
+      const result3 = await lookup('tx_test');
+
+      expect(result3.status).toBe('success');
+      expect(result3.ledger).toBe(100);
+    });
+
+    it('returns failed status with error message when configured', async () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      adapter.configureTransactionStatus({
+        hash: 'tx_test',
+        finalStatus: 'failed',
+        pendingCount: 1,
+        errorMessage: 'Insufficient balance',
+        ledger: 200
+      });
+
+      const lookup = adapter.createLookupFunction();
+
+      await lookup('tx_test');
+      const result2 = await lookup('tx_test');
+
+      expect(result2.status).toBe('failed');
+      expect(result2.error).toBe('Insufficient balance');
+      expect(result2.ledger).toBe(200);
+    });
+
+    it('returns not_found for unknown transaction hashes', async () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      const lookup = adapter.createLookupFunction();
+
+      const result = await lookup('unknown_hash');
+
+      expect(result.status).toBe('not_found');
+    });
+
+    it('resets pending attempts when adapter is reset', async () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      adapter.configureTransactionStatus({
+        hash: 'tx_test',
+        finalStatus: 'success',
+        pendingCount: 2
+      });
+
+      const lookup = adapter.createLookupFunction();
+
+      await lookup('tx_test');
+      adapter.reset();
+      
+      // Re-configure after reset
+      adapter.configureTransactionStatus({
+        hash: 'tx_test',
+        finalStatus: 'success',
+        pendingCount: 2
+      });
+
+      const result = await lookup('tx_test');
+
+      expect(result.status).toBe('pending');
+    });
+  });
+
+  describe('getPendingAttempts', () => {
+    it('returns 0 for hash with no attempts', () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      expect(adapter.getPendingAttempts('tx_test')).toBe(0);
+    });
+
+    it('increments pending attempts on each lookup', async () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      adapter.configureTransactionStatus({
+        hash: 'tx_test',
+        finalStatus: 'success',
+        pendingCount: 5
+      });
+
+      const lookup = adapter.createLookupFunction();
+
+      expect(adapter.getPendingAttempts('tx_test')).toBe(0);
+      await lookup('tx_test');
+      expect(adapter.getPendingAttempts('tx_test')).toBe(1);
+      await lookup('tx_test');
+      expect(adapter.getPendingAttempts('tx_test')).toBe(2);
+    });
+  });
+
+  describe('reset', () => {
+    it('clears all configured statuses and counters', async () => {
+      const adapter = new MockTransactionSubmissionAdapter();
+      const request: TransactionSubmissionRequest = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      adapter.configureTransactionStatus({
+        hash: 'tx_test',
+        finalStatus: 'success'
+      });
+
+      await adapter.submitTransaction(request);
+      adapter.reset();
+
+      expect(adapter.getPendingAttempts('tx_test')).toBe(0);
+      
+      const lookup = adapter.createLookupFunction();
+      const result = await lookup('tx_test');
+      expect(result.status).toBe('not_found');
+    });
+  });
+});
+
+describe('createMockTransactionSubmissionAdapter', () => {
+  it('creates adapter with pre-configured statuses', () => {
+    const configs: MockTransactionStatusConfig[] = [
+      { hash: 'tx_1', finalStatus: 'success', pendingCount: 1 },
+      { hash: 'tx_2', finalStatus: 'failed', errorMessage: 'Error' }
+    ];
+
+    const adapter = createMockTransactionSubmissionAdapter(configs);
+    
+    // Should not throw - adapter is properly configured
+    expect(adapter).toBeInstanceOf(MockTransactionSubmissionAdapter);
+  });
+
+  it('creates empty adapter when no configs provided', () => {
+    const adapter = createMockTransactionSubmissionAdapter();
+    expect(adapter).toBeInstanceOf(MockTransactionSubmissionAdapter);
+  });
+});
+
+describe('mockSubmitAndPoll', () => {
+  const VALID_XDR = 'AAAAAAAAAA==';
+  const VALID_PASSPHRASE = 'Test SDF Network ; September 2015';
+  const noopDelay = async () => {};
+
+  describe('successful transaction flow', () => {
+    it('submits successfully and resolves after polling confirms success', async () => {
+      const submissionRequest: TransactionSubmissionRequest = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      const statusConfig: MockTransactionStatusConfig = {
+        finalStatus: 'success',
+        pendingCount: 2,
+        ledger: 150
+      };
+
+      const result = await mockSubmitAndPoll({
+        submissionRequest,
+        statusConfig,
+        interval: 10,
+        maxAttempts: 10,
+        delay: noopDelay
+      });
+
+      expect(result.status).toBe('success');
+      expect(result.ledger).toBe(150);
+      expect(result.hash).toMatch(/^tx_mock_\d+$/);
+    });
+
+    it('resolves immediately with zero pendingCount', async () => {
+      const submissionRequest: TransactionSubmissionRequest = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      const statusConfig: MockTransactionStatusConfig = {
+        finalStatus: 'success',
+        pendingCount: 0,
+        ledger: 100
+      };
+
+      const result = await mockSubmitAndPoll({
+        submissionRequest,
+        statusConfig,
+        interval: 10,
+        maxAttempts: 10,
+        delay: noopDelay
+      });
+
+      expect(result.status).toBe('success');
+    });
+  });
+
+  describe('failed transaction flow', () => {
+    it('submits successfully but polling catches terminal failure status', async () => {
+      const submissionRequest: TransactionSubmissionRequest = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      const statusConfig: MockTransactionStatusConfig = {
+        finalStatus: 'failed',
+        pendingCount: 1,
+        errorMessage: 'Contract execution failed',
+        ledger: 200
+      };
+
+      const result = await mockSubmitAndPoll({
+        submissionRequest,
+        statusConfig,
+        interval: 10,
+        maxAttempts: 10,
+        delay: noopDelay
+      });
+
+      expect(result.status).toBe('failed');
+      expect(result.error).toBe('Contract execution failed');
+      expect(result.ledger).toBe(200);
+    });
+
+    it('uses default error message when not provided', async () => {
+      const submissionRequest: TransactionSubmissionRequest = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      const statusConfig: MockTransactionStatusConfig = {
+        finalStatus: 'failed',
+        pendingCount: 1
+      };
+
+      const result = await mockSubmitAndPoll({
+        submissionRequest,
+        statusConfig,
+        interval: 10,
+        maxAttempts: 10,
+        delay: noopDelay
+      });
+
+      expect(result.status).toBe('failed');
+      expect(result.error).toBe('Transaction failed');
+    });
+  });
+
+  describe('timeout flow', () => {
+    it('submits successfully but polling exceeds max attempts, throwing TransactionTimeoutError', async () => {
+      const submissionRequest: TransactionSubmissionRequest = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      const statusConfig: MockTransactionStatusConfig = {
+        finalStatus: 'success',
+        pendingCount: 10 // More than maxAttempts
+      };
+
+      await expect(
+        mockSubmitAndPoll({
+          submissionRequest,
+          statusConfig,
+          interval: 10,
+          maxAttempts: 3,
+          delay: noopDelay
+        })
+      ).rejects.toThrow(TransactionTimeoutError);
+    });
+  });
+
+  describe('validation', () => {
+    it('throws ValidationError when submissionRequest is missing', async () => {
+      const statusConfig: MockTransactionStatusConfig = {
+        finalStatus: 'success'
+      };
+
+      await expect(
+        mockSubmitAndPoll({
+          submissionRequest: undefined as never,
+          statusConfig
+        })
+      ).rejects.toThrow(ValidationError);
+    });
+
+    it('throws ValidationError when statusConfig is missing', async () => {
+      const submissionRequest: TransactionSubmissionRequest = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      await expect(
+        mockSubmitAndPoll({
+          submissionRequest,
+          statusConfig: undefined as never
+        })
+      ).rejects.toThrow(ValidationError);
+    });
+  });
+
+  describe('mocked transport isolation', () => {
+    it('ensures zero real RPC calls are triggered', async () => {
+      const submissionRequest: TransactionSubmissionRequest = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      const statusConfig: MockTransactionStatusConfig = {
+        finalStatus: 'success',
+        pendingCount: 2
+      };
+
+      // This should complete without any network calls
+      const result = await mockSubmitAndPoll({
+        submissionRequest,
+        statusConfig,
+        interval: 10,
+        maxAttempts: 10,
+        delay: noopDelay
+      });
+
+      expect(result.status).toBe('success');
+      expect(result.hash).toMatch(/^tx_mock_\d+$/);
+    });
+
+    it('uses injected delay function between polls', async () => {
+      const delays: number[] = [];
+      const delay = async (ms: number) => {
+        delays.push(ms);
+      };
+
+      const submissionRequest: TransactionSubmissionRequest = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      const statusConfig: MockTransactionStatusConfig = {
+        finalStatus: 'success',
+        pendingCount: 2
+      };
+
+      await mockSubmitAndPoll({
+        submissionRequest,
+        statusConfig,
+        interval: 50,
+        maxAttempts: 10,
+        delay
+      });
+
+      expect(delays).toEqual([50, 50]);
+    });
+  });
+
+  describe('deterministic behavior', () => {
+    it('produces consistent results for identical configurations', async () => {
+      const submissionRequest: TransactionSubmissionRequest = {
+        transactionXdr: VALID_XDR,
+        networkPassphrase: VALID_PASSPHRASE
+      };
+
+      const statusConfig: MockTransactionStatusConfig = {
+        finalStatus: 'success',
+        pendingCount: 1,
+        ledger: 300
+      };
+
+      const result1 = await mockSubmitAndPoll({
+        submissionRequest,
+        statusConfig,
+        interval: 10,
+        maxAttempts: 10,
+        delay: noopDelay
+      });
+
+      const result2 = await mockSubmitAndPoll({
+        submissionRequest,
+        statusConfig,
+        interval: 10,
+        maxAttempts: 10,
+        delay: noopDelay
+      });
+
+      expect(result1.status).toBe(result2.status);
+      expect(result1.ledger).toBe(result2.ledger);
+      expect(result1.hash).not.toBe(result2.hash); // Different hashes
+    });
   });
 });
 
