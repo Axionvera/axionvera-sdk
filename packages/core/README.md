@@ -98,6 +98,26 @@ This helper validates:
 - `args` must be an array when provided (defaults to empty array)
 - `sourceAccount` must be a string when provided (optional)
 
+### Contract Handoffs
+
+Safely load contract IDs from deployment artifacts with strict network and format validation:
+
+```ts
+import { loadContractIdFromHandoff } from '@axionvera/core';
+import artifact from './deployment-handoff.json';
+
+const contractId = loadContractIdFromHandoff(artifact, {
+  contractName: 'vault',
+  network: 'testnet'
+});
+```
+
+The loader validates:
+- The artifact structure matches the required schema.
+- The contract exists in the artifact.
+- The contract is deployed on the expected network.
+- The contract ID is a valid Soroban ID or an explicitly allowed placeholder.
+
 ### Use a mock wallet
 
 ```ts

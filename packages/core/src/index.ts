@@ -1,5 +1,7 @@
 export * from './client';
 export * from './contracts/vault';
+export * from './handoff';
+export * from './schemas/handoff';
 export * from './soroban';
 export * from './errors';
 export * from './events';

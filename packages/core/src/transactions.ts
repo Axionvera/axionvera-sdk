@@ -102,13 +102,21 @@ export function toTransactionActionResult(raw: unknown): TransactionActionResult
     throw new ValidationError(`Transaction action resulted in non-terminal status: ${result.status}`);
   }
 
-  return {
+  const actionResult: TransactionActionResult = {
     hash: result.hash,
     status: result.status,
-    ledger: result.ledger,
-    error: result.error,
     raw
   };
+
+  if (result.ledger !== undefined) {
+    actionResult.ledger = result.ledger;
+  }
+
+  if (result.error !== undefined) {
+    actionResult.error = result.error;
+  }
+
+  return actionResult;
 }
 
 export interface WaitForTransactionParams {
