@@ -9,6 +9,8 @@
 
 - 🛠 **Contract Handoffs**: Safely load contract IDs from deployment artifacts with strict network and format validation.
 - 📦 **Placeholder Support**: Support for development-time placeholder contract IDs with explicit opt-in.
+- 🚀 **MVP Demo Workflow**: A ready-to-use React component (`VaultDemo`) demonstrating a complete vault interaction workflow.
+- 📦 **Release Packet Generator**: A maintainer tool for collecting and verifying non-secret artifacts before release.
 - 🏗 **Soroban Native**: Built for the latest Soroban smart contract features.
 
 ## Packages

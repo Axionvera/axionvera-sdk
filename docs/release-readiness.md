@@ -259,5 +259,9 @@ chmod +x scripts/release-readiness.js
 
 - The script does not publish packages to npm
 - The script does not require live network connections
-- All checks are performed locally
-- The script is designed to be run before connecting to live testnet deployment
+262→- All checks are performed locally
+263→- The script is designed to be run before connecting to live testnet deployment
+264→
+265→## Release Packet Generation
+266→
+267→For a more formal review process, use the [Release Packet Generator](./release-packet-generator.md) to collect non-secret artifacts into a single reviewable folder.
