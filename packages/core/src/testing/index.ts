@@ -16,3 +16,10 @@ export {
   type SimulationResponseConfig,
   type MockSimulationAdapterOptions
 } from './mockSimulationAdapter';
+
+export {
+  MockTransactionSubmissionAdapter,
+  mockSubmitAndPoll,
+  createMockTransactionSubmissionAdapter,
+  type MockTransactionStatusConfig
+} from '../transactions';
