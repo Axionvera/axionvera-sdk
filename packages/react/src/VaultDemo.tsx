@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useVault, type UseVaultOptions } from './useVault';
 import { useWallet } from './useWallet';
 import type { VaultInfo, VaultBalance, VaultReward } from '@axionvera/core';
@@ -6,34 +6,23 @@ import type { VaultInfo, VaultBalance, VaultReward } from '@axionvera/core';
 export interface VaultDemoProps {
   /** The contract ID of the vault to interact with */
   contractId: string;
-  /** The SDK invoker to use (optional, falls back to context) */
-  invoker?: UseVaultOptions['invoker'];
+  /** The SDK invoker to use (typically from context or options) */
+  invoker: UseVaultOptions['invoker'];
 }
 
 /**
  * A React MVP demo workflow component for Axionvera SDK.
  * Shows wallet status, vault stats, user balance, and write actions.
  */
-export function VaultDemo({ contractId, invoker: propsInvoker }: VaultDemoProps) {
+export function VaultDemo({ contractId, invoker }: VaultDemoProps) {
   const {
     isConnected,
     publicKey,
     connect,
     disconnect,
     isReady,
-    readiness,
-    invoker: contextInvoker
+    readiness
   } = useWallet();
-
-  const invoker = propsInvoker || contextInvoker;
-
-  if (!invoker) {
-    return (
-      <div style={{ padding: '20px', color: 'red' }}>
-        Error: No contract invoker provided. Please provide an invoker via props or AxionveraProvider.
-      </div>
-    );
-  }
 
   const {
     getInfo,
@@ -48,7 +37,7 @@ export function VaultDemo({ contractId, invoker: propsInvoker }: VaultDemoProps)
   } = useVault({
     contractId,
     invoker,
-    walletAddress: publicKey ?? null
+    walletAddress: publicKey
   });
 
   const [vaultInfo, setVaultInfo] = useState<VaultInfo | null>(null);
@@ -68,7 +57,7 @@ export function VaultDemo({ contractId, invoker: propsInvoker }: VaultDemoProps)
         setUserRewards(rewards);
       }
     } catch (err) {
-      // Failed to fetch vault data
+      console.error('Failed to fetch vault data', err);
     }
   };
 
@@ -97,7 +86,7 @@ export function VaultDemo({ contractId, invoker: propsInvoker }: VaultDemoProps)
         {isConnected ? (
           <div>
             <p>Connected: <code title={publicKey ?? ''}>{publicKey?.slice(0, 6)}...{publicKey?.slice(-6)}</code></p>
-            <p>Readiness: <strong>{readiness.reason || (isReady ? 'Ready' : 'Not Ready')}</strong> {isReady ? '✅' : '❌'}</p>
+            <p>Readiness: <strong>{readiness}</strong> {isReady ? '✅' : '❌'}</p>
             <button onClick={() => disconnect()}>Disconnect</button>
           </div>
         ) : (

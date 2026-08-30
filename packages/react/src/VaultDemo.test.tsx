@@ -1,5 +1,6 @@
+import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { VaultDemo } from './VaultDemo';
 import { AxionveraProvider } from './provider';
 import { TestContractInvoker, MockWalletConnector } from '@axionvera/core';
@@ -62,7 +63,7 @@ describe('VaultDemo Component', () => {
   });
 
   it('shows submitting and success status on action', async () => {
-    setup(true);
+    const { invoker } = setup(true);
     
     const depositBtn = await screen.findByRole('button', { name: /deposit 100/i });
     fireEvent.click(depositBtn);

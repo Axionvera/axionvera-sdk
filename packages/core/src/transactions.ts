@@ -472,3 +472,240 @@ export function signedResultToTransactionSubmissionRequest(
 
   return validateTransactionSubmissionRequest(input);
 }
+
+/**
+ * Configuration for mocked transaction status progression during polling.
+ */
+export interface MockTransactionStatusConfig {
+  /** The transaction hash to configure */
+  hash: string;
+  /** The final status the transaction should reach */
+  finalStatus: 'success' | 'failed';
+  /** Number of pending states before reaching final status (default: 2) */
+  pendingCount?: number;
+  /** Optional error message for failed transactions */
+  errorMessage?: string;
+  /** Optional ledger number when transaction is included */
+  ledger?: number;
+}
+
+/**
+ * Mock transaction submission adapter for testing submit-and-poll flows.
+ * 
+ * This adapter simulates the submission phase of transactions without making
+ * real network calls, returning deterministic transaction hashes and providing
+ * configurable status progression for polling tests.
+ */
+export class MockTransactionSubmissionAdapter {
+  private transactionCounter = 0;
+  private readonly statusConfigs = new Map<string, MockTransactionStatusConfig>();
+  private readonly pendingAttempts = new Map<string, number>();
+
+  /**
+   * Simulate submitting a signed transaction.
+   * 
+   * @param request - The transaction submission request
+   * @returns A generated transaction hash (format: tx_mock_<counter>)
+   */
+  async submitTransaction(request: TransactionSubmissionRequest): Promise<string> {
+    if (!request || typeof request !== 'object') {
+      throw new ValidationError('Transaction submission request is required');
+    }
+
+    this.transactionCounter += 1;
+    const hash = `tx_mock_${this.transactionCounter}`;
+    
+    // Default to success if no config is set
+    if (!this.statusConfigs.has(hash)) {
+      this.statusConfigs.set(hash, {
+        hash,
+        finalStatus: 'success',
+        pendingCount: 2,
+        ledger: 100 + this.transactionCounter
+      });
+    }
+
+    return hash;
+  }
+
+  /**
+   * Configure the status progression for a specific transaction hash.
+   * 
+   * @param config - The status configuration for the transaction
+   */
+  configureTransactionStatus(config: MockTransactionStatusConfig): void {
+    if (!config.hash || typeof config.hash !== 'string' || !config.hash.trim()) {
+      throw new ValidationError('hash is required and must be a non-empty string');
+    }
+
+    this.statusConfigs.set(config.hash, {
+      ...config,
+      hash: config.hash.trim(),
+      pendingCount: config.pendingCount ?? 2
+    });
+  }
+
+  /**
+   * Create a mock lookup function for use with waitForTransaction.
+   * This function simulates the transaction status progression based on
+   * the configured status for each hash.
+   * 
+   * @returns A lookup function compatible with waitForTransaction
+   */
+  createLookupFunction(): (hash: string) => Promise<TransactionResult> {
+    return async (hash: string): Promise<TransactionResult> => {
+      const config = this.statusConfigs.get(hash);
+      
+      if (!config) {
+        // Return not_found for unknown hashes
+        return { hash, status: 'not_found' };
+      }
+
+      const currentAttempts = this.pendingAttempts.get(hash) ?? 0;
+      this.pendingAttempts.set(hash, currentAttempts + 1);
+
+      // If we haven't reached the pending count, return pending
+      if (currentAttempts < (config.pendingCount ?? 2)) {
+        return { hash, status: 'pending' };
+      }
+
+      // Return the final status
+      if (config.finalStatus === 'failed') {
+        return {
+          hash,
+          status: 'failed',
+          error: config.errorMessage ?? 'Transaction failed',
+          ledger: config.ledger
+        };
+      }
+
+      return {
+        hash,
+        status: 'success',
+        ledger: config.ledger
+      };
+    };
+  }
+
+  /**
+   * Reset the adapter state, clearing all configurations and counters.
+   */
+  reset(): void {
+    this.transactionCounter = 0;
+    this.statusConfigs.clear();
+    this.pendingAttempts.clear();
+  }
+
+  /**
+   * Get the current number of pending attempts for a transaction hash.
+   * 
+   * @param hash - The transaction hash to check
+   * @returns The number of pending attempts made so far
+   */
+  getPendingAttempts(hash: string): number {
+    return this.pendingAttempts.get(hash) ?? 0;
+  }
+}
+
+/**
+ * Parameters for mocked submit-and-poll transaction flow.
+ */
+export interface MockSubmitAndPollParams {
+  /** The transaction submission request */
+  submissionRequest: TransactionSubmissionRequest;
+  /** Configuration for the transaction status progression (hash is auto-generated) */
+  statusConfig: Omit<MockTransactionStatusConfig, 'hash'>;
+  /** Milliseconds to wait between polls (default: 100) */
+  interval?: number;
+  /** Maximum number of polling attempts before timing out (default: 30) */
+  maxAttempts?: number;
+  /** Injectable delay used between polls; defaults to a setTimeout-backed sleep */
+  delay?: (ms: number) => Promise<void>;
+}
+
+/**
+ * Performs a mocked submit-and-poll transaction flow.
+ * 
+ * This function simulates the complete transaction lifecycle:
+ * 1. Submits the transaction (mocked, returns generated hash)
+ * 2. Polls for transaction status using a mock lookup function
+ * 3. Returns the final transaction result or throws on timeout
+ * 
+ * @param params - The submit-and-poll parameters
+ * @returns The final transaction result
+ * @throws TransactionTimeoutError if polling exceeds maxAttempts
+ * @throws ValidationError if parameters are invalid
+ * 
+ * @example
+ * ```ts
+ * const result = await mockSubmitAndPoll({
+ *   submissionRequest: {
+ *     transactionXdr: 'AAAA...',
+ *     networkPassphrase: 'Test SDF Network ; September 2015'
+ *   },
+ *   statusConfig: {
+ *     finalStatus: 'success',
+ *     pendingCount: 2,
+ *     ledger: 123
+ *   }
+ * });
+ * ```
+ */
+export async function mockSubmitAndPoll(
+  params: MockSubmitAndPollParams
+): Promise<TransactionResult> {
+  const { submissionRequest, statusConfig, interval = 100, maxAttempts = 30, delay } = params;
+
+  if (!submissionRequest || typeof submissionRequest !== 'object') {
+    throw new ValidationError('submissionRequest is required');
+  }
+
+  if (!statusConfig || typeof statusConfig !== 'object') {
+    throw new ValidationError('statusConfig is required');
+  }
+
+  // Create adapter and submit the transaction first to get the hash
+  const adapter = new MockTransactionSubmissionAdapter();
+  const hash = await adapter.submitTransaction(submissionRequest);
+
+  // Configure the status progression with the generated hash
+  const finalConfig: MockTransactionStatusConfig = {
+    ...statusConfig,
+    hash
+  };
+  adapter.configureTransactionStatus(finalConfig);
+
+  // Poll for transaction status
+  const waitForParams: WaitForTransactionParams = {
+    lookup: adapter.createLookupFunction(),
+    hash,
+    interval,
+    maxAttempts
+  };
+
+  if (delay !== undefined) {
+    waitForParams.delay = delay;
+  }
+
+  return waitForTransaction(waitForParams);
+}
+
+/**
+ * Factory function to create a pre-configured mock transaction submission adapter.
+ * 
+ * @param configs - Optional array of status configurations to pre-configure
+ * @returns A new MockTransactionSubmissionAdapter instance
+ */
+export function createMockTransactionSubmissionAdapter(
+  configs?: MockTransactionStatusConfig[]
+): MockTransactionSubmissionAdapter {
+  const adapter = new MockTransactionSubmissionAdapter();
+  
+  if (configs) {
+    for (const config of configs) {
+      adapter.configureTransactionStatus(config);
+    }
+  }
+  
+  return adapter;
+}
