@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import React from 'react';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
@@ -22,7 +23,7 @@ describe('useWallet', () => {
     const wallet = new MockWalletConnector(WALLET_PUBLIC_KEY);
 
     const { result } = renderHook(() => useWallet(), {
-      wrapper: ({ children }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
+      wrapper: ({ children }: { children: React.ReactNode }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
     });
 
     expect(result.current.wallet).toBe(wallet);
@@ -41,7 +42,7 @@ describe('useWallet', () => {
     const wallet = new MockWalletConnector(WALLET_PUBLIC_KEY);
 
     const { result } = renderHook(() => useWallet(), {
-      wrapper: ({ children }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
+      wrapper: ({ children }: { children: React.ReactNode }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
     });
 
     await act(async () => {
@@ -55,7 +56,7 @@ describe('useWallet', () => {
     const wallet = new MockWalletConnector(WALLET_PUBLIC_KEY);
 
     const { result } = renderHook(() => useWallet(), {
-      wrapper: ({ children }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
+      wrapper: ({ children }: { children: React.ReactNode }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
     });
 
     expect(result.current.isReady).toBe(false);
@@ -72,7 +73,7 @@ describe('useWallet', () => {
     const wallet = new MockWalletConnector(WALLET_PUBLIC_KEY);
 
     const { result } = renderHook(() => useWallet(), {
-      wrapper: ({ children }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
+      wrapper: ({ children }: { children: React.ReactNode }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
     });
 
     await act(async () => {
@@ -93,7 +94,7 @@ describe('useWallet', () => {
     const wallet = new MockWalletConnector(WALLET_PUBLIC_KEY);
 
     const { result } = renderHook(() => useWallet(), {
-      wrapper: ({ children }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
+      wrapper: ({ children }: { children: React.ReactNode }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
     });
 
     await act(async () => {
@@ -118,7 +119,7 @@ describe('useWallet', () => {
 
     const wallet = new FailingWalletConnector(WALLET_PUBLIC_KEY);
     const { result } = renderHook(() => useWallet(), {
-      wrapper: ({ children }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
+      wrapper: ({ children }: { children: React.ReactNode }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
     });
 
     await act(async () => {
@@ -143,7 +144,7 @@ describe('useWallet', () => {
 
     const wallet = new FailingThenSuccessWalletConnector(WALLET_PUBLIC_KEY);
     const { result } = renderHook(() => useWallet(), {
-      wrapper: ({ children }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
+      wrapper: ({ children }: { children: React.ReactNode }) => <AxionveraProvider wallet={wallet}>{children}</AxionveraProvider>
     });
 
     await act(async () => {
@@ -161,7 +162,7 @@ describe('useWallet', () => {
 
   it('clears error when clearError is called', async () => {
     const { result } = renderHook(() => useWallet(), {
-      wrapper: ({ children }) => <AxionveraProvider>{children}</AxionveraProvider>
+      wrapper: ({ children }: { children: React.ReactNode }) => <AxionveraProvider>{children}</AxionveraProvider>
     });
 
     await act(async () => {

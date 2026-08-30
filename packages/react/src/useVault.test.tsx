@@ -177,7 +177,7 @@ describe('useVault', () => {
       }
     ])(
       '$name returns the normalized transaction response',
-      async ({ method, action, expectedArgs }) => {
+      async ({ method, action, expectedArgs }: { method: string; action: (result: ReturnType<typeof useVault>) => Promise<TransactionActionResult>; expectedArgs: any[] }) => {
         const { invoker, invoke } = createMockInvoker();
         invoke.mockResolvedValue(tx);
 
@@ -242,7 +242,7 @@ describe('useVault', () => {
         name: 'claimRewards',
         action: (result: ReturnType<typeof useVault>) => result.claimRewards()
       }
-    ])('$name requires a wallet address', async ({ action }) => {
+    ])('$name requires a wallet address', async ({ action }: { action: (result: ReturnType<typeof useVault>) => Promise<TransactionActionResult> }) => {
       const { invoker, invoke } = createMockInvoker();
 
       const { result } = renderHook(() => useVault({ contractId: CONTRACT_ID, invoker }));

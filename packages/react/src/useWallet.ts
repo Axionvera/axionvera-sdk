@@ -11,6 +11,7 @@ export function useWallet() {
     isReady: context.isReady,
     readiness: context.readiness,
     error: context.error,
+    invoker: context.invoker,
     connect: context.connect,
     disconnect: context.disconnect,
     clearError: context.clearError
