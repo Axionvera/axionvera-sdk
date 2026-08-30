@@ -1,0 +1,19 @@
+{
+  "vault": {
+    "contractId": "CC3H4V... (your vault contract ID here)",
+    "network": "testnet",
+    "version": "1.0.0",
+    "metadata": {
+      "deployedBy": "maintainer",
+      "timestamp": "2026-08-30T10:00:00Z"
+    }
+  },
+  "token": {
+    "contractId": "CD5F6G... (your token contract ID here)",
+    "network": "testnet"
+  },
+  "oracle": {
+    "contractId": "PLACEHOLDER_ORACLE_ID",
+    "network": "testnet"
+  }
+}

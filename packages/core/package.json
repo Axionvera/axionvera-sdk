@@ -28,5 +28,8 @@
   "sideEffects": false,
   "devDependencies": {
     "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "valibot": "^1.4.2"
   }
 }

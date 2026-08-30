@@ -7,6 +7,10 @@
 
 **Axionvera SDK v2** is a clean, strongly typed TypeScript toolkit for building dApps and services on top of Axionvera Soroban smart contracts on the Stellar network. It is a monorepo split into focused, independently installable packages so applications pull in only what they need.
 
+- 🛠 **Contract Handoffs**: Safely load contract IDs from deployment artifacts with strict network and format validation.
+- 📦 **Placeholder Support**: Support for development-time placeholder contract IDs with explicit opt-in.
+- 🏗 **Soroban Native**: Built for the latest Soroban smart contract features.
+
 ## Packages
 
 | Package | Description |
