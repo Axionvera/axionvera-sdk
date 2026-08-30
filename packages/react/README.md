@@ -329,3 +329,24 @@ function VaultManager({ contractId, invoker }) {
     </div>
   );
 }
+
+
+## Dashboard Integration
+
+### Environment Variables
+
+```env
+NEXT_PUBLIC_NETWORK=testnet
+NEXT_PUBLIC_RPC_URL=https://soroban-testnet.stellar.org
+NEXT_PUBLIC_VAULT_CONTRACT_ADDRESS=CD3...YOUR_VAULT_ADDRESS
+
+### Modes
+- Mocked Mode: Set NEXT_PUBLIC_ENABLE_MOCK=true for development without network connection.
+
+- Testnet Mode: Set NEXT_PUBLIC_ENABLE_MOCK=false and configure testnet addresses.
+
+- Maintainer Mode: Set NEXT_PUBLIC_MAINTAINER_MODE=true for live validation features.
+
+## Integration Checklist
+See Dashboard Integration Checklist for the complete integration guide.
+
