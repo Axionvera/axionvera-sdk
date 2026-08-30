@@ -1,6 +1,8 @@
 import { TransactionTimeoutError, ValidationError } from './errors';
 import type {
   AmountInput,
+  SignedTransactionResult,
+  UnsignedTransactionSigningRequest,
   TransactionActionResult,
   TransactionResult,
   TransactionStatus,
@@ -102,21 +104,133 @@ export function toTransactionActionResult(raw: unknown): TransactionActionResult
     throw new ValidationError(`Transaction action resulted in non-terminal status: ${result.status}`);
   }
 
-  const actionResult: TransactionActionResult = {
+  return {
     hash: result.hash,
     status: result.status,
+    ledger: result.ledger,
+    error: result.error,
     raw
   };
+}
 
-  if (result.ledger !== undefined) {
-    actionResult.ledger = result.ledger;
+/**
+ * Creates a successful TransactionActionResult.
+ * 
+ * @param hash - The transaction hash
+ * @param ledger - Optional ledger number when the transaction was included
+ * @param raw - Optional raw result from the transport
+ * @returns A TransactionActionResult with status 'success'
+ */
+export function transactionSuccess(
+  hash: string,
+  ledger?: number,
+  raw?: unknown
+): TransactionActionResult {
+  if (!hash || typeof hash !== 'string' || !hash.trim()) {
+    throw new ValidationError('hash is required and must be a non-empty string');
   }
 
-  if (result.error !== undefined) {
-    actionResult.error = result.error;
+  const result: TransactionActionResult = {
+    hash: hash.trim(),
+    status: 'success'
+  };
+
+  if (ledger !== undefined) {
+    result.ledger = ledger;
   }
 
-  return actionResult;
+  if (raw !== undefined) {
+    result.raw = raw;
+  }
+
+  return result;
+}
+
+/**
+ * Creates a pending TransactionActionResult.
+ * 
+ * @param hash - The transaction hash
+ * @param raw - Optional raw result from the transport
+ * @returns A TransactionActionResult with status 'pending'
+ */
+export function transactionPending(
+  hash: string,
+  raw?: unknown
+): TransactionActionResult {
+  if (!hash || typeof hash !== 'string' || !hash.trim()) {
+    throw new ValidationError('hash is required and must be a non-empty string');
+  }
+
+  const result: TransactionActionResult = {
+    hash: hash.trim(),
+    status: 'pending'
+  };
+
+  if (raw !== undefined) {
+    result.raw = raw;
+  }
+
+  return result;
+}
+
+/**
+ * Creates a failed TransactionActionResult.
+ * 
+ * @param hash - The transaction hash
+ * @param error - Optional error message from the network or contract
+ * @param raw - Optional raw result from the transport
+ * @returns A TransactionActionResult with status 'failed'
+ */
+export function transactionFailed(
+  hash: string,
+  error?: string,
+  raw?: unknown
+): TransactionActionResult {
+  if (!hash || typeof hash !== 'string' || !hash.trim()) {
+    throw new ValidationError('hash is required and must be a non-empty string');
+  }
+
+  const result: TransactionActionResult = {
+    hash: hash.trim(),
+    status: 'failed'
+  };
+
+  if (error !== undefined) {
+    result.error = error;
+  }
+
+  if (raw !== undefined) {
+    result.raw = raw;
+  }
+
+  return result;
+}
+
+/**
+ * Creates a timeout TransactionActionResult.
+ * 
+ * @param hash - The transaction hash
+ * @param raw - Optional raw result from the transport
+ * @returns A TransactionActionResult with status 'timeout'
+ */
+export function transactionTimeout(
+  hash: string,
+  raw?: unknown
+): TransactionActionResult {
+  if (!hash || typeof hash !== 'string' || !hash.trim()) {
+    throw new ValidationError('hash is required and must be a non-empty string');
+  }
+
+  const result: TransactionActionResult = {
+    hash: hash.trim(),
+    status: 'timeout'
+  };
+
+  if (raw !== undefined) {
+    result.raw = raw;
+  }
+
+  return result;
 }
 
 export interface WaitForTransactionParams {
@@ -205,6 +319,94 @@ export interface TransactionSubmissionRequestInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface UnsignedTransactionSigningRequestInput {
+  /** The unsigned Stellar transaction envelope XDR to send to a wallet */
+  unsignedXdr: string;
+  /** The network passphrase used when preparing the unsigned transaction */
+  networkPassphrase: string;
+  /** Optional account public key to request as the signing account */
+  accountToSign?: string;
+  /** Optional app metadata to carry through the signing pipeline */
+  metadata?: Record<string, unknown>;
+}
+
+const BASE64_XDR_PATTERN = /^[A-Za-z0-9+/]+={0,2}$/;
+
+/**
+ * Validates a Stellar transaction envelope XDR string enough for SDK boundary
+ * checks before handing it to a wallet provider.
+ */
+export function validateUnsignedTransactionXdr(unsignedXdr: unknown): string {
+  if (typeof unsignedXdr !== 'string' || !unsignedXdr.trim()) {
+    throw new ValidationError('unsignedXdr is required and must be a non-empty string');
+  }
+
+  const trimmed = unsignedXdr.trim();
+
+  if (trimmed.length % 4 !== 0 || !BASE64_XDR_PATTERN.test(trimmed)) {
+    throw new ValidationError('unsignedXdr must be a base64-encoded XDR string');
+  }
+
+  return trimmed;
+}
+
+/**
+ * Validates and builds a provider-generic wallet signing request from an
+ * unsigned transaction XDR.
+ */
+export function prepareUnsignedTransactionSigningRequest(
+  input: UnsignedTransactionSigningRequestInput
+): UnsignedTransactionSigningRequest {
+  const unsignedXdr = validateUnsignedTransactionXdr(input.unsignedXdr);
+
+  if (typeof input.networkPassphrase !== 'string' || !input.networkPassphrase.trim()) {
+    throw new ValidationError('networkPassphrase is required and must be a non-empty string');
+  }
+
+  if (input.accountToSign !== undefined) {
+    if (typeof input.accountToSign !== 'string' || !input.accountToSign.trim()) {
+      throw new ValidationError('accountToSign must be a non-empty string when provided');
+    }
+  }
+
+  if (input.metadata !== undefined && (typeof input.metadata !== 'object' || input.metadata === null)) {
+    throw new ValidationError('metadata must be an object when provided');
+  }
+
+  const request: UnsignedTransactionSigningRequest = {
+    unsignedXdr,
+    networkPassphrase: input.networkPassphrase.trim(),
+  };
+
+  if (input.accountToSign !== undefined) {
+    request.accountToSign = input.accountToSign.trim();
+  }
+
+  if (input.metadata !== undefined) {
+    request.metadata = input.metadata;
+  }
+
+  return request;
+}
+
+/**
+ * Type guard for values that can be normalized as unsigned signing requests.
+ */
+export function isUnsignedTransactionSigningRequest(
+  value: unknown
+): value is UnsignedTransactionSigningRequest {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  try {
+    prepareUnsignedTransactionSigningRequest(value as UnsignedTransactionSigningRequestInput);
+    return true;
+  } catch (_error) {
+    return false;
+  }
+}
+
 /**
  * Validates and builds a transaction submission request.
  *
@@ -247,4 +449,26 @@ export function validateTransactionSubmissionRequest(
   }
 
   return result;
+}
+
+/**
+ * Builds a submission request from a wallet-signed transaction pipeline result.
+ */
+export function signedResultToTransactionSubmissionRequest(
+  result: SignedTransactionResult
+): TransactionSubmissionRequest {
+  const input: TransactionSubmissionRequestInput = {
+    transactionXdr: result.signedXdr,
+    networkPassphrase: result.networkPassphrase,
+  };
+
+  if (result.accountToSign !== undefined) {
+    input.signerPublicKey = result.accountToSign;
+  }
+
+  if (result.metadata !== undefined) {
+    input.metadata = result.metadata;
+  }
+
+  return validateTransactionSubmissionRequest(input);
 }

@@ -24,6 +24,24 @@ const health = await client.getHealth();
 const transaction = await client.getTransaction('TX_HASH');
 ```
 
+### Testnet configuration
+
+The `testnet` preset uses the Stellar testnet RPC endpoint and the exact passphrase
+`Test SDF Network ; September 2015`:
+
+```ts
+import { AxionveraClient } from '@axionvera/core';
+
+const client = new AxionveraClient({ network: 'testnet' });
+console.log(client.getNetworkConfig());
+```
+
+Use [`examples/testnet-sdk-config.json`](../../examples/testnet-sdk-config.json) as a
+complete placeholder-only configuration. It includes the vault, deposit-token, and
+reward-token contract ID fields. Maintainers will provide real deployed contract IDs
+after deployment; replace every `YOUR_...` value before live integration. The SDK
+configuration example is intentionally safe and contains no secrets or private keys.
+
 ### Configure a vault contract with a mock invoker
 
 `VaultContract` delegates every call to a `ContractInvoker`. Provide a real adapter for production, or a mock for development and tests:
@@ -126,9 +144,162 @@ import { MockWalletConnector } from '@axionvera/core';
 const wallet = new MockWalletConnector('GABC1234567890');
 const { publicKey, network } = await wallet.connect();
 // { publicKey: 'GABC1234567890', network: 'testnet' }
+
+await wallet.disconnect();
+const connected = await wallet.isConnected();
+// false
 ```
 
+`MockWalletConnector` tracks connection state and provides a predictable interface for testing. It includes:
+- `connect()` - Sets connection state and returns a connection object with public key and network
+- `disconnect()` - Clears connection state
+- `isConnected()` - Returns current connection status
+- `signTransaction(xdr, options)` - Returns a prefixed signature for testing
+
 Implement the `WalletConnector` interface to integrate a browser wallet extension or a backend signer.
+
+### Wallet signing
+
+Use `signWithWallet()` to sign transactions through a wallet connector:
+
+```ts
+import { signWithWallet } from '@axionvera/core';
+
+const signedXdr = await signWithWallet({
+  wallet,
+  transactionXdr: 'AAAA...',
+  networkPassphrase: 'Test SDF Network ; September 2015'
+});
+```
+
+This helper wraps wallet signing errors in `WalletError` for consistent error handling.
+
+### Transaction signing pipeline
+
+Use `prepareUnsignedTransactionSigningRequest()`, `requestWalletSignature()`, or
+`createTransactionSigningPipeline()` when your app prepares unsigned XDR in one
+layer and asks a wallet to sign it in another:
+
+```ts
+import {
+  MockWalletConnector,
+  createTransactionSigningPipeline
+} from '@axionvera/core';
+
+const wallet = new MockWalletConnector('GABC1234567890');
+
+const pipeline = createTransactionSigningPipeline({
+  wallet,
+  async prepareUnsignedTransaction({ amount }: { amount: bigint }) {
+    return {
+      unsignedXdr: 'AAAAAAAAAA==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+      metadata: { action: 'deposit', amount: amount.toString() }
+    };
+  }
+});
+
+const signed = await pipeline.prepareAndSign({ amount: 100n });
+// { unsignedXdr, signedXdr, networkPassphrase, walletId, walletName, metadata }
+```
+
+The pipeline is provider-generic: the core SDK only calls the `WalletConnector`
+interface and does not know whether the connector is a mock, browser extension,
+backend signer, or test double. The prepared request carries app metadata, but
+only XDR, network passphrase, and optional signing account are passed to the
+wallet. No real wallet extension is required for tests or examples.
+
+Related helpers:
+
+- `validateUnsignedTransactionXdr()` checks unsigned XDR at the SDK boundary.
+- `prepareUnsignedTransactionSigningRequest()` normalizes a signing request.
+- `requestWalletSignature()` signs an already prepared request.
+- `signedResultToTransactionSubmissionRequest()` maps signed output to the
+  existing submission request shape.
+
+### Transaction result types
+
+The SDK provides normalized transaction result types for write actions:
+
+```ts
+import {
+  TransactionActionResult,
+  transactionSuccess,
+  transactionPending,
+  transactionFailed,
+  transactionTimeout
+} from '@axionvera/core';
+
+// Create result objects
+const success = transactionSuccess('abc123', 100);
+// { hash: 'abc123', status: 'success', ledger: 100 }
+
+const pending = transactionPending('abc123');
+// { hash: 'abc123', status: 'pending' }
+
+const failed = transactionFailed('abc123', 'insufficient balance');
+// { hash: 'abc123', status: 'failed', error: 'insufficient balance' }
+
+const timeout = transactionTimeout('abc123');
+// { hash: 'abc123', status: 'timeout' }
+```
+
+All helper functions validate inputs and trim whitespace from hashes.
+
+### SDK-to-Network compatibility fixtures
+
+The core package exports static Vault compatibility expectations:
+
+```ts
+import {
+  SDK_VAULT_INTERFACE_FIXTURE,
+  compareVaultInterfaceCompatibility
+} from '@axionvera/core';
+```
+
+Use these helpers with `schemas/network-vault-interface.fixture.json` to check
+that SDK method names, argument order, and event expectations still match the
+Network Vault interface before live testnet integration is available.
+
+### Transaction polling
+
+Use `waitForTransaction()` to poll for transaction status:
+
+```ts
+import { waitForTransaction } from '@axionvera/core';
+
+const result = await waitForTransaction({
+  hash: 'abc123',
+  lookup: async (hash) => {
+    // Your transaction lookup function
+    return { hash, status: 'success' };
+  },
+  interval: 1000,      // Poll every 1s (default)
+  maxAttempts: 30,    // Max 30 attempts (default)
+  delay: (ms) => new Promise(resolve => setTimeout(resolve, ms)) // Optional custom delay
+});
+```
+
+The helper treats `pending` and `not_found` as non-terminal (continues polling), and `success` and `failed` as terminal (returns result). Throws `TransactionTimeoutError` after max attempts.
+
+### Wallet readiness checking
+
+Use `checkWalletReadiness()` to validate wallet state before operations:
+
+```ts
+import { checkWalletReadiness } from '@axionvera/core';
+
+const connector = new MockWalletConnector('GABC1234567890');
+const connection = await connector.connect();
+
+const readiness = checkWalletReadiness({ connector, connection });
+
+if (readiness.isReady) {
+  // Wallet is ready for operations
+} else {
+  console.error(readiness.reason);
+}
+```
 
 ## Foundation layer
 
@@ -141,6 +312,56 @@ RPC and Soroban invocation are adapter-based in v2:
 
 No production Soroban invoker or transaction builder is shipped yet — plug in your own via `transport` and `invoker`, or start with the mocks.
 
+### Soroban Transaction Execution Schema
+
+The SDK provides a comprehensive schema for Soroban transaction execution requests and results. This schema is currently in a mocked/testnet-ready state and does not require real wallet secrets or live network submissions.
+
+```ts
+import {
+  buildSorobanExecutionRequest,
+  executionSuccess,
+  executionFailed,
+  validateSorobanExecutionRequestSchema
+} from '@axionvera/core';
+
+// Build an execution request
+const request = buildSorobanExecutionRequest({
+  sourceAccount: 'GABC1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+  contractId: 'C123...',
+  method: 'deposit',
+  args: ['GUSER', '100'],
+  network: {
+    network: 'testnet',
+    networkPassphrase: 'Test SDF Network ; September 2015',
+    rpcUrl: 'https://soroban-testnet.stellar.org'
+  }
+});
+
+// Create execution results
+const successResult = executionSuccess(request, 'tx-hash-123', {
+  ledger: 12345
+});
+
+const failedResult = executionFailed(request, 'Insufficient balance');
+
+// Validate external data
+try {
+  const validRequest = validateSorobanExecutionRequestSchema(externalRequest);
+  console.log('Valid request:', validRequest);
+} catch (error) {
+  console.error('Invalid request:', error);
+}
+```
+
+**Current Status:**
+- ✅ Complete schema definition and validation
+- ✅ Comprehensive test coverage
+- ✅ Extensive examples (valid and invalid)
+- ✅ No real secrets or live submission required
+- ⏳ Real transaction execution to be implemented later
+
+See [execution.md](./src/execution.md) for detailed documentation and usage examples.
+
 ## Development commands
 
 ```bash
@@ -148,3 +369,7 @@ npm run lint
 npm run typecheck
 npm run build
 ```
+
+## Maintainer Integration
+
+For information about connecting to real Network vault contracts and implementing live transaction submission, see the [Maintainer Handoff Guide](../../docs/maintainer-handoff.md). This guide explains the maintainer-only actions required for real testnet integration, including contract ID handoff, wallet signing, RPC submission, and transaction polling.

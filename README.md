@@ -115,6 +115,9 @@ function App() {
 
 Complete, copyable examples for each package live in the package READMEs: [`@axionvera/core`](./packages/core/README.md) and [`@axionvera/react`](./packages/react/README.md).
 
+The repository also includes a provider-generic signing example at
+[`examples/mock-wallet-signing-pipeline.ts`](./examples/mock-wallet-signing-pipeline.ts), a placeholder-only SDK testnet configuration at [`examples/testnet-sdk-config.ts`](./examples/testnet-sdk-config.ts), and a React testnet flow at [`examples/react-testnet-flow.tsx`](./examples/react-testnet-flow.tsx).
+
 ## Architecture
 
 The SDK v2 is built in focused layers with clear separation of concerns:
@@ -132,6 +135,70 @@ The `ContractInvoker` interface is the core abstraction for Soroban contract int
 - **Testability**: Use mock invokers in tests without hitting the network
 - **Progressive enhancement**: Start with mocks, swap in real implementation when ready
 
+### Wallet Layer
+
+The SDK provides a wallet abstraction for connecting to Stellar-compatible wallets:
+
+- `WalletConnector` interface - Standard interface for wallet implementations
+- `MockWalletConnector` - Development/testing wallet with connection state tracking
+- `signWithWallet()` - Helper for signing transactions through wallet connectors
+- `createTransactionSigningPipeline()` - Provider-generic prepare unsigned XDR -> wallet signing flow
+- `checkWalletReadiness()` - Validates wallet state before operations
+
+**Wallet Readiness Flow:**
+1. Connect wallet using `wallet.connect()` - returns public key and network
+2. Check connection status with `wallet.isConnected()` - returns boolean
+3. Validate readiness with `checkWalletReadiness()` - ensures connector and connection are valid
+4. Sign transactions with `signWithWallet()` - wraps signing errors consistently
+5. For prepared unsigned XDR, use `createTransactionSigningPipeline()` to keep wallet provider details outside transaction preparation
+
+### Transaction Layer
+
+The SDK provides normalized types and helpers for transaction management:
+
+- `TransactionActionResult` - Standardized result shape with status, hash, ledger, error
+- Helper functions: `transactionSuccess()`, `transactionPending()`, `transactionFailed()`, `transactionTimeout()`
+- `waitForTransaction()` - Polls for transaction status with configurable intervals
+- `TransactionTimeoutError` - Thrown when polling exceeds max attempts
+
+**Transaction Status Flow:**
+1. Submit transaction - receive hash
+2. Poll with `waitForTransaction()` - uses lookup function to check status
+3. Handle terminal states (`success`, `failed`) - return result
+4. Handle non-terminal states (`pending`, `not_found`) - continue polling
+5. Handle timeout - throw `TransactionTimeoutError` after max attempts
+
+### React Hook Layer
+
+React bindings provide stateful hooks for wallet, vault, and transaction management:
+
+- `AxionveraProvider` - Context provider for wallet and configuration
+- `useWallet` - Wallet connection state and operations
+- `useVault` - Vault contract operations with submission state
+- `useTransactionAction` - Generic async action state management
+- `useTransactionStatus` - Transaction polling with React state
+
+**React Hook Flow:**
+1. Wrap app with `AxionveraProvider` and wallet connector
+2. Use `useWallet` to manage connection (connect, disconnect, check status)
+3. Use `useVault` to read vault state (`getInfo`, `getBalance`, `getPendingRewards`)
+4. Use `useVault` write methods for operations (`deposit`, `withdraw`, `claimRewards`)
+5. Use `useTransactionStatus` to poll and track transaction confirmation
+
+### Mocked Integration Testing
+
+The SDK includes comprehensive mock utilities for integration-style testing:
+
+- `MockWalletConnector` - Predictable wallet behavior for tests
+- `TestContractInvoker` - Mock contract invoker with response configuration
+- `sdkWorkflow.test.tsx` - Full workflow tests covering connect → read → write → poll
+
+**Mocked Integration Behavior:**
+- Wallet connection/disconnection is simulated with state tracking
+- Contract calls return configured responses without network calls
+- Transaction polling uses vitest mocked timers for fast tests
+- All scenarios (success, failure, timeout, disconnection) are testable
+
 ### Current Implementation Status
 
 **Implemented:**
@@ -140,20 +207,25 @@ The `ContractInvoker` interface is the core abstraction for Soroban contract int
 - `SorobanContractInvoker` - adapter that routes requests through RPC transport
 - `buildSorobanInvokeRequest()` - validates and builds Soroban invocation request objects
 - `WalletConnector` interface with `MockWalletConnector` for development
-- React bindings (`AxionveraProvider`, `useWallet`, `useVault`)
+- Transaction result types and polling helpers
+- **Soroban Transaction Execution Schema** - comprehensive schema for execution requests and results (mocked/testnet-ready)
+- React bindings (`AxionveraProvider`, `useWallet`, `useVault`, `useTransactionAction`, `useTransactionStatus`)
+- Comprehensive test coverage with mocked integration tests
 
 **Current Limitations:**
 - No live Soroban transaction submission - `SorobanContractInvoker` is a skeleton adapter
 - No Stellar transaction building (XDR assembly, fee handling, sequence numbers)
 - No wallet signing integration for transaction submission
 - RPC transport exists but Soroban-specific RPC methods are not fully implemented
+- Transaction polling requires custom lookup function (no built-in RPC integration)
 
 **Next Steps (Roadmap):**
 1. Complete Stellar transaction building with XDR assembly
 2. Implement fee estimation and sequence number management
 3. Add wallet signing integration for transaction submission
 4. Implement full Soroban RPC method support (simulateTransaction, sendTransaction)
-5. Add transaction lifecycle management (submission, polling, confirmation)
+5. Add built-in transaction lookup function for `waitForTransaction` using RPC
+6. Add transaction lifecycle management (submission, polling, confirmation) with automatic retry
 
 ### Foundation Layer
 
@@ -170,7 +242,9 @@ A production-ready Soroban transaction submission layer is not shipped yet — p
 
 - [SDK Overview](./docs/sdk-overview.md)
 - [Usage Guide](./docs/usage-guide.md)
-- [Configuration](./docs/configuration.md)
+- [Transaction Signing Pipeline](./docs/transaction-signing-pipeline.md)
+- [SDK-to-Network Compatibility Fixtures](./docs/sdk-network-compatibility.md)
+- [Configuration](./docs/configuration.md) — including testnet RPC, passphrase, token, and placeholder contract examples
 
 ## Development
 
@@ -181,6 +255,29 @@ npm run typecheck  # TypeScript type checking
 npm run build      # build all packages
 npm run test       # typecheck + build + unit tests
 ```
+
+### Release Readiness Check
+
+Before connecting to live testnet deployment, run the release readiness script to verify the SDK is ready:
+
+```bash
+node scripts/release-readiness.js          # Full check with quality commands
+node scripts/release-readiness.js --dry-run # File existence checks only
+```
+
+The script verifies:
+- Required documentation files (README.md, CONTRIBUTING.md, LICENSE, SECURITY.md)
+- Package README files (packages/core/README.md, packages/react/README.md)
+- Example files (execution, mock simulation, wallet signing, React vault, SDK compatibility)
+- Schema files (network-vault-interface.fixture.json)
+- Build outputs (packages/*/dist directories)
+- Quality commands (lint, typecheck, build, vitest)
+
+See [scripts/release-readiness.js](./scripts/release-readiness.js) for details.
+
+## Maintainer Integration
+
+For information about connecting the SDK to the deployed Network vault contract, see the [Maintainer Handoff Guide](./docs/maintainer-handoff.md). This guide separates contributor-safe work from maintainer-only actions and explains how SDK config, wallet signing, RPC submission, and transaction polling fit together.
 
 ## Contributing
 

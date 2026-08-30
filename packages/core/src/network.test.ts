@@ -1,7 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { resolveNetworkConfig } from './network';
+import { AxionveraClient } from './client';
 
 describe('resolveNetworkConfig', () => {
+  it('uses the documented testnet values when creating a client', () => {
+    const client = new AxionveraClient({ network: 'testnet' });
+    expect(client.getNetworkConfig()).toMatchObject({
+      network: 'testnet',
+      rpcUrl: 'https://soroban-testnet.stellar.org',
+      networkPassphrase: 'Test SDF Network ; September 2015'
+    });
+  });
+
   it('resolves to testnet by default when no input is provided', () => {
     const config = resolveNetworkConfig();
     expect(config.network).toBe('testnet');

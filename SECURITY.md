@@ -47,6 +47,41 @@ network itself, and third-party wallet extensions.
 - **Keep logging redaction in mind.** Avoid logging secret seeds; see the logging
   notes in the security review.
 
+## Secret management for maintainers
+
+⚠️ **CRITICAL: Never commit secrets to the repository**
+
+Maintainers performing real testnet integration must follow these security practices:
+
+- **Never commit** private keys, seed phrases, or wallet mnemonics
+- **Never commit** real contract IDs for production deployments
+- **Never commit** API keys, authentication tokens, or RPC credentials
+- **Never commit** personal wallet addresses or sensitive configuration
+- **Always use** environment variables for sensitive configuration
+- **Always add** `.env` files to `.gitignore`
+- **Always provide** `.env.example` files with placeholder values only
+- **Always use** secure secret management for production (AWS Secrets Manager, etc.)
+- **Always rotate** secrets regularly and audit access logs
+- **Always validate** user inputs before processing transactions
+
+### Environment variable pattern
+
+See [`.env.example`](.env.example) for the complete template. The pattern is:
+
+```bash
+# .env.example (Safe to commit - placeholders only)
+AXIONVERA_RPC_URL="https://soroban-testnet.stellar.org"
+AXIONVERA_NETWORK="testnet"
+VAULT_CONTRACT_ID="YOUR_CONTRACT_ID"
+
+# .env (Never commit - real values)
+AXIONVERA_RPC_URL="https://real-endpoint.example.com"
+AXIONVERA_NETWORK="testnet"
+VAULT_CONTRACT_ID="CAXIONVERA_REAL_CONTRACT_ID_1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+```
+
+For detailed maintainer security guidelines, see [docs/maintainer-handoff.md](docs/maintainer-handoff.md#security-guidelines).
+
 ## Security review
 
 An internal review of the SDK's interaction flows and the resulting findings is

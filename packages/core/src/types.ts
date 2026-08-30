@@ -7,8 +7,8 @@ export type TransactionStatus = 'pending' | 'success' | 'failed' | 'not_found';
 export interface TransactionResult {
   hash: string;
   status: TransactionStatus;
-  ledger?: number;
-  error?: string;
+  ledger?: number | undefined;
+  error?: string | undefined;
 }
 
 export interface VaultInfo {
@@ -41,12 +41,12 @@ export interface VaultReward {
 export interface TransactionActionResult {
   /** The transaction hash */
   hash: string;
-  /** The terminal status of the transaction */
-  status: 'success' | 'failed';
+  /** The status of the transaction */
+  status: 'success' | 'pending' | 'failed' | 'timeout';
   /** Optional ledger number when the transaction was included */
-  ledger?: number;
+  ledger?: number | undefined;
   /** Optional error message from the network or contract */
-  error?: string;
+  error?: string | undefined;
   /** The raw result from the transport for debugging or advanced use */
   raw?: unknown;
 }
@@ -64,4 +64,38 @@ export interface TransactionSubmissionRequest {
   signerPublicKey?: string;
   /** Optional metadata for the transaction submission */
   metadata?: Record<string, unknown>;
+}
+
+/**
+ * Provider-agnostic request for asking a wallet to sign an unsigned transaction.
+ */
+export interface UnsignedTransactionSigningRequest {
+  /** The unsigned Stellar transaction envelope XDR */
+  unsignedXdr: string;
+  /** The network passphrase the XDR was prepared for */
+  networkPassphrase: string;
+  /** Optional account that should sign when a wallet supports account selection */
+  accountToSign?: string;
+  /** Optional app metadata kept outside provider-specific wallet options */
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Result returned after a wallet signs a prepared unsigned transaction.
+ */
+export interface SignedTransactionResult {
+  /** Original unsigned transaction envelope XDR */
+  unsignedXdr: string;
+  /** Wallet-returned signed transaction envelope XDR */
+  signedXdr: string;
+  /** Network passphrase used for signing */
+  networkPassphrase: string;
+  /** Optional account requested for signing */
+  accountToSign?: string;
+  /** Optional metadata copied from the unsigned request */
+  metadata?: Record<string, unknown>;
+  /** Wallet connector id that produced the signature */
+  walletId: string;
+  /** Wallet connector display name that produced the signature */
+  walletName: string;
 }

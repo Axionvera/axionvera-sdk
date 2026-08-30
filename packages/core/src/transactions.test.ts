@@ -3,11 +3,20 @@ import { describe, expect, it } from 'vitest';
 import { TransactionTimeoutError, ValidationError } from './errors';
 import {
   createContractCallRequest,
+  isUnsignedTransactionSigningRequest,
   normalizeAmount,
   normalizeTransactionResult,
+  prepareUnsignedTransactionSigningRequest,
+  signedResultToTransactionSubmissionRequest,
+  validateUnsignedTransactionXdr,
   waitForTransaction,
   validateTransactionSubmissionRequest,
+  transactionSuccess,
+  transactionPending,
+  transactionFailed,
+  transactionTimeout,
   type TransactionSubmissionRequestInput,
+  type UnsignedTransactionSigningRequestInput,
 } from './transactions';
 import type { TransactionResult } from './types';
 
@@ -487,5 +496,363 @@ describe('validateTransactionSubmissionRequest', () => {
 
       expect(result.metadata).toEqual({});
     });
+  });
+});
+
+describe('signedResultToTransactionSubmissionRequest', () => {
+  it('maps a signed pipeline result to a validated submission request', () => {
+    const metadata = { source: 'pipeline' };
+    const result = signedResultToTransactionSubmissionRequest({
+      unsignedXdr: 'AAAAAAAAAA==',
+      signedXdr: 'BBBBBBBBBB==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+      accountToSign: 'GAXIONVERAMOCKPUBLICKEY',
+      metadata,
+      walletId: 'mock',
+      walletName: 'Mock Wallet',
+    });
+
+    expect(result).toEqual({
+      transactionXdr: 'BBBBBBBBBB==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+      signerPublicKey: 'GAXIONVERAMOCKPUBLICKEY',
+      metadata,
+    });
+  });
+
+  it('omits optional submission fields when they are absent', () => {
+    const result = signedResultToTransactionSubmissionRequest({
+      unsignedXdr: 'AAAAAAAAAA==',
+      signedXdr: 'BBBBBBBBBB==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+      walletId: 'mock',
+      walletName: 'Mock Wallet',
+    });
+
+    expect(result).toEqual({
+      transactionXdr: 'BBBBBBBBBB==',
+      networkPassphrase: 'Test SDF Network ; September 2015',
+    });
+  });
+});
+
+describe('validateUnsignedTransactionXdr', () => {
+  const VALID_UNSIGNED_XDR = 'AAAAAAAAAA==';
+
+  it('returns a trimmed valid base64 XDR string', () => {
+    expect(validateUnsignedTransactionXdr(`  ${VALID_UNSIGNED_XDR}  `)).toBe(VALID_UNSIGNED_XDR);
+  });
+
+  it.each([
+    { description: 'empty string', value: '' },
+    { description: 'whitespace string', value: '   ' },
+    { description: 'number value', value: 123 },
+    { description: 'null value', value: null },
+    { description: 'undefined value', value: undefined },
+  ])('throws ValidationError for $description', ({ value }) => {
+    expect(() => validateUnsignedTransactionXdr(value)).toThrow(ValidationError);
+  });
+
+  it.each([
+    'not-xdr',
+    'AAAA*===',
+    'abc',
+    'AAAA AA==',
+  ])('throws ValidationError for malformed base64 XDR %s', (value) => {
+    expect(() => validateUnsignedTransactionXdr(value)).toThrow(ValidationError);
+    expect(() => validateUnsignedTransactionXdr(value)).toThrow('unsignedXdr must be a base64-encoded XDR string');
+  });
+});
+
+describe('prepareUnsignedTransactionSigningRequest', () => {
+  const VALID_UNSIGNED_XDR = 'AAAAAAAAAA==';
+  const VALID_PASSPHRASE = 'Test SDF Network ; September 2015';
+  const VALID_SIGNER = 'GAXIONVERAMOCKPUBLICKEY';
+
+  it('builds a normalized provider-generic signing request', () => {
+    const metadata = { requestId: 'req-1' };
+    const input: UnsignedTransactionSigningRequestInput = {
+      unsignedXdr: `  ${VALID_UNSIGNED_XDR}  `,
+      networkPassphrase: `  ${VALID_PASSPHRASE}  `,
+      accountToSign: `  ${VALID_SIGNER}  `,
+      metadata,
+    };
+
+    const result = prepareUnsignedTransactionSigningRequest(input);
+
+    expect(result).toEqual({
+      unsignedXdr: VALID_UNSIGNED_XDR,
+      networkPassphrase: VALID_PASSPHRASE,
+      accountToSign: VALID_SIGNER,
+      metadata,
+    });
+  });
+
+  it('builds a request with only required fields', () => {
+    const result = prepareUnsignedTransactionSigningRequest({
+      unsignedXdr: VALID_UNSIGNED_XDR,
+      networkPassphrase: VALID_PASSPHRASE,
+    });
+
+    expect(result).toEqual({
+      unsignedXdr: VALID_UNSIGNED_XDR,
+      networkPassphrase: VALID_PASSPHRASE,
+    });
+  });
+
+  it('rejects an invalid unsigned XDR before building the request', () => {
+    expect(() =>
+      prepareUnsignedTransactionSigningRequest({
+        unsignedXdr: 'not-xdr',
+        networkPassphrase: VALID_PASSPHRASE,
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('rejects missing network passphrase', () => {
+    expect(() =>
+      prepareUnsignedTransactionSigningRequest({
+        unsignedXdr: VALID_UNSIGNED_XDR,
+        networkPassphrase: '   ',
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('rejects empty accountToSign when provided', () => {
+    expect(() =>
+      prepareUnsignedTransactionSigningRequest({
+        unsignedXdr: VALID_UNSIGNED_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        accountToSign: '',
+      }),
+    ).toThrow(ValidationError);
+  });
+
+  it('rejects null metadata', () => {
+    expect(() =>
+      prepareUnsignedTransactionSigningRequest({
+        unsignedXdr: VALID_UNSIGNED_XDR,
+        networkPassphrase: VALID_PASSPHRASE,
+        metadata: null as any,
+      }),
+    ).toThrow(ValidationError);
+  });
+});
+
+describe('isUnsignedTransactionSigningRequest', () => {
+  it('returns true for a normalizable unsigned signing request', () => {
+    expect(
+      isUnsignedTransactionSigningRequest({
+        unsignedXdr: 'AAAAAAAAAA==',
+        networkPassphrase: 'Test SDF Network ; September 2015',
+      }),
+    ).toBe(true);
+  });
+
+  it('returns false for invalid unsigned signing request values', () => {
+    expect(isUnsignedTransactionSigningRequest(null)).toBe(false);
+    expect(isUnsignedTransactionSigningRequest({})).toBe(false);
+    expect(
+      isUnsignedTransactionSigningRequest({
+        unsignedXdr: 'not-xdr',
+        networkPassphrase: 'Test SDF Network ; September 2015',
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('transactionSuccess', () => {
+  it('creates a success result with required hash', () => {
+    const result = transactionSuccess('hash123');
+    expect(result).toEqual({
+      hash: 'hash123',
+      status: 'success'
+    });
+  });
+
+  it('creates a success result with ledger', () => {
+    const result = transactionSuccess('hash123', 100);
+    expect(result).toEqual({
+      hash: 'hash123',
+      status: 'success',
+      ledger: 100
+    });
+  });
+
+  it('creates a success result with raw data', () => {
+    const raw = { xdr: 'AAAA' };
+    const result = transactionSuccess('hash123', undefined, raw);
+    expect(result).toEqual({
+      hash: 'hash123',
+      status: 'success',
+      raw
+    });
+  });
+
+  it('creates a success result with all optional fields', () => {
+    const raw = { xdr: 'AAAA' };
+    const result = transactionSuccess('hash123', 100, raw);
+    expect(result).toEqual({
+      hash: 'hash123',
+      status: 'success',
+      ledger: 100,
+      raw
+    });
+  });
+
+  it('trims whitespace from hash', () => {
+    const result = transactionSuccess('  hash123  ');
+    expect(result.hash).toBe('hash123');
+  });
+
+  it('throws ValidationError for empty hash', () => {
+    expect(() => transactionSuccess('')).toThrow(ValidationError);
+    expect(() => transactionSuccess('')).toThrow('hash is required');
+  });
+
+  it('throws ValidationError for whitespace-only hash', () => {
+    expect(() => transactionSuccess('   ')).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError for non-string hash', () => {
+    expect(() => transactionSuccess(null as any)).toThrow(ValidationError);
+    expect(() => transactionSuccess(undefined as any)).toThrow(ValidationError);
+  });
+});
+
+describe('transactionPending', () => {
+  it('creates a pending result with required hash', () => {
+    const result = transactionPending('hash456');
+    expect(result).toEqual({
+      hash: 'hash456',
+      status: 'pending'
+    });
+  });
+
+  it('creates a pending result with raw data', () => {
+    const raw = { xdr: 'BBBB' };
+    const result = transactionPending('hash456', raw);
+    expect(result).toEqual({
+      hash: 'hash456',
+      status: 'pending',
+      raw
+    });
+  });
+
+  it('trims whitespace from hash', () => {
+    const result = transactionPending('  hash456  ');
+    expect(result.hash).toBe('hash456');
+  });
+
+  it('throws ValidationError for empty hash', () => {
+    expect(() => transactionPending('')).toThrow(ValidationError);
+    expect(() => transactionPending('')).toThrow('hash is required');
+  });
+
+  it('throws ValidationError for whitespace-only hash', () => {
+    expect(() => transactionPending('   ')).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError for non-string hash', () => {
+    expect(() => transactionPending(null as any)).toThrow(ValidationError);
+    expect(() => transactionPending(undefined as any)).toThrow(ValidationError);
+  });
+});
+
+describe('transactionFailed', () => {
+  it('creates a failed result with required hash', () => {
+    const result = transactionFailed('hash789');
+    expect(result).toEqual({
+      hash: 'hash789',
+      status: 'failed'
+    });
+  });
+
+  it('creates a failed result with error message', () => {
+    const result = transactionFailed('hash789', 'insufficient balance');
+    expect(result).toEqual({
+      hash: 'hash789',
+      status: 'failed',
+      error: 'insufficient balance'
+    });
+  });
+
+  it('creates a failed result with raw data', () => {
+    const raw = { xdr: 'CCCC' };
+    const result = transactionFailed('hash789', undefined, raw);
+    expect(result).toEqual({
+      hash: 'hash789',
+      status: 'failed',
+      raw
+    });
+  });
+
+  it('creates a failed result with all optional fields', () => {
+    const raw = { xdr: 'CCCC' };
+    const result = transactionFailed('hash789', 'insufficient balance', raw);
+    expect(result).toEqual({
+      hash: 'hash789',
+      status: 'failed',
+      error: 'insufficient balance',
+      raw
+    });
+  });
+
+  it('trims whitespace from hash', () => {
+    const result = transactionFailed('  hash789  ');
+    expect(result.hash).toBe('hash789');
+  });
+
+  it('throws ValidationError for empty hash', () => {
+    expect(() => transactionFailed('')).toThrow(ValidationError);
+    expect(() => transactionFailed('')).toThrow('hash is required');
+  });
+
+  it('throws ValidationError for whitespace-only hash', () => {
+    expect(() => transactionFailed('   ')).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError for non-string hash', () => {
+    expect(() => transactionFailed(null as any)).toThrow(ValidationError);
+    expect(() => transactionFailed(undefined as any)).toThrow(ValidationError);
+  });
+});
+
+describe('transactionTimeout', () => {
+  it('creates a timeout result with required hash', () => {
+    const result = transactionTimeout('hash000');
+    expect(result).toEqual({
+      hash: 'hash000',
+      status: 'timeout'
+    });
+  });
+
+  it('creates a timeout result with raw data', () => {
+    const raw = { xdr: 'DDDD' };
+    const result = transactionTimeout('hash000', raw);
+    expect(result).toEqual({
+      hash: 'hash000',
+      status: 'timeout',
+      raw
+    });
+  });
+
+  it('trims whitespace from hash', () => {
+    const result = transactionTimeout('  hash000  ');
+    expect(result.hash).toBe('hash000');
+  });
+
+  it('throws ValidationError for empty hash', () => {
+    expect(() => transactionTimeout('')).toThrow(ValidationError);
+    expect(() => transactionTimeout('')).toThrow('hash is required');
+  });
+
+  it('throws ValidationError for whitespace-only hash', () => {
+    expect(() => transactionTimeout('   ')).toThrow(ValidationError);
+  });
+
+  it('throws ValidationError for non-string hash', () => {
+    expect(() => transactionTimeout(null as any)).toThrow(ValidationError);
+    expect(() => transactionTimeout(undefined as any)).toThrow(ValidationError);
   });
 });

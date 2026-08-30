@@ -1,5 +1,10 @@
 import { ValidationError, WalletError } from './errors';
+import {
+  prepareUnsignedTransactionSigningRequest,
+  type UnsignedTransactionSigningRequestInput,
+} from './transactions';
 import type { AxionveraNetwork } from './types';
+import type { SignedTransactionResult, UnsignedTransactionSigningRequest } from './types';
 
 export interface WalletConnection {
   publicKey: string;
@@ -25,6 +30,24 @@ export interface SignWithWalletParams {
   transactionXdr: string;
   networkPassphrase: string;
   accountToSign?: string;
+}
+
+export interface RequestWalletSignatureParams {
+  wallet: WalletConnector;
+  request: UnsignedTransactionSigningRequest | UnsignedTransactionSigningRequestInput;
+}
+
+export interface TransactionSigningPipelineParams<TInput> {
+  wallet: WalletConnector;
+  prepareUnsignedTransaction(
+    input: TInput
+  ): UnsignedTransactionSigningRequestInput | UnsignedTransactionSigningRequest | Promise<UnsignedTransactionSigningRequestInput | UnsignedTransactionSigningRequest>;
+}
+
+export interface TransactionSigningPipeline<TInput> {
+  prepare(input: TInput): Promise<UnsignedTransactionSigningRequest>;
+  sign(request: UnsignedTransactionSigningRequest | UnsignedTransactionSigningRequestInput): Promise<SignedTransactionResult>;
+  prepareAndSign(input: TInput): Promise<SignedTransactionResult>;
 }
 
 /**
@@ -124,9 +147,75 @@ export async function signWithWallet(params: SignWithWalletParams): Promise<stri
   }
 }
 
+/**
+ * Requests a signature for a prepared unsigned transaction from any wallet connector.
+ * Wallet-provider details stay behind the WalletConnector interface.
+ */
+export async function requestWalletSignature(
+  params: RequestWalletSignatureParams
+): Promise<SignedTransactionResult> {
+  const { wallet, request } = params;
+  const prepared = prepareUnsignedTransactionSigningRequest(request);
+  const signParams: SignWithWalletParams = {
+    wallet,
+    transactionXdr: prepared.unsignedXdr,
+    networkPassphrase: prepared.networkPassphrase,
+  };
+
+  if (prepared.accountToSign !== undefined) {
+    signParams.accountToSign = prepared.accountToSign;
+  }
+
+  const signedXdr = await signWithWallet(signParams);
+
+  return {
+    ...prepared,
+    signedXdr,
+    walletId: wallet.id,
+    walletName: wallet.name,
+  };
+}
+
+/**
+ * Creates a provider-generic prepare -> wallet-sign pipeline.
+ */
+export function createTransactionSigningPipeline<TInput>(
+  params: TransactionSigningPipelineParams<TInput>
+): TransactionSigningPipeline<TInput> {
+  const { wallet, prepareUnsignedTransaction } = params;
+
+  if (!wallet || typeof wallet.signTransaction !== 'function') {
+    throw new ValidationError('wallet is required');
+  }
+
+  if (typeof prepareUnsignedTransaction !== 'function') {
+    throw new ValidationError('prepareUnsignedTransaction must be a function');
+  }
+
+  const prepare = async (input: TInput): Promise<UnsignedTransactionSigningRequest> => {
+    const request = await prepareUnsignedTransaction(input);
+    return prepareUnsignedTransactionSigningRequest(request);
+  };
+
+  const sign = async (
+    request: UnsignedTransactionSigningRequest | UnsignedTransactionSigningRequestInput
+  ): Promise<SignedTransactionResult> => requestWalletSignature({ wallet, request });
+
+  return {
+    prepare,
+    sign,
+    prepareAndSign: async (input: TInput): Promise<SignedTransactionResult> => {
+      const request = await prepare(input);
+      return sign(request);
+    },
+  };
+}
+
 export class MockWalletConnector implements WalletConnector {
   readonly id = 'mock';
   readonly name = 'Mock Wallet';
+
+  private connected = false;
 
   constructor(
     private readonly publicKey: string = 'GAXIONVERAMOCKPUBLICKEY',
@@ -134,14 +223,19 @@ export class MockWalletConnector implements WalletConnector {
   ) {}
 
   async connect(): Promise<WalletConnection> {
+    this.connected = true;
     return {
       publicKey: this.publicKey,
       network: 'testnet'
     };
   }
 
+  async disconnect(): Promise<void> {
+    this.connected = false;
+  }
+
   async isConnected(): Promise<boolean> {
-    return true;
+    return this.connected;
   }
 
   async signTransaction(transactionXdr: string, _options: SignTransactionOptions): Promise<string> {
