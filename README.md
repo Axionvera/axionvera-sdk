@@ -326,3 +326,19 @@ Please read [CONTRIBUTING.md](./CONTRIBUTING.md) for details on the code of cond
 This project is licensed under the MIT License — see the [LICENSE](./LICENSE) file for details.
 
 _Built with ❤️ by the Axionvera Team._
+
+## Dashboard Integration
+
+For integrating this SDK into a Dashboard application, see the [Dashboard Integration Checklist](./docs/DASHBOARD_INTEGRATION_CHECKLIST.md).
+
+### Quick Start
+
+1. Copy the `.env.example` and configure your environment
+2. Run `npm install` in the dashboard project
+3. Import the SDK and start using the hooks
+
+### Documentation
+
+- [Integration Checklist](./docs/DASHBOARD_INTEGRATION_CHECKLIST.md)
+- [React Package](./packages/react/README.md)
+- [Examples](./examples/dashboard-integration/README.md)
