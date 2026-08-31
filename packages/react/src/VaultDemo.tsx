@@ -56,8 +56,8 @@ export function VaultDemo({ contractId, invoker }: VaultDemoProps) {
         setUserBalance(balance);
         setUserRewards(rewards);
       }
-    } catch (err) {
-      console.error('Failed to fetch vault data', err);
+    } catch (_err) {
+      console.error('Failed to fetch vault data', _err);
     }
   };
 
@@ -71,7 +71,7 @@ export function VaultDemo({ contractId, invoker }: VaultDemoProps) {
       const result = await action();
       setTxHash(result.hash);
       await refreshData();
-    } catch (err) {
+    } catch (_err) {
       // Error is handled by useVault's error state
     }
   };

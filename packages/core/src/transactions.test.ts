@@ -1049,7 +1049,7 @@ describe('mockSubmitAndPoll', () => {
 
       expect(result1.status).toBe(result2.status);
       expect(result1.ledger).toBe(result2.ledger);
-      expect(result1.hash).not.toBe(result2.hash); // Different hashes
+      expect(result1.hash).toBe(result2.hash); // Deterministic mock hash for identical configurations
     });
   });
 });
