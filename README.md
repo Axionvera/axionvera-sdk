@@ -278,7 +278,7 @@ npm run smoke-test -- --config examples/smoke-test-input.json --mode dry-run
 Under the hood this runs `node scripts/smoke-test-sdk.js`.  The script:
 
 - Validates your config against the schema in
-  [schemas/smoke-test-config.schema.json](file:///c:/Users/Muhammad/.trae/Grantfox/axionvera-sdk/schemas/smoke-test-config.schema.json).
+  [schemas/smoke-test-config.schema.json](./schemas/smoke-test-config.schema.json).
 - Accepts `PLACEHOLDER_*` contract IDs so contributors never need real IDs.
 - Generates a report to `options.outputFile` with exact counts of live RPC calls /
   write submissions.
