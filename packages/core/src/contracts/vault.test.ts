@@ -1,240 +1,262 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
 
-import { ValidationError } from '../errors';
+import { ContractError, ValidationError } from '../errors';
+import { TestContractInvoker } from '../testing/testInvoker';
 import type { VaultBalance, VaultInfo, VaultReward, VaultTransaction } from '../types';
 import { VaultContract, type ContractInvoker } from './vault';
 
 const CONTRACT_ID = 'vault-contract-id';
 const ADDRESS = 'GABC1234567890';
-
-function createMockInvoker(): {
-  invoker: ContractInvoker;
-  invoke: Mock;
-  read: Mock;
-} {
-  const invoke = vi.fn();
-  const read = vi.fn();
-  const invoker: ContractInvoker = { invoke, read };
-
-  return { invoker, invoke, read };
-}
+const RECIPIENT = 'GXYZ9876543210';
 
 function createContract(invoker: ContractInvoker): VaultContract {
   return new VaultContract({ contractId: CONTRACT_ID, invoker });
 }
 
-describe('VaultContract read methods', () => {
-  describe('getInfo', () => {
-    it('calls read with the get_info method and no args', async () => {
-      const { invoker, invoke, read } = createMockInvoker();
-      const info: VaultInfo = { contractId: CONTRACT_ID };
-      read.mockResolvedValue(info);
+describe('VaultContract real-invoker readiness', () => {
+  describe('read methods', () => {
+    it('sends the exact getInfo request and returns the decoded response', async () => {
+      const info: VaultInfo = { contractId: CONTRACT_ID, totalDeposits: 500n };
+      const invoker = new TestContractInvoker().setReadResponse('get_info', info);
 
-      const contract = createContract(invoker);
-      await contract.getInfo();
+      const result = await createContract(invoker).getInfo();
 
-      expect(read).toHaveBeenCalledTimes(1);
-      expect(read).toHaveBeenCalledWith({
-        contractId: CONTRACT_ID,
-        method: 'get_info',
-        args: []
-      });
-      expect(invoke).not.toHaveBeenCalled();
-    });
-
-    it('returns the read response unchanged', async () => {
-      const { invoker, read } = createMockInvoker();
-      const info: VaultInfo = { contractId: CONTRACT_ID };
-      read.mockResolvedValue(info);
-
-      const contract = createContract(invoker);
-      const result = await contract.getInfo();
-
+      expect(invoker.calls).toEqual([
+        {
+          kind: 'read',
+          contractId: CONTRACT_ID,
+          method: 'get_info',
+          args: [],
+        },
+      ]);
       expect(result).toBe(info);
     });
-  });
 
-  describe('getBalance', () => {
-    it('calls read with the get_balance method and the provided address', async () => {
-      const { invoker, invoke, read } = createMockInvoker();
+    it('sends the exact getBalance request with its argument in order', async () => {
       const balance: VaultBalance = { address: ADDRESS, amount: 100n };
-      read.mockResolvedValue(balance);
+      const invoker = new TestContractInvoker().setReadResponse('get_balance', balance);
 
-      const contract = createContract(invoker);
-      await contract.getBalance(ADDRESS);
+      const result = await createContract(invoker).getBalance(ADDRESS);
 
-      expect(read).toHaveBeenCalledTimes(1);
-      expect(read).toHaveBeenCalledWith({
-        contractId: CONTRACT_ID,
-        method: 'get_balance',
-        args: [ADDRESS]
-      });
-      expect(invoke).not.toHaveBeenCalled();
-    });
-
-    it('returns the read response unchanged', async () => {
-      const { invoker, read } = createMockInvoker();
-      const balance: VaultBalance = { address: ADDRESS, amount: 100n };
-      read.mockResolvedValue(balance);
-
-      const contract = createContract(invoker);
-      const result = await contract.getBalance(ADDRESS);
-
+      expect(invoker.calls).toEqual([
+        {
+          kind: 'read',
+          contractId: CONTRACT_ID,
+          method: 'get_balance',
+          args: [ADDRESS],
+        },
+      ]);
       expect(result).toBe(balance);
     });
-  });
 
-  describe('getPendingRewards', () => {
-    it('calls read with the get_pending_rewards method and the provided address', async () => {
-      const { invoker, invoke, read } = createMockInvoker();
+    it('sends the exact getPendingRewards request with its argument in order', async () => {
       const reward: VaultReward = { address: ADDRESS, amount: 50n };
-      read.mockResolvedValue(reward);
+      const invoker = new TestContractInvoker().setReadResponse('get_pending_rewards', reward);
 
-      const contract = createContract(invoker);
-      await contract.getPendingRewards(ADDRESS);
+      const result = await createContract(invoker).getPendingRewards(ADDRESS);
 
-      expect(read).toHaveBeenCalledTimes(1);
-      expect(read).toHaveBeenCalledWith({
-        contractId: CONTRACT_ID,
-        method: 'get_pending_rewards',
-        args: [ADDRESS]
-      });
-      expect(invoke).not.toHaveBeenCalled();
-    });
-
-    it('returns the read response unchanged', async () => {
-      const { invoker, read } = createMockInvoker();
-      const reward: VaultReward = { address: ADDRESS, amount: 50n };
-      read.mockResolvedValue(reward);
-
-      const contract = createContract(invoker);
-      const result = await contract.getPendingRewards(ADDRESS);
-
+      expect(invoker.calls).toEqual([
+        {
+          kind: 'read',
+          contractId: CONTRACT_ID,
+          method: 'get_pending_rewards',
+          args: [ADDRESS],
+        },
+      ]);
       expect(result).toBe(reward);
     });
-  });
 
-  describe('read fallback', () => {
-    it('falls back to invoke when read is not provided', async () => {
-      const invoke = vi.fn();
-      const invoker: ContractInvoker = { invoke };
+    it('falls back to invoke with the same request when read is unavailable', async () => {
       const info: VaultInfo = { contractId: CONTRACT_ID };
-      invoke.mockResolvedValue(info);
+      const adapter = new TestContractInvoker().setInvokeResponse('get_info', info);
+      const invokeOnly: ContractInvoker = {
+        invoke: adapter.invoke.bind(adapter),
+      };
 
-      const contract = createContract(invoker);
-      const result = await contract.getInfo();
+      const result = await createContract(invokeOnly).getInfo();
 
-      expect(invoke).toHaveBeenCalledTimes(1);
-      expect(invoke).toHaveBeenCalledWith({
-        contractId: CONTRACT_ID,
-        method: 'get_info',
-        args: []
-      });
+      expect(adapter.calls).toEqual([
+        {
+          kind: 'invoke',
+          contractId: CONTRACT_ID,
+          method: 'get_info',
+          args: [],
+        },
+      ]);
       expect(result).toBe(info);
     });
   });
-});
 
-describe('VaultContract write methods', () => {
-  const TO = 'GXYZ9876543210';
+  describe('write methods', () => {
+    it('sends the exact deposit request and converts bigint amounts to strings', async () => {
+      const transaction: VaultTransaction = { status: 'success', hash: 'deposit-hash' };
+      const invoker = new TestContractInvoker().setInvokeResponse('deposit', transaction);
 
-  describe('deposit', () => {
-    it('calls invoke with the deposit method, address, and normalized amount string', async () => {
-      const { invoker, invoke } = createMockInvoker();
-      const tx: VaultTransaction = { status: 'success', hash: 'hash-1' };
-      invoke.mockResolvedValue(tx);
+      const result = await createContract(invoker).deposit(ADDRESS, 100n);
 
-      const contract = createContract(invoker);
-      const result = await contract.deposit(ADDRESS, 100n);
-
-      expect(invoke).toHaveBeenCalledTimes(1);
-      expect(invoke).toHaveBeenCalledWith({
-        contractId: CONTRACT_ID,
-        method: 'deposit',
-        args: [ADDRESS, '100']
-      });
-      expect(result).toBe(tx);
+      expect(invoker.calls).toEqual([
+        {
+          kind: 'invoke',
+          contractId: CONTRACT_ID,
+          method: 'deposit',
+          args: [ADDRESS, '100'],
+        },
+      ]);
+      expect(result).toBe(transaction);
     });
 
-    it('normalizes string and number amounts to the same stable arg shape', async () => {
-      const { invoker, invoke } = createMockInvoker();
-      const tx: VaultTransaction = { status: 'pending' };
-      invoke.mockResolvedValue(tx);
-
+    it('normalizes string and number deposit amounts to the same ordered args', async () => {
+      const transaction: VaultTransaction = { status: 'pending' };
+      const invoker = new TestContractInvoker().setInvokeResponse('deposit', transaction);
       const contract = createContract(invoker);
 
       await contract.deposit(ADDRESS, '250');
-      expect(invoke).toHaveBeenLastCalledWith({
-        contractId: CONTRACT_ID,
-        method: 'deposit',
-        args: [ADDRESS, '250']
-      });
-
       await contract.deposit(ADDRESS, 250);
-      expect(invoke).toHaveBeenLastCalledWith({
-        contractId: CONTRACT_ID,
-        method: 'deposit',
-        args: [ADDRESS, '250']
-      });
+
+      expect(invoker.calls).toEqual([
+        {
+          kind: 'invoke',
+          contractId: CONTRACT_ID,
+          method: 'deposit',
+          args: [ADDRESS, '250'],
+        },
+        {
+          kind: 'invoke',
+          contractId: CONTRACT_ID,
+          method: 'deposit',
+          args: [ADDRESS, '250'],
+        },
+      ]);
     });
 
-    it('rejects invalid amounts before invoke is called', async () => {
-      const { invoker, invoke } = createMockInvoker();
+    it('rejects invalid deposit amounts before the adapter is called', async () => {
+      const invoker = new TestContractInvoker();
       const contract = createContract(invoker);
 
       await expect(contract.deposit(ADDRESS, 0n)).rejects.toThrow(ValidationError);
       await expect(contract.deposit(ADDRESS, -5n)).rejects.toThrow(ValidationError);
 
-      expect(invoke).not.toHaveBeenCalled();
+      expect(invoker.calls).toEqual([]);
+    });
+
+    it('sends the exact withdraw request and converts the amount to a string', async () => {
+      const transaction: VaultTransaction = { status: 'success', hash: 'withdraw-hash' };
+      const invoker = new TestContractInvoker().setInvokeResponse('withdraw', transaction);
+
+      const result = await createContract(invoker).withdraw(RECIPIENT, 250n);
+
+      expect(invoker.calls).toEqual([
+        {
+          kind: 'invoke',
+          contractId: CONTRACT_ID,
+          method: 'withdraw',
+          args: [RECIPIENT, '250'],
+        },
+      ]);
+      expect(result).toBe(transaction);
+    });
+
+    it('rejects invalid withdraw amounts before the adapter is called', async () => {
+      const invoker = new TestContractInvoker();
+      const contract = createContract(invoker);
+
+      await expect(contract.withdraw(RECIPIENT, '0')).rejects.toThrow(ValidationError);
+      await expect(contract.withdraw(RECIPIENT, '-10')).rejects.toThrow(ValidationError);
+
+      expect(invoker.calls).toEqual([]);
+    });
+
+    it('sends the exact claimRewards request with its argument in order', async () => {
+      const transaction: VaultTransaction = { status: 'success', hash: 'claim-hash' };
+      const invoker = new TestContractInvoker().setInvokeResponse('claim_rewards', transaction);
+
+      const result = await createContract(invoker).claimRewards(ADDRESS);
+
+      expect(invoker.calls).toEqual([
+        {
+          kind: 'invoke',
+          contractId: CONTRACT_ID,
+          method: 'claim_rewards',
+          args: [ADDRESS],
+        },
+      ]);
+      expect(result).toBe(transaction);
     });
   });
 
-  describe('withdraw', () => {
-    it('calls invoke with the withdraw method, address, and normalized amount string', async () => {
-      const { invoker, invoke } = createMockInvoker();
-      const tx: VaultTransaction = { status: 'success', hash: 'hash-2' };
-      invoke.mockResolvedValue(tx);
+  describe('result mapping', () => {
+    it('passes a scripted successful transaction result through unchanged', async () => {
+      const success: VaultTransaction = {
+        status: 'success',
+        hash: 'success-hash',
+        raw: { ledger: 123 },
+      };
+      const invoker = new TestContractInvoker().setInvokeResponse('deposit', success);
 
-      const contract = createContract(invoker);
-      const result = await contract.withdraw(TO, 250n);
+      const result = await createContract(invoker).deposit(ADDRESS, 10n);
 
-      expect(invoke).toHaveBeenCalledTimes(1);
-      expect(invoke).toHaveBeenCalledWith({
-        contractId: CONTRACT_ID,
-        method: 'withdraw',
-        args: [TO, '250']
-      });
-      expect(result).toBe(tx);
+      expect(result).toBe(success);
     });
 
-    it('rejects invalid amounts before invoke is called', async () => {
-      const { invoker, invoke } = createMockInvoker();
-      const contract = createContract(invoker);
+    it('passes a scripted failed transaction result through unchanged', async () => {
+      const failure: VaultTransaction = {
+        status: 'failed',
+        hash: 'failed-hash',
+        raw: { error: 'insufficient balance' },
+      };
+      const invoker = new TestContractInvoker().setInvokeResponse('withdraw', failure);
 
-      await expect(contract.withdraw(TO, '0')).rejects.toThrow(ValidationError);
-      await expect(contract.withdraw(TO, '-10')).rejects.toThrow(ValidationError);
+      const result = await createContract(invoker).withdraw(RECIPIENT, 10n);
 
-      expect(invoke).not.toHaveBeenCalled();
+      expect(result).toBe(failure);
+    });
+
+    it('propagates an adapter error without replacing it', async () => {
+      const error = new ContractError('contract invocation failed');
+      const invoker = new TestContractInvoker().failOnInvoke(error);
+
+      await expect(createContract(invoker).claimRewards(ADDRESS)).rejects.toBe(error);
+      expect(invoker.calls).toEqual([
+        {
+          kind: 'invoke',
+          contractId: CONTRACT_ID,
+          method: 'claim_rewards',
+          args: [ADDRESS],
+        },
+      ]);
     });
   });
 
-  describe('claimRewards', () => {
-    it('calls invoke with the claim_rewards method and the provided address', async () => {
-      const { invoker, invoke } = createMockInvoker();
-      const tx: VaultTransaction = { status: 'success', hash: 'hash-3' };
-      invoke.mockResolvedValue(tx);
-
-      const contract = createContract(invoker);
-      const result = await contract.claimRewards(ADDRESS);
-
-      expect(invoke).toHaveBeenCalledTimes(1);
-      expect(invoke).toHaveBeenCalledWith({
-        contractId: CONTRACT_ID,
-        method: 'claim_rewards',
-        args: [ADDRESS]
-      });
-      expect(result).toBe(tx);
+  it('completes a read and write flow without any network or RPC call', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
+      throw new Error('unexpected network call');
     });
+    const balance: VaultBalance = { address: ADDRESS, amount: 100n };
+    const transaction: VaultTransaction = { status: 'success', hash: 'deposit-hash' };
+    const invoker = new TestContractInvoker()
+      .setReadResponse('get_balance', balance)
+      .setInvokeResponse('deposit', transaction);
+    const contract = createContract(invoker);
+
+    await contract.getBalance(ADDRESS);
+    await contract.deposit(ADDRESS, 25n);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(invoker.calls).toEqual([
+      {
+        kind: 'read',
+        contractId: CONTRACT_ID,
+        method: 'get_balance',
+        args: [ADDRESS],
+      },
+      {
+        kind: 'invoke',
+        contractId: CONTRACT_ID,
+        method: 'deposit',
+        args: [ADDRESS, '25'],
+      },
+    ]);
+
+    fetchSpy.mockRestore();
   });
 });
