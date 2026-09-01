@@ -18,9 +18,10 @@ export interface TestContractInvokerOptions {
 }
 
 /**
- * Lightweight `ContractInvoker` for unit tests.
- * Records every call and returns preconfigured responses (or forced errors).
- * Does not perform real RPC or network I/O.
+ * In-memory, real-invoker-shaped `ContractInvoker` for unit and readiness tests.
+ * It implements the same `read`/`invoke` request boundary used by
+ * `SorobanContractInvoker`, records every ordered request, and returns
+ * preconfigured responses (or forced errors). It has no RPC or network client.
  */
 export class TestContractInvoker implements ContractInvoker {
   readonly calls: TestInvokerCall[] = [];
