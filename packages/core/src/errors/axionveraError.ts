@@ -45,6 +45,28 @@ export class RateLimitError extends AxionveraError {}
 
 export class ValidationError extends AxionveraError {}
 
+export class InsecureNetworkError extends AxionveraError {}
+
+export class TransactionError extends AxionveraError {}
+
+export class WalletRejectedTransactionError extends TransactionError {}
+
+export class TransactionFailedError extends TransactionError {}
+
+export class TransactionNotFoundError extends TransactionError {}
+
+export class RpcError extends AxionveraError {}
+
+export class ContractError extends AxionveraError {}
+
+export class TimeoutError extends AxionveraError {}
+
+export class InsufficientFundsError extends TransactionError {}
+
+export class InvalidSignatureError extends TransactionError {}
+
+export class SimulationError extends AxionveraError {}
+
 export class StellarRpcNetworkError extends AxionveraError {}
 
 export class StellarRpcResponseError extends AxionveraError {}
@@ -164,6 +186,146 @@ function isNetworkCode(errorCode: unknown): boolean {
     "ETIMEDOUT",
     "ERR_NETWORK"
   ].includes(errorCode);
+}
+
+/**
+ * Normalizes RPC errors from Stellar/Soroban RPC responses.
+ * @param error - The raw error from RPC call
+ * @param operation - Description of the operation that failed
+ * @returns Normalized AxionveraError
+ */
+export function normalizeRpcError(error: unknown, operation: string): AxionveraError {
+  if (error instanceof AxionveraError) {
+    return error;
+  }
+
+  const errorLike = asErrorLike(error);
+  const message = getErrorMessage(error, `RPC operation failed: ${operation}`);
+  const lowerMessage = message.toLowerCase();
+
+  if (
+    errorLike.code === 'ETIMEDOUT' ||
+    errorLike.code === 'ECONNABORTED' ||
+    (typeof errorLike.code === 'string' && errorLike.code.includes('TIMEOUT')) ||
+    lowerMessage.includes('timeout') ||
+    lowerMessage.includes('timed out')
+  ) {
+    return new TimeoutError(`RPC timeout during ${operation}`, {
+      originalError: error
+    });
+  }
+
+  if (
+    isNetworkCode(errorLike.code) ||
+    (typeof errorLike.code === 'string' && errorLike.code.includes('NETWORK')) ||
+    lowerMessage.includes('network')
+  ) {
+    return new NetworkError(`Network error during ${operation}`, {
+      originalError: error
+    });
+  }
+
+  return new RpcError(message, {
+    statusCode: getErrorStatusCode(error),
+    requestId: getErrorRequestId(error),
+    originalError: error
+  });
+}
+
+/**
+ * Normalizes transaction submission and polling errors.
+ * @param error - The raw error from transaction submission or polling
+ * @param txHash - The transaction hash if available
+ * @returns Normalized AxionveraError
+ */
+export function normalizeTransactionError(error: unknown, txHash?: string): AxionveraError {
+  if (error instanceof AxionveraError) {
+    return error;
+  }
+
+  const errorLike = asErrorLike(error);
+  const message = getErrorMessage(error, 'Transaction failed');
+  const lowerMessage = message.toLowerCase();
+  const suffix = txHash ? ` (${txHash})` : '';
+
+  if (
+    errorLike.code === 4001 ||
+    lowerMessage.includes('user rejected') ||
+    lowerMessage.includes('declined') ||
+    lowerMessage.includes('denied')
+  ) {
+    return new WalletRejectedTransactionError(`Wallet signing rejected${suffix}`, {
+      originalError: error
+    });
+  }
+
+  if (lowerMessage.includes('not found')) {
+    return new TransactionNotFoundError(`Transaction not found${suffix}`, {
+      originalError: error
+    });
+  }
+
+  if (lowerMessage.includes('insufficient') && lowerMessage.includes('fund')) {
+    return new InsufficientFundsError(`Insufficient funds for transaction${suffix}`, {
+      originalError: error
+    });
+  }
+
+  if (lowerMessage.includes('invalid') && lowerMessage.includes('signature')) {
+    return new InvalidSignatureError(`Invalid signature for transaction${suffix}`, {
+      originalError: error
+    });
+  }
+
+  if (
+    errorLike.code === 'ETIMEDOUT' ||
+    lowerMessage.includes('timeout') ||
+    lowerMessage.includes('timed out')
+  ) {
+    return new TimeoutError(`Transaction timeout${suffix}`, {
+      originalError: error
+    });
+  }
+
+  return new TransactionError(message, {
+    originalError: error
+  });
+}
+
+/**
+ * Normalizes contract call errors.
+ * @param error - The raw error from contract call
+ * @param contractId - The contract ID
+ * @param method - The method that was called
+ * @returns Normalized AxionveraError
+ */
+export function normalizeContractError(error: unknown, contractId: string, method: string): AxionveraError {
+  if (error instanceof AxionveraError) {
+    return error;
+  }
+
+  const message = getErrorMessage(error, `Contract call failed: ${method} on ${contractId}`);
+
+  return new ContractError(message, {
+    originalError: error
+  });
+}
+
+/**
+ * Normalizes simulation errors.
+ * @param error - The raw error from simulation
+ * @returns Normalized AxionveraError
+ */
+export function normalizeSimulationError(error: unknown): AxionveraError {
+  if (error instanceof AxionveraError) {
+    return error;
+  }
+
+  const message = getErrorMessage(error, 'Transaction simulation failed');
+
+  return new SimulationError(message, {
+    originalError: error
+  });
 }
 
 export function toAxionveraError(error: unknown, fallbackMessage = "API request failed"): AxionveraError {

@@ -19,6 +19,7 @@
 - [Usage Examples](#-usage-examples)
 - [API Reference](#-api-reference)
 - [Troubleshooting](#-troubleshooting)
+- [Transaction Recovery Guide](./docs/transaction-error-recovery.md)
 - [Contributing](#-contributing)
 - [License](#-license)
 - [Contact](#-contact)
@@ -127,6 +128,7 @@ We provide detailed, runnable examples in the [`examples/`](./examples/) directo
 - 🏦 **Withdraw**: [withdrawExample.ts](./examples/withdrawExample.ts)
 - ⚖️ **Check Balance**: [balanceExample.ts](./examples/balanceExample.ts)
 - 🔄 **HTTP Retry Logic**: [retryExample.ts](./examples/retryExample.ts)
+- 🧯 **Transaction Recovery**: [transaction-error-recovery.ts](./examples/transaction-error-recovery.ts)
 
 ---
 
@@ -170,6 +172,8 @@ Implement this interface to integrate browser extension wallets (like Freighter)
 
 If you encounter issues while using the SDK, check the following common problems:
 
+- **Transaction Recovery**
+  See the [transaction error recovery guide](./docs/transaction-error-recovery.md) for typed handling of wallet rejection, RPC failure, timeout, failed transaction, and not-found states using mocked fixtures.
 - **Error: `Simulation failed`**
   This usually means the contract call reverted during simulation. Ensure your account has sufficient XLM for fees, the contract ID is correct, you are passing the correct arguments, and the contract logic allows the operation.
 - **Error: `Timed out waiting for transaction`**

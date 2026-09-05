@@ -5,7 +5,11 @@ export {
     AuthenticationError,
     RateLimitError,
     ValidationError,
+    InsecureNetworkError,
     TransactionError,
+    WalletRejectedTransactionError,
+    TransactionFailedError,
+    TransactionNotFoundError,
     RpcError,
     ContractError,
     TimeoutError,
@@ -19,6 +23,17 @@ export {
     normalizeContractError,
     normalizeSimulationError
 } from './errors/axionveraError';
+
+export {
+    transactionErrorRecoveryFixtures,
+    normalizeTransactionRecoveryInput,
+    classifyTransactionRecoveryInput
+} from './fixtures/transactionErrorRecovery';
+export type {
+    TransactionRecoveryScenario,
+    TransactionErrorRecoveryInput,
+    TransactionRecoveryFixture
+} from './fixtures/transactionErrorRecovery';
 
 // Client
 export { StellarClient } from './client/stellarClient';

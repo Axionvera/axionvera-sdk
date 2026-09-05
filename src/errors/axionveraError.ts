@@ -45,7 +45,15 @@ export class RateLimitError extends AxionveraError { }
 
 export class ValidationError extends AxionveraError { }
 
+export class InsecureNetworkError extends AxionveraError { }
+
 export class TransactionError extends AxionveraError { }
+
+export class WalletRejectedTransactionError extends TransactionError { }
+
+export class TransactionFailedError extends TransactionError { }
+
+export class TransactionNotFoundError extends TransactionError { }
 
 export class RpcError extends AxionveraError { }
 
@@ -110,18 +118,37 @@ export function normalizeTransactionError(error: unknown, txHash?: string): Axio
 
   // Check for specific transaction error patterns
   const lowerMessage = message.toLowerCase();
+  const suffix = txHash ? ` (${txHash})` : '';
+
+  if (
+    errorLike.code === 4001 ||
+    lowerMessage.includes('user rejected') ||
+    lowerMessage.includes('declined') ||
+    lowerMessage.includes('denied')
+  ) {
+    return new WalletRejectedTransactionError(`Wallet signing rejected${suffix}`, {
+      originalError: error
+    });
+  }
+
+  if (lowerMessage.includes('not found')) {
+    return new TransactionNotFoundError(`Transaction not found${suffix}`, {
+      originalError: error
+    });
+  }
+
   if (lowerMessage.includes('insufficient') && lowerMessage.includes('fund')) {
-    return new InsufficientFundsError(`Insufficient funds for transaction${txHash ? ` (${txHash})` : ''}`, {
+    return new InsufficientFundsError(`Insufficient funds for transaction${suffix}`, {
       originalError: error
     });
   }
   if (lowerMessage.includes('invalid') && lowerMessage.includes('signature')) {
-    return new InvalidSignatureError(`Invalid signature for transaction${txHash ? ` (${txHash})` : ''}`, {
+    return new InvalidSignatureError(`Invalid signature for transaction${suffix}`, {
       originalError: error
     });
   }
   if (lowerMessage.includes('timeout') || lowerMessage.includes('timed out')) {
-    return new TimeoutError(`Transaction timeout${txHash ? ` (${txHash})` : ''}`, {
+    return new TimeoutError(`Transaction timeout${suffix}`, {
       originalError: error
     });
   }

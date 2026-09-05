@@ -31,12 +31,38 @@ export {
   AuthenticationError, 
   RateLimitError, 
   ValidationError,
+  InsecureNetworkError,
+  TransactionError,
+  WalletRejectedTransactionError,
+  TransactionFailedError,
+  TransactionNotFoundError,
+  RpcError,
+  ContractError,
+  TimeoutError,
+  InsufficientFundsError,
+  InvalidSignatureError,
+  SimulationError,
   StellarRpcNetworkError,
   StellarRpcResponseError,
   StellarRpcTimeoutError,
   FaucetRateLimitError,
-  toAxionveraError
+  toAxionveraError,
+  normalizeRpcError,
+  normalizeTransactionError,
+  normalizeContractError,
+  normalizeSimulationError
 } from './errors/axionveraError';
+
+export {
+  transactionErrorRecoveryFixtures,
+  normalizeTransactionRecoveryInput,
+  classifyTransactionRecoveryInput
+} from './fixtures/transactionErrorRecovery';
+export type {
+  TransactionRecoveryScenario,
+  TransactionErrorRecoveryInput,
+  TransactionRecoveryFixture
+} from './fixtures/transactionErrorRecovery';
 
 // Transaction Signing
 export { TransactionSigner, EnhancedTransactionBuilder, TransactionSimulator } from './transaction';
