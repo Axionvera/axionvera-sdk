@@ -52,3 +52,76 @@ export class TransactionTimeoutError extends AxionveraError {
     this.name = 'TransactionTimeoutError';
   }
 }
+
+export class TransactionError extends AxionveraError {
+  constructor(message: string, cause?: unknown) {
+    super(message, 'AXIONVERA_ERROR', cause);
+    this.name = 'TransactionError';
+  }
+}
+
+export class WalletRejectedTransactionError extends TransactionError {
+  constructor(cause?: unknown) {
+    super('Wallet signing was rejected', cause);
+    this.name = 'WalletRejectedTransactionError';
+  }
+}
+
+export class TransactionFailedError extends TransactionError {
+  constructor(hash: string, cause?: unknown) {
+    super(`Transaction failed for ${hash}`, cause);
+    this.name = 'TransactionFailedError';
+  }
+}
+
+export class TransactionNotFoundError extends TransactionError {
+  constructor(hash: string, cause?: unknown) {
+    super(`Transaction not found for ${hash}`, cause);
+    this.name = 'TransactionNotFoundError';
+  }
+}
+
+export class RpcError extends AxionveraError {
+  constructor(message: string, cause?: unknown) {
+    super(message, 'NETWORK_ERROR', cause);
+    this.name = 'RpcError';
+  }
+}
+
+export class TimeoutError extends AxionveraError {
+  constructor(message: string, cause?: unknown) {
+    super(message, 'TRANSACTION_TIMEOUT', cause);
+    this.name = 'TimeoutError';
+  }
+}
+
+export function normalizeRpcError(error: unknown, operation: string): AxionveraError {
+  const message = error instanceof Error && error.message ? error.message : `RPC operation failed: ${operation}`;
+  if (typeof message === 'string' && /timeout|timed out/i.test(message)) {
+    return new TimeoutError(`RPC timeout during ${operation}`, error);
+  }
+  return new RpcError(message, error);
+}
+
+export function normalizeTransactionError(error: unknown, txHash?: string): AxionveraError {
+  const message = error instanceof Error && error.message ? error.message : 'Transaction failed';
+  const lower = message.toLowerCase();
+
+  if (/user rejected|declined|denied/i.test(lower) || (typeof (error as any)?.code === 'number' && (error as any).code === 4001)) {
+    return new WalletRejectedTransactionError(error);
+  }
+
+  if (lower.includes('not found')) {
+    return new TransactionNotFoundError(txHash ?? 'unknown', error);
+  }
+
+  if (lower.includes('timed out') || lower.includes('timeout')) {
+    return new TimeoutError(`Transaction timeout${txHash ? ` (${txHash})` : ''}`, error);
+  }
+
+  if (lower.includes('failed')) {
+    return new TransactionFailedError(txHash ?? 'unknown', error);
+  }
+
+  return new TransactionError(message, error);
+}

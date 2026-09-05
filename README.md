@@ -18,8 +18,21 @@
 
 | Package | Description |
 | --- | --- |
-| [`@axionvera/core`](./packages/core/README.md) | Core client (`AxionveraClient`), network configuration, wallet connectors (`WalletConnector`, `MockWalletConnector`), the `VaultContract` module, typed errors, and shared types. |
+| [`@axionvera/core`](./packages/core/README.md) | Core client, network configuration, wallet connectors, vault helpers, typed errors, transaction helpers, and shared types. |
 | [`@axionvera/react`](./packages/react/README.md) | React bindings: `AxionveraProvider`, `useWallet`, and `useVault`. |
+
+- [Overview](#-overview)
+- [Features](#-features)
+- [Prerequisites](#-prerequisites)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Usage Examples](#-usage-examples)
+- [API Reference](#-api-reference)
+- [Troubleshooting](#-troubleshooting)
+- [Transaction Recovery Guide](./docs/transaction-error-recovery.md)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Contact](#-contact)
 
 ## Installation
 
@@ -123,7 +136,13 @@ The repository also includes a provider-generic signing example at
 
 ## Architecture
 
-The SDK v2 is built in focused layers with clear separation of concerns:
+- 💰 **Deposit**: [depositExample.ts](./examples/depositExample.ts)
+- 🏦 **Withdraw**: [withdrawExample.ts](./examples/withdrawExample.ts)
+- ⚖️ **Check Balance**: [balanceExample.ts](./examples/balanceExample.ts)
+- 🔄 **HTTP Retry Logic**: [retryExample.ts](./examples/retryExample.ts)
+- 🧯 **Transaction Recovery**: [transaction-error-recovery.ts](./examples/transaction-error-recovery.ts)
+
+The SDK v2 is built in focused layers with clear separation of concerns.
 
 ### ContractInvoker Pattern
 
@@ -159,10 +178,14 @@ The SDK provides a wallet abstraction for connecting to Stellar-compatible walle
 
 The SDK provides normalized types and helpers for transaction management:
 
-- `TransactionActionResult` - Standardized result shape with status, hash, ledger, error
-- Helper functions: `transactionSuccess()`, `transactionPending()`, `transactionFailed()`, `transactionTimeout()`
-- `waitForTransaction()` - Polls for transaction status with configurable intervals
-- `TransactionTimeoutError` - Thrown when polling exceeds max attempts
+- **Transaction Recovery**
+  See the [transaction error recovery guide](./docs/transaction-error-recovery.md) for typed handling of wallet rejection, RPC failure, timeout, failed transaction, and not-found states using mocked fixtures.
+- **Error: `Simulation failed`**
+  This usually means the contract call reverted during simulation. Ensure your account has sufficient XLM for fees, the contract ID is correct, you are passing the correct arguments, and the contract logic allows the operation.
+- **Error: `Timed out waiting for transaction`**
+  The transaction was submitted but not confirmed within the polling window. You may need to increase the `timeoutMs` parameter in `pollTransaction` or check if the network is heavily congested.
+- **Rate Limiting (HTTP 429)**
+  The SDK automatically retries on `429 Too Many Requests` using exponential backoff. If you consistently hit rate limits, consider configuring a private RPC provider URL instead of using the default public endpoints during `StellarClient` initialization.
 
 **Transaction Status Flow:**
 1. Submit transaction - receive hash

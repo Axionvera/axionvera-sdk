@@ -111,6 +111,10 @@ STELLAR_PUBLIC_KEY=G... \
 npx ts-node examples/balanceExample.ts
 ```
 
+## Transaction recovery
+
+For typed recovery fixtures and mocked transaction states, use the [transaction error recovery guide](./transaction-error-recovery.md). It shows how to classify wallet rejection, RPC failure, timeout, failed transaction, and not-found states without making live RPC calls.
+
 ## 7) Prepare unsigned XDR and request wallet signing
 
 Use the signing pipeline when transaction construction and wallet signing live

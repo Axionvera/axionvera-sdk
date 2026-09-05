@@ -32,3 +32,14 @@ export * from './testing';
 export * from './transactions';
 export * from './types';
 export * from './wallet';
+export {
+  transactionErrorRecoveryFixtures,
+  normalizeTransactionRecoveryInput,
+  classifyTransactionRecoveryInput
+} from './fixtures/transactionErrorRecovery';
+export type {
+  TransactionRecoveryScenario,
+  TransactionErrorRecoveryInput,
+  TransactionRecoveryFixture
+} from './fixtures/transactionErrorRecovery';
+
