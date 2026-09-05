@@ -1,186 +1,71 @@
-import { ethers } from 'ethers';
-import { VaultABI } from './abis/VaultABI';
+import { createContractCallRequest, normalizeAmount } from '../transactions';
+import type { AmountInput, VaultBalance, VaultInfo, VaultReward, VaultTransaction } from '../types';
 
-export interface VaultConfig {
-  contractAddress: string;
-  provider: ethers.providers.Provider | ethers.Signer;
+export interface ContractInvoker {
+  invoke<TResponse = unknown>(request: {
+    contractId: string;
+    method: string;
+    args: readonly unknown[];
+  }): Promise<TResponse>;
+
+  read?<TResponse = unknown>(request: {
+    contractId: string;
+    method: string;
+    args: readonly unknown[];
+  }): Promise<TResponse>;
 }
 
-export interface DepositParams {
-  amount: ethers.BigNumberish;
-  asset?: string;
-  referralCode?: string;
+export interface VaultContractOptions {
+  contractId: string;
+  invoker: ContractInvoker;
 }
 
-export interface WithdrawParams {
-  amount: ethers.BigNumberish;
-  asset?: string;
-}
+export class VaultContract {
+  readonly contractId: string;
+  private readonly invoker: ContractInvoker;
 
-export interface VaultInfo {
-  totalAssets: ethers.BigNumber;
-  totalSupply: ethers.BigNumber;
-  apy: number;
-  lockPeriod: number;
-}
+  constructor(options: VaultContractOptions) {
+    this.contractId = options.contractId;
+    this.invoker = options.invoker;
+  }
 
-export class Vault {
-  private contract: ethers.Contract;
-  private provider: ethers.providers.Provider | ethers.Signer;
-  private address: string;
+  async getInfo(): Promise<VaultInfo> {
+    return this.read<VaultInfo>('get_info');
+  }
 
-  constructor(config: VaultConfig) {
-    this.address = config.contractAddress;
-    this.provider = config.provider;
-    this.contract = new ethers.Contract(
-      config.contractAddress,
-      VaultABI,
-      config.provider
+  async getBalance(address: string): Promise<VaultBalance> {
+    return this.read<VaultBalance>('get_balance', [address]);
+  }
+
+  async getPendingRewards(address: string): Promise<VaultReward> {
+    return this.read<VaultReward>('get_pending_rewards', [address]);
+  }
+
+  async deposit(from: string, amount: AmountInput): Promise<VaultTransaction> {
+    return this.invoke<VaultTransaction>('deposit', [from, normalizeAmount(amount).toString()]);
+  }
+
+  async withdraw(to: string, amount: AmountInput): Promise<VaultTransaction> {
+    return this.invoke<VaultTransaction>('withdraw', [to, normalizeAmount(amount).toString()]);
+  }
+
+  async claimRewards(address: string): Promise<VaultTransaction> {
+    return this.invoke<VaultTransaction>('claim_rewards', [address]);
+  }
+
+  private async invoke<TResponse>(method: string, args: readonly unknown[] = []): Promise<TResponse> {
+    return this.invoker.invoke<TResponse>(
+      createContractCallRequest(this.contractId, method, args)
     );
   }
 
-  /**
-   * Connect to vault with signer for write operations
-   */
-  connect(signer: ethers.Signer): Vault {
-    return new Vault({
-      contractAddress: this.address,
-      provider: signer,
-    });
-  }
+  private async read<TResponse>(method: string, args: readonly unknown[] = []): Promise<TResponse> {
+    const request = createContractCallRequest(this.contractId, method, args);
 
-  /**
-   * Get vault information (total assets, total supply, APY, lock period)
-   */
-  async getVaultInfo(): Promise<VaultInfo> {
-    const [totalAssets, totalSupply, apy, lockPeriod] = await Promise.all([
-      this.contract.totalAssets(),
-      this.contract.totalSupply(),
-      this.contract.apy(),
-      this.contract.lockPeriod(),
-    ]);
-
-    return {
-      totalAssets,
-      totalSupply,
-      apy: apy.toNumber() / 10000,
-      lockPeriod: lockPeriod.toNumber(),
-    };
-  }
-
-  /**
-   * Get user's vault balance
-   * @param userAddress - Address of the user
-   * @returns User's balance in vault shares
-   */
-  async getBalance(userAddress: string): Promise<ethers.BigNumber> {
-    return this.contract.balanceOf(userAddress);
-  }
-
-  /**
-   * Get user's underlying assets balance
-   * @param userAddress - Address of the user
-   * @returns Converted balance in underlying asset
-   */
-  async getAssetsBalance(userAddress: string): Promise<ethers.BigNumber> {
-    const shares = await this.getBalance(userAddress);
-    return this.convertToAssets(shares);
-  }
-
-  /**
-   * Convert shares to underlying assets
-   */
-  async convertToAssets(shares: ethers.BigNumberish): Promise<ethers.BigNumber> {
-    return this.contract.convertToAssets(shares);
-  }
-
-  /**
-   * Convert underlying assets to shares
-   */
-  async convertToShares(assets: ethers.BigNumberish): Promise<ethers.BigNumber> {
-    return this.contract.convertToShares(assets);
-  }
-
-  /**
-   * Deposit assets into vault
-   * @param params - Deposit parameters
-   * @param signer - Optional signer (uses connected signer if not provided)
-   */
-  async deposit(params: DepositParams, signer?: ethers.Signer): Promise<ethers.ContractTransaction> {
-    const signerToUse = signer || (this.provider as ethers.Signer);
-    
-    if (!signerToUse || !('sendTransaction' in signerToUse)) {
-      throw new Error('Signer required for deposit operation');
+    if (this.invoker.read) {
+      return this.invoker.read<TResponse>(request);
     }
 
-    const contractWithSigner = this.contract.connect(signerToUse);
-    const tx = await contractWithSigner.deposit(params.amount, {
-      value: params.amount,
-    });
-    
-    return tx;
-  }
-
-  /**
-   * Withdraw assets from vault
-   * @param params - Withdraw parameters
-   * @param signer - Optional signer (uses connected signer if not provided)
-   */
-  async withdraw(params: WithdrawParams, signer?: ethers.Signer): Promise<ethers.ContractTransaction> {
-    const signerToUse = signer || (this.provider as ethers.Signer);
-    
-    if (!signerToUse || !('sendTransaction' in signerToUse)) {
-      throw new Error('Signer required for withdraw operation');
-    }
-
-    const contractWithSigner = this.contract.connect(signerToUse);
-    const tx = await contractWithSigner.withdraw(
-      params.amount,
-      await signerToUse.getAddress(),
-      await signerToUse.getAddress()
-    );
-    
-    return tx;
-  }
-
-  /**
-   * Claim pending rewards
-   * @param signer - Optional signer (uses connected signer if not provided)
-   */
-  async claimRewards(signer?: ethers.Signer): Promise<ethers.ContractTransaction> {
-    const signerToUse = signer || (this.provider as ethers.Signer);
-    
-    if (!signerToUse || !('sendTransaction' in signerToUse)) {
-      throw new Error('Signer required for claim rewards operation');
-    }
-
-    const contractWithSigner = this.contract.connect(signerToUse);
-    const tx = await contractWithSigner.claimRewards();
-    
-    return tx;
-  }
-
-  /**
-   * Get pending rewards for a user
-   * @param userAddress - Address of the user
-   */
-  async getPendingRewards(userAddress: string): Promise<ethers.BigNumber> {
-    return this.contract.pendingRewards(userAddress);
-  }
-
-  /**
-   * Estimate deposit gas cost
-   */
-  async estimateDepositGas(amount: ethers.BigNumberish): Promise<ethers.BigNumber> {
-    return this.contract.estimateGas.deposit(amount);
-  }
-
-  /**
-   * Estimate withdraw gas cost
-   */
-  async estimateWithdrawGas(amount: ethers.BigNumberish): Promise<ethers.BigNumber> {
-    return this.contract.estimateGas.withdraw(amount);
+    return this.invoker.invoke<TResponse>(request);
   }
 }
-
-export default Vault;

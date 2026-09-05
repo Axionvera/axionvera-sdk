@@ -1,0 +1,53 @@
+{
+  "compatible": true,
+  "methods": [
+    {
+      "sdkName": "getInfo",
+      "networkName": "get_info",
+      "status": "ok"
+    },
+    {
+      "sdkName": "getBalance",
+      "networkName": "get_balance",
+      "status": "ok"
+    },
+    {
+      "sdkName": "getPendingRewards",
+      "networkName": "get_pending_rewards",
+      "status": "ok"
+    },
+    {
+      "sdkName": "deposit",
+      "networkName": "deposit",
+      "status": "ok"
+    },
+    {
+      "sdkName": "withdraw",
+      "networkName": "withdraw",
+      "status": "ok"
+    },
+    {
+      "sdkName": "claimRewards",
+      "networkName": "claim_rewards",
+      "status": "ok"
+    }
+  ],
+  "events": [
+    {
+      "name": "deposit",
+      "status": "ok"
+    },
+    {
+      "name": "withdraw",
+      "status": "ok"
+    },
+    {
+      "name": "claim_rewards",
+      "status": "ok"
+    },
+    {
+      "name": "initialized",
+      "status": "ok"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "network": "testnet",
+  "rpcUrl": "https://soroban-testnet.stellar.org",
+  "horizonUrl": "https://horizon-testnet.stellar.org",
+  "networkPassphrase": "Test SDF Network ; September 2015",
+  "vaultContractId": "YOUR_TESTNET_VAULT_CONTRACT_ID",
+  "tokens": {
+    "deposit": "YOUR_TESTNET_DEPOSIT_TOKEN_CONTRACT_ID",
+    "reward": "YOUR_TESTNET_REWARD_TOKEN_CONTRACT_ID"
+  }
+}

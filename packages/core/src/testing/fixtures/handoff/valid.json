@@ -1,0 +1,14 @@
+{
+  "vault": {
+    "contractId": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "network": "testnet",
+    "version": "1.0.0",
+    "metadata": {
+      "deployedBy": "maintainer"
+    }
+  },
+  "token": {
+    "contractId": "CBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB",
+    "network": "testnet"
+  }
+}

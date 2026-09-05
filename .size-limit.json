@@ -1,6 +1,0 @@
-[
-  {
-    "path": "dist/index.mjs",
-    "limit": "50 kb"
-  }
-]

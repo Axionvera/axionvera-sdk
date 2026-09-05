@@ -3,7 +3,7 @@ module.exports = {
   env: {
     es2020: true,
     node: true,
-    jest: true
+    browser: true
   },
   parser: '@typescript-eslint/parser',
   parserOptions: {
@@ -13,7 +13,15 @@ module.exports = {
   plugins: ['@typescript-eslint'],
   extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],
   rules: {
+    '@typescript-eslint/no-unused-vars': [
+      'warn',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_'
+      }
+    ],
     '@typescript-eslint/no-explicit-any': 'off'
   },
-  ignorePatterns: ['dist/', 'node_modules/']
+  ignorePatterns: ['dist/', 'node_modules/', '**/*.d.ts']
 };

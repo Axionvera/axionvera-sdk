@@ -1,58 +1,37 @@
-// Client
-export { StellarClient } from './client/stellarClient';
-export { AxionveraClient } from './client/axionveraClient';
-export { FaucetClient } from './client/faucetClient';
-export type { StellarClientOptions } from './client/stellarClient';
-export type { AxionveraClientConfig } from './client/axionveraClient';
-
-// Contracts
-export { VaultContract } from './contracts/VaultContract';
-export { ContractEventEmitter } from './contracts/ContractEventEmitter';
-export { Vault } from './contracts/Vault';
-export { VaultABI } from './contracts/abis/VaultABI';
-export type { VaultConfig, DepositParams, WithdrawParams, VaultInfo } from './contracts/Vault';
-export type { ContractEvent, EventCallback } from './contracts/ContractEventEmitter';
-
-// Wallet
-export { LocalKeypairWalletConnector } from './wallet/localKeypairWalletConnector';
-export type { WalletConnector } from './wallet/walletConnector';
-
-// Utils
-export { ConcurrencyQueue, createConcurrencyControlledClient } from './utils/concurrencyQueue';
-export { retry, createHttpClientWithRetry } from './utils/httpInterceptor';
-export { buildContractCallOperation, buildContractCallTransaction, buildContractAuthPayload, toScVal } from './utils/transactionBuilder';
-export { getDefaultRpcUrl, getNetworkPassphrase, resolveNetworkConfig } from './utils/networkConfig';
-export { generateTransactionURI, generatePayURI } from './utils/sep7';
-
-// Errors
-export { 
-  AxionveraError, 
-  NetworkError, 
-  AuthenticationError, 
-  RateLimitError, 
-  ValidationError,
-  InsecureNetworkError,
-  TransactionError,
-  WalletRejectedTransactionError,
-  TransactionFailedError,
-  TransactionNotFoundError,
-  RpcError,
-  ContractError,
-  TimeoutError,
-  InsufficientFundsError,
-  InvalidSignatureError,
-  SimulationError,
-  StellarRpcNetworkError,
-  StellarRpcResponseError,
-  StellarRpcTimeoutError,
-  FaucetRateLimitError,
-  toAxionveraError,
-  normalizeRpcError,
-  normalizeTransactionError,
-  normalizeContractError,
-  normalizeSimulationError
-} from './errors/axionveraError';
-
+export * from './client';
+export * from './compatibility';
+export * from './contracts/vault';
+export * from './handoff';
+export * from './schemas/handoff';
+export * from './schemas/release-packet';
+export * from './soroban';
+export * from './errors';
+export * from './events';
+export {
+  ExecutionNetwork,
+  SorobanExecutionRequest,
+  SorobanExecutionResult,
+  SorobanExecutionRequestInput,
+  buildSorobanExecutionRequest,
+  executionSuccess,
+  executionFailed,
+  executionPending,
+  validateSorobanExecutionResult
+} from './execution';
+export {
+  validateExecutionNetwork,
+  validateSimulationResult,
+  validateSorobanExecutionRequestSchema,
+  validateSorobanExecutionResultSchema,
+  isExecutionNetwork,
+  isSorobanExecutionRequest,
+  isSorobanExecutionResult
+} from './executionSchemas';
+export * from './network';
+export * from './testing';
+export * from './transactions';
+export * from './types';
+export * from './wallet';
 export {
   transactionErrorRecoveryFixtures,
   normalizeTransactionRecoveryInput,
@@ -64,23 +43,3 @@ export type {
   TransactionRecoveryFixture
 } from './fixtures/transactionErrorRecovery';
 
-// Transaction Signing
-export { TransactionSigner, EnhancedTransactionBuilder, TransactionSimulator } from './transaction';
-export type {
-  TransactionSignerConfig,
-  ContractCallParams,
-  TransactionBuildParams,
-  TransactionResult,
-  SimulationResult,
-  FeeBumpParams,
-  MultiStepTransactionParams,
-  BatchTransactionParams,
-  BatchTransactionResult,
-  DetailedSimulationResult,
-  ResourceOptimizationOptions
-} from './transaction';
-
-// Testing & MSW
-export * from './test/msw/setup';
-export * from './test/msw/handlers';
-export { server } from './test/msw/server';

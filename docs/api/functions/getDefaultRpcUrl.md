@@ -1,4 +1,4 @@
-[**Axionvera SDK v0.1.0**](../README.md)
+[**Axionvera SDK v1.0.0**](../README.md)
 
 ***
 
@@ -8,7 +8,7 @@
 
 > **getDefaultRpcUrl**(`network`): `string`
 
-Defined in: [utils/networkConfig.ts:44](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/utils/networkConfig.ts#L44)
+Defined in: [src/utils/networkConfig.ts:47](https://github.com/Listoncrypt/axionvera-sdk/blob/924107f0c10e2b8e3cb36af7363f52ccf5d19f5f/src/utils/networkConfig.ts#L47)
 
 Gets the default RPC URL for a given network.
 
@@ -16,7 +16,7 @@ Gets the default RPC URL for a given network.
 
 ### network
 
-[`AxionveraNetwork`](../type-aliases/AxionveraNetwork.md)
+`AxionveraNetwork`
 
 The network identifier
 

@@ -1,4 +1,4 @@
-[**Axionvera SDK v0.1.0**](../README.md)
+[**Axionvera SDK v1.0.0**](../README.md)
 
 ***
 
@@ -8,7 +8,7 @@
 
 > **buildContractCallOperation**(`params`): `Operation2`
 
-Defined in: [utils/transactionBuilder.ts:81](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/utils/transactionBuilder.ts#L81)
+Defined in: [src/utils/transactionBuilder.ts:81](https://github.com/Listoncrypt/axionvera-sdk/blob/924107f0c10e2b8e3cb36af7363f52ccf5d19f5f/src/utils/transactionBuilder.ts#L81)
 
 Builds a Soroban contract call operation.
 
@@ -20,7 +20,7 @@ The operation parameters
 
 #### args?
 
-[`ContractCallArg`](../type-aliases/ContractCallArg.md)[]
+`ContractCallArg`[]
 
 The arguments to pass
 

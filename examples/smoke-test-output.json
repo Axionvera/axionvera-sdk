@@ -1,0 +1,115 @@
+{
+  "runId": "smoke-run-20260830-ddc4",
+  "network": "testnet",
+  "mode": "dry-run",
+  "startedAt": "2026-08-30T14:25:56.911Z",
+  "finishedAt": "2026-08-30T14:25:56.912Z",
+  "durationMs": 1,
+  "summary": {
+    "totalChecks": 6,
+    "passed": 6,
+    "skipped": 0,
+    "failed": 0,
+    "liveRpcCalls": 0,
+    "writeSubmissions": 0
+  },
+  "configValidation": {
+    "status": "passed",
+    "notes": [
+      "Schema: schemas/smoke-test-config.schema.json",
+      "Placeholders validated for current mode"
+    ]
+  },
+  "contractResults": {
+    "vault": {
+      "contractId": "PLACEHOLDER_VAULT_AFTER_NETWORK_DEPLOY",
+      "status": "passed",
+      "requiredMethodsVerified": 6,
+      "checks": [
+        {
+          "method": "getInfo",
+          "kind": "read",
+          "mode": "dry-run-plan",
+          "status": "passed",
+          "durationMs": 0.0462,
+          "result": {
+            "assetCode": "USDC",
+            "totalDeposits": "1000000",
+            "rewardPool": 50000
+          }
+        },
+        {
+          "method": "getBalance",
+          "kind": "read",
+          "mode": "dry-run-plan",
+          "status": "passed",
+          "durationMs": 0.0077,
+          "args": [
+            "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"
+          ],
+          "result": {
+            "amount": "5000",
+            "lastUpdated": 0
+          }
+        },
+        {
+          "method": "getPendingRewards",
+          "kind": "read",
+          "mode": "dry-run-plan",
+          "status": "passed",
+          "durationMs": 0.0034,
+          "args": [
+            "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"
+          ],
+          "result": {
+            "amount": "250"
+          }
+        },
+        {
+          "method": "deposit",
+          "kind": "write",
+          "mode": "dry-run-plan",
+          "status": "passed",
+          "durationMs": 0.4157,
+          "writeDisabled": true,
+          "result": {
+            "hash": "MOCK_DEPOSIT_3b3d09f4",
+            "status": "success",
+            "simulated": true
+          }
+        },
+        {
+          "method": "withdraw",
+          "kind": "write",
+          "mode": "dry-run-plan",
+          "status": "passed",
+          "durationMs": 0.0967,
+          "writeDisabled": true,
+          "result": {
+            "hash": "MOCK_WITHDRAW_714eba05",
+            "status": "success",
+            "simulated": true
+          }
+        },
+        {
+          "method": "claimRewards",
+          "kind": "write",
+          "mode": "dry-run-plan",
+          "status": "passed",
+          "durationMs": 0.0473,
+          "writeDisabled": true,
+          "result": {
+            "hash": "MOCK_CLAIMREWARDS_191da4fc",
+            "status": "success",
+            "simulated": true
+          }
+        }
+      ]
+    }
+  },
+  "notes": [
+    "NO real RPC calls were made. Set mode=\"live\" AND options.dryRun=false for maintainer-only live validation.",
+    "Set AXIONVERA_TEST_SECRET env var only in maintainer local environments; NEVER commit secrets.",
+    "No write submissions. Either writeDisabled=true, dryRun=true, or mode is not \"live\"."
+  ]
+}

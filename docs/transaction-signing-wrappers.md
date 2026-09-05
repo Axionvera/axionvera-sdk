@@ -192,16 +192,25 @@ console.log(`Success: ${result.successful}`);
 ### Fee Bump Transaction
 
 ```typescript
-// Create fee bump transaction
-const feeBumpXdr = await signer.createFeeBumpTransaction({
-  innerTransaction: originalTransactionXdr,
-  feeSource: 'G...',
-  baseFee: 100
+import { Networks } from '@stellar/stellar-sdk';
+import { bumpTransactionFee } from 'axionvera-sdk';
+
+// Wrap the already-signed inner transaction without touching the original payload
+const feeBumpEnvelopeXdr = bumpTransactionFee(originalSignedXdr, 500, {
+  feeSource: 'GSPONSOR...',
+  networkPassphrase: Networks.TESTNET
 });
 
-// Submit the fee bump transaction
-const result = await signer.submitSignedTransaction(feeBumpXdr);
+// The sponsor signs only the outer fee bump envelope
+const sponsorSignedXdr = await sponsorWallet.signTransaction(
+  feeBumpEnvelopeXdr,
+  Networks.TESTNET
+);
+
+const result = await signer.submitSignedTransaction(sponsorSignedXdr);
 ```
+
+This pattern is useful when a user-signed transaction is already in flight and a backend sponsor wallet needs to resubmit it with a higher fee during congestion.
 
 ### Batch Processing
 

@@ -1,4 +1,4 @@
-[**Axionvera SDK v0.1.0**](../README.md)
+[**Axionvera SDK v1.0.0**](../README.md)
 
 ***
 
@@ -6,10 +6,23 @@
 
 # Class: LocalKeypairWalletConnector
 
-Defined in: [wallet/walletConnector.ts:26](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/wallet/walletConnector.ts#L26)
+Defined in: [src/wallet/walletConnector.ts:67](https://github.com/Listoncrypt/axionvera-sdk/blob/924107f0c10e2b8e3cb36af7363f52ccf5d19f5f/src/wallet/walletConnector.ts#L67)
 
-Wallet connector implementation using a local Keypair.
-Useful for testing and development without a browser wallet.
+Wallet connector implementation using a local Keypair for server-side or automated signing.
+Useful for testing, development, and backend services without a browser wallet.
+
+## Example
+
+```typescript
+import { LocalKeypairWalletConnector } from "axionvera-sdk";
+import { Keypair } from "@stellar/stellar-sdk";
+
+const keypair = Keypair.fromSecret("S...");
+const wallet = new LocalKeypairWalletConnector(keypair);
+
+const publicKey = await wallet.getPublicKey();
+console.log("Public key:", publicKey);
+```
 
 ## Implements
 
@@ -21,9 +34,9 @@ Useful for testing and development without a browser wallet.
 
 > **new LocalKeypairWalletConnector**(`keypair`): `LocalKeypairWalletConnector`
 
-Defined in: [wallet/walletConnector.ts:33](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/wallet/walletConnector.ts#L33)
+Defined in: [src/wallet/walletConnector.ts:87](https://github.com/Listoncrypt/axionvera-sdk/blob/924107f0c10e2b8e3cb36af7363f52ccf5d19f5f/src/wallet/walletConnector.ts#L87)
 
-Creates a new LocalKeypairWalletConnector.
+Creates a new LocalKeypairWalletConnector with the provided Keypair.
 
 #### Parameters
 
@@ -31,11 +44,26 @@ Creates a new LocalKeypairWalletConnector.
 
 `Keypair`
 
-The Keypair to use for signing
+The Keypair to use for signing transactions
 
 #### Returns
 
 `LocalKeypairWalletConnector`
+
+#### Example
+
+```typescript
+import { LocalKeypairWalletConnector } from "axionvera-sdk";
+import { Keypair } from "@stellar/stellar-sdk";
+
+// From secret key
+const keypair = Keypair.fromSecret("S...");
+const wallet = new LocalKeypairWalletConnector(keypair);
+
+// Or generate a new random keypair
+const randomKeypair = Keypair.random();
+const randomWallet = new LocalKeypairWalletConnector(randomKeypair);
+```
 
 ## Methods
 
@@ -43,15 +71,22 @@ The Keypair to use for signing
 
 > **getPublicKey**(): `Promise`\<`string`\>
 
-Defined in: [wallet/walletConnector.ts:38](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/wallet/walletConnector.ts#L38)
+Defined in: [src/wallet/walletConnector.ts:100](https://github.com/Listoncrypt/axionvera-sdk/blob/924107f0c10e2b8e3cb36af7363f52ccf5d19f5f/src/wallet/walletConnector.ts#L100)
 
-Gets the public key of the connected account.
+Gets the public key from the stored Keypair.
 
 #### Returns
 
 `Promise`\<`string`\>
 
-The public key
+The public key as a G-prefixed string
+
+#### Example
+
+```typescript
+const publicKey = await wallet.getPublicKey();
+console.log("Public key:", publicKey);
+```
 
 #### Implementation of
 
@@ -63,9 +98,9 @@ The public key
 
 > **signTransaction**(`transactionXdr`, `networkPassphrase`): `Promise`\<`string`\>
 
-Defined in: [wallet/walletConnector.ts:43](https://github.com/nice-bills/axionvera-sdk/blob/4cdd845e523a767dd67f37a08a4340a0a379b245/src/wallet/walletConnector.ts#L43)
+Defined in: [src/wallet/walletConnector.ts:118](https://github.com/Listoncrypt/axionvera-sdk/blob/924107f0c10e2b8e3cb36af7363f52ccf5d19f5f/src/wallet/walletConnector.ts#L118)
 
-Signs a transaction XDR string.
+Signs a transaction using the stored Keypair.
 
 #### Parameters
 
@@ -73,19 +108,29 @@ Signs a transaction XDR string.
 
 `string`
 
-The base64-encoded transaction XDR
+The base64-encoded transaction XDR to sign
 
 ##### networkPassphrase
 
 `string`
 
-The network passphrase
+The network passphrase for the transaction
 
 #### Returns
 
 `Promise`\<`string`\>
 
 The base64-encoded signed transaction XDR
+
+#### Example
+
+```typescript
+const signedXdr = await wallet.signTransaction(
+  unsignedXdr,
+  "Test SDF Network ; September 2015"
+);
+console.log("Signed transaction:", signedXdr);
+```
 
 #### Implementation of
 

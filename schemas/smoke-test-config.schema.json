@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Axionvera SDK Smoke Test Configuration",
+  "description": "JSON Schema for contributor-safe SDK smoke test runs. Defaults to mocked mode; live mode requires explicit maintainer flag.",
+  "type": "object",
+  "required": ["network", "contracts"],
+  "properties": {
+    "network": {
+      "type": "string",
+      "enum": ["mainnet", "testnet", "futurenet", "mock"],
+      "description": "Network to run against. 'mock' means no RPC calls."
+    },
+    "rpcUrl": {
+      "type": "string",
+      "description": "Custom RPC URL (optional; inferred from network preset when omitted)."
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["mocked", "dry-run", "live"],
+      "default": "mocked",
+      "description": "Execution mode. 'mocked' and 'dry-run' are safe for contributors. 'live' is maintainer-only."
+    },
+    "contracts": {
+      "type": "object",
+      "description": "Map of logical contract name to smoke test requirements.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["contractId", "requiredMethods"],
+        "properties": {
+          "contractId": {
+            "type": "string",
+            "description": "Soroban contract ID (56-char 'C...') or 'PLACEHOLDER_' prefix for dev-only."
+          },
+          "requiredMethods": {
+            "type": "array",
+            "description": "Methods that must be callable in this smoke test.",
+            "items": { "type": "string" },
+            "minItems": 1
+          },
+          "readArgs": {
+            "type": "object",
+            "description": "Optional argument map for read-only methods (methodName -> args array).",
+            "additionalProperties": {
+              "type": "array"
+            }
+          },
+          "writeDisabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "If true (default), write methods are simulated only; never submitted to a live network."
+          }
+        }
+      }
+    },
+    "wallet": {
+      "type": "object",
+      "description": "Optional wallet configuration. Secret is NEVER hardcoded; set via env var AXIONVERA_TEST_SECRET.",
+      "properties": {
+        "address": { "type": "string" },
+        "useMock": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use MockWalletConnector (true) or require wallet connector provider (false, maintainer-only)."
+        }
+      }
+    },
+    "options": {
+      "type": "object",
+      "properties": {
+        "dryRun": {
+          "type": "boolean",
+          "default": true,
+          "description": "If true (default), print the plan but do not execute any write submissions."
+        },
+        "timeoutMs": {
+          "type": "number",
+          "default": 30000,
+          "minimum": 1000
+        },
+        "verbose": {
+          "type": "boolean",
+          "default": false
+        },
+        "outputFile": {
+          "type": "string",
+          "description": "Optional path to write JSON report output."
+        }
+      }
+    }
+  },
+  "additionalProperties": false
+}
