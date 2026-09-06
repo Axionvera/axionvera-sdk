@@ -167,6 +167,20 @@ The SDK provides a wallet abstraction for connecting to Stellar-compatible walle
 - `createTransactionSigningPipeline()` - Provider-generic prepare unsigned XDR -> wallet signing flow
 - `checkWalletReadiness()` - Validates wallet state before operations
 
+**Wallet Provider Contract:**
+
+Any wallet provider implementing `WalletConnector` must satisfy the provider-generic contract tests. These tests verify:
+
+- Interface compliance (`id`, `name`, `connect()`, `signTransaction()`)
+- `connect()` returns `WalletConnection` with non-empty `publicKey`
+- `disconnect()` can be called multiple times without error
+- `isConnected()` returns boolean when implemented
+- `signTransaction()` returns signed XDR string and receives correct parameters
+- Error handling (user rejection, error type preservation)
+- SDK integration with `signWithWallet`, `requestWalletSignature`, and `createTransactionSigningPipeline`
+
+See [Transaction Signing Pipeline](./docs/transaction-signing-pipeline.md) for implementation guidance.
+
 **Wallet Readiness Flow:**
 1. Connect wallet using `wallet.connect()` - returns public key and network
 2. Check connection status with `wallet.isConnected()` - returns boolean

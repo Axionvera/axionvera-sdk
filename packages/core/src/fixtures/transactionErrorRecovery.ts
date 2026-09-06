@@ -9,7 +9,7 @@ import {
   WalletRejectedTransactionError,
   normalizeRpcError,
   normalizeTransactionError
-} from "../errors/axionveraError";
+} from "../errors";
 
 export type TransactionRecoveryScenario =
   | "wallet-rejection"

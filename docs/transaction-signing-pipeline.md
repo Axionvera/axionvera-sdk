@@ -85,3 +85,70 @@ permission, or secret key is required. The covered cases include:
 - successful wallet signing
 - wallet signing failure
 - independent prepare and sign phases
+
+## Wallet Provider Contract
+
+Any wallet provider that implements the `WalletConnector` interface must satisfy
+the provider-generic contract tests. These tests ensure compatibility with the
+SDK's signing pipeline without requiring provider-specific code.
+
+### Required Interface
+
+```ts
+interface WalletConnector {
+  id: string;
+  name: string;
+  connect(): Promise<WalletConnection>;
+  signTransaction(transactionXdr: string, options: SignTransactionOptions): Promise<string>;
+  disconnect?(): Promise<void>;
+  isConnected?(): Promise<boolean>;
+}
+```
+
+### Contract Tests
+
+The contract tests verify:
+
+1. **Interface compliance**: `id`, `name`, `connect()`, and `signTransaction()` are required
+2. **connect() behavior**: Returns `WalletConnection` with non-empty `publicKey`
+3. **disconnect() behavior**: Can be called multiple times without error
+4. **isConnected() behavior**: Returns boolean when implemented
+5. **signTransaction() behavior**: Returns signed XDR string, receives correct parameters
+6. **Error handling**: Throws on user rejection, preserves error types
+7. **SDK integration**: Works with `signWithWallet`, `requestWalletSignature`, and `createTransactionSigningPipeline`
+
+### Implementing a New Wallet Provider
+
+To add a new wallet provider:
+
+1. Implement the `WalletConnector` interface
+2. Run the contract tests against your implementation
+3. Ensure all tests pass without mocking the provider
+
+```ts
+import { type WalletConnector, type WalletConnection } from '@axionvera/core';
+
+class MyWalletConnector implements WalletConnector {
+  readonly id = 'my-wallet';
+  readonly name = 'My Wallet';
+
+  async connect(): Promise<WalletConnection> {
+    // Connect to wallet and return public key
+    return { publicKey: 'G...', network: 'testnet' };
+  }
+
+  async signTransaction(xdr: string, options: SignTransactionOptions): Promise<string> {
+    // Sign transaction and return signed XDR
+    return signedXdr;
+  }
+
+  async disconnect(): Promise<void> {
+    // Disconnect from wallet
+  }
+
+  async isConnected(): Promise<boolean> {
+    // Check connection status
+    return connected;
+  }
+}
+```
