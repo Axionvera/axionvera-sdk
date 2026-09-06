@@ -4,12 +4,12 @@ import {
   TransactionFailedError,
   TransactionNotFoundError,
   RpcError
-} from "../src/errors/axionveraError";
+} from "../packages/core/src/errors";
 import {
   classifyTransactionRecoveryInput,
   normalizeTransactionRecoveryInput,
   transactionErrorRecoveryFixtures
-} from "../src/fixtures/transactionErrorRecovery";
+} from "../packages/core/src/fixtures/transactionErrorRecovery";
 
 describe("transaction error recovery fixtures", () => {
   it("exposes the expected recovery scenarios", () => {

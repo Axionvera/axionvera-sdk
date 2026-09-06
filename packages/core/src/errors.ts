@@ -106,8 +106,9 @@ export function normalizeRpcError(error: unknown, operation: string): AxionveraE
 export function normalizeTransactionError(error: unknown, txHash?: string): AxionveraError {
   const message = error instanceof Error && error.message ? error.message : 'Transaction failed';
   const lower = message.toLowerCase();
+  const code = (error as any)?.code;
 
-  if (/user rejected|declined|denied/i.test(lower) || (typeof (error as any)?.code === 'number' && (error as any).code === 4001)) {
+  if (/user rejected|declined|denied/i.test(lower) || (typeof code === 'number' && code === 4001)) {
     return new WalletRejectedTransactionError(error);
   }
 
@@ -115,7 +116,7 @@ export function normalizeTransactionError(error: unknown, txHash?: string): Axio
     return new TransactionNotFoundError(txHash ?? 'unknown', error);
   }
 
-  if (lower.includes('timed out') || lower.includes('timeout')) {
+  if (lower.includes('timed out') || lower.includes('timeout') || code === 'ETIMEDOUT') {
     return new TimeoutError(`Transaction timeout${txHash ? ` (${txHash})` : ''}`, error);
   }
 

@@ -1059,3 +1059,439 @@ describe('wallet connector failure scenarios', () => {
     expect(result).toBeNull();
   });
 });
+
+describe('Wallet connector contract tests', () => {
+  /**
+   * These tests define the provider-generic contract that any wallet connector
+   * must satisfy to be compatible with the SDK. They test the WalletConnector
+   * interface without any provider-specific behavior.
+   *
+   * To add a new wallet provider, implement the WalletConnector interface and
+   * run these contract tests against your implementation.
+   */
+
+  describe('WalletConnector interface contract', () => {
+    it('requires id property of type string', () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      expect(typeof connector.id).toBe('string');
+      expect(connector.id.length).toBeGreaterThan(0);
+    });
+
+    it('requires name property of type string', () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      expect(typeof connector.name).toBe('string');
+      expect(connector.name.length).toBeGreaterThan(0);
+    });
+
+    it('requires connect() method returning Promise<WalletConnection>', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      expect(typeof connector.connect).toBe('function');
+      const connection = await connector.connect();
+      expect(connection).toHaveProperty('publicKey');
+      expect(typeof connection.publicKey).toBe('string');
+    });
+
+    it('requires signTransaction() method returning Promise<string>', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      expect(typeof connector.signTransaction).toBe('function');
+      const signed = await connector.signTransaction(TRANSACTION_XDR, {
+        networkPassphrase: TESTNET_PASSPHRASE
+      });
+      expect(typeof signed).toBe('string');
+    });
+
+    it('allows optional disconnect() method', () => {
+      const connectorWithDisconnect: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        disconnect: async () => {},
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      const connectorWithoutDisconnect: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      expect(typeof connectorWithDisconnect.disconnect).toBe('function');
+      expect(connectorWithoutDisconnect.disconnect).toBeUndefined();
+    });
+
+    it('allows optional isConnected() method', () => {
+      const connectorWithIsConnected: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        isConnected: async () => true,
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      const connectorWithoutIsConnected: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      expect(typeof connectorWithIsConnected.isConnected).toBe('function');
+      expect(connectorWithoutIsConnected.isConnected).toBeUndefined();
+    });
+  });
+
+  describe('connect() contract', () => {
+    it('returns a WalletConnection with non-empty publicKey', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GAXIONVERATESTKEY123456789' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      const connection = await connector.connect();
+      expect(connection.publicKey).toBeDefined();
+      expect(connection.publicKey.length).toBeGreaterThan(0);
+    });
+
+    it('returns consistent publicKey across multiple connect() calls', async () => {
+      const expectedKey = 'GAXIONVERATESTKEY123456789';
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: expectedKey }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      const first = await connector.connect();
+      const second = await connector.connect();
+      expect(first.publicKey).toBe(expectedKey);
+      expect(second.publicKey).toBe(expectedKey);
+    });
+
+    it('allows optional network field in WalletConnection', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST', network: 'testnet' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      const connection = await connector.connect();
+      expect(connection.network).toBe('testnet');
+    });
+  });
+
+  describe('disconnect() contract', () => {
+    it('can be called without error when implemented', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        disconnect: async () => {},
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      await expect(connector.disconnect!()).resolves.toBeUndefined();
+    });
+
+    it('can be called multiple times without error', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        disconnect: async () => {},
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      await connector.disconnect!();
+      await connector.disconnect!();
+      await connector.disconnect!();
+    });
+  });
+
+  describe('isConnected() contract', () => {
+    it('returns boolean when implemented', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        isConnected: async () => true,
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      const result = await connector.isConnected!();
+      expect(typeof result).toBe('boolean');
+    });
+  });
+
+  describe('signTransaction() contract', () => {
+    it('returns a string (the signed XDR)', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr-base64')
+      };
+
+      const signed = await connector.signTransaction(TRANSACTION_XDR, {
+        networkPassphrase: TESTNET_PASSPHRASE
+      });
+
+      expect(typeof signed).toBe('string');
+      expect(signed.length).toBeGreaterThan(0);
+    });
+
+    it('receives the transaction XDR and network passphrase', async () => {
+      const signTransaction = vi.fn().mockResolvedValue('signed-xdr');
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction
+      };
+
+      await connector.signTransaction(TRANSACTION_XDR, {
+        networkPassphrase: TESTNET_PASSPHRASE
+      });
+
+      expect(signTransaction).toHaveBeenCalledWith(TRANSACTION_XDR, {
+        networkPassphrase: TESTNET_PASSPHRASE
+      });
+    });
+
+    it('receives optional accountToSign when provided', async () => {
+      const signTransaction = vi.fn().mockResolvedValue('signed-xdr');
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction
+      };
+
+      const accountToSign = 'GAXIONVERATESTKEY123456789';
+      await connector.signTransaction(TRANSACTION_XDR, {
+        networkPassphrase: TESTNET_PASSPHRASE,
+        accountToSign
+      });
+
+      expect(signTransaction).toHaveBeenCalledWith(TRANSACTION_XDR, {
+        networkPassphrase: TESTNET_PASSPHRASE,
+        accountToSign
+      });
+    });
+
+    it('throws error when user rejects signing', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockRejectedValue(new Error('User rejected the transaction'))
+      };
+
+      await expect(
+        connector.signTransaction(TRANSACTION_XDR, {
+          networkPassphrase: TESTNET_PASSPHRASE
+        })
+      ).rejects.toThrow('User rejected the transaction');
+    });
+
+    it('throws WalletError when wrapped by signWithWallet', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockRejectedValue(new Error('User rejected the transaction'))
+      };
+
+      await expect(
+        signWithWallet({
+          wallet: connector,
+          transactionXdr: TRANSACTION_XDR,
+          networkPassphrase: TESTNET_PASSPHRASE
+        })
+      ).rejects.toThrow(WalletError);
+    });
+  });
+
+  describe('SDK integration contract', () => {
+    it('works with signWithWallet helper', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      const signed = await signWithWallet({
+        wallet: connector,
+        transactionXdr: TRANSACTION_XDR,
+        networkPassphrase: TESTNET_PASSPHRASE
+      });
+
+      expect(signed).toBe('signed-xdr');
+    });
+
+    it('works with requestWalletSignature helper', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      const result = await requestWalletSignature({
+        wallet: connector,
+        request: {
+          unsignedXdr: TRANSACTION_XDR,
+          networkPassphrase: TESTNET_PASSPHRASE
+        }
+      });
+
+      expect(result).toHaveProperty('signedXdr', 'signed-xdr');
+      expect(result).toHaveProperty('walletId', 'test-provider');
+      expect(result).toHaveProperty('walletName', 'Test Provider');
+    });
+
+    it('works with createTransactionSigningPipeline', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      const pipeline = createTransactionSigningPipeline({
+        wallet: connector,
+        prepareUnsignedTransaction: async () => ({
+          unsignedXdr: TRANSACTION_XDR,
+          networkPassphrase: TESTNET_PASSPHRASE
+        })
+      });
+
+      const result = await pipeline.prepareAndSign(undefined);
+      expect(result).toHaveProperty('signedXdr', 'signed-xdr');
+    });
+
+    it('works with checkWalletReadiness', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockResolvedValue('signed-xdr')
+      };
+
+      const connection = await connector.connect();
+      const readiness = checkWalletReadiness({ connector, connection });
+
+      expect(readiness.isReady).toBe(true);
+    });
+  });
+
+  describe('error mapping contract', () => {
+    it('maps generic errors to WalletError via signWithWallet', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockRejectedValue(new Error('Something went wrong'))
+      };
+
+      try {
+        await signWithWallet({
+          wallet: connector,
+          transactionXdr: TRANSACTION_XDR,
+          networkPassphrase: TESTNET_PASSPHRASE
+        });
+        throw new Error('Should have thrown');
+      } catch (error) {
+        expect(error).toBeInstanceOf(WalletError);
+        expect((error as WalletError).message).toBe('Something went wrong');
+      }
+    });
+
+    it('preserves WalletError from connector', async () => {
+      const originalError = new WalletError('Connector internal error');
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockRejectedValue(originalError)
+      };
+
+      try {
+        await signWithWallet({
+          wallet: connector,
+          transactionXdr: TRANSACTION_XDR,
+          networkPassphrase: TESTNET_PASSPHRASE
+        });
+        throw new Error('Should have thrown');
+      } catch (error) {
+        expect(error).toBe(originalError);
+      }
+    });
+
+    it('preserves ValidationError from connector', async () => {
+      const originalError = new ValidationError('Invalid transaction');
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockRejectedValue(originalError)
+      };
+
+      try {
+        await signWithWallet({
+          wallet: connector,
+          transactionXdr: TRANSACTION_XDR,
+          networkPassphrase: TESTNET_PASSPHRASE
+        });
+        throw new Error('Should have thrown');
+      } catch (error) {
+        expect(error).toBe(originalError);
+      }
+    });
+
+    it('wraps non-Error rejections as WalletError', async () => {
+      const connector: WalletConnector = {
+        id: 'test-provider',
+        name: 'Test Provider',
+        connect: async () => ({ publicKey: 'GTEST' }),
+        signTransaction: vi.fn().mockRejectedValue('string failure')
+      };
+
+      await expect(
+        signWithWallet({
+          wallet: connector,
+          transactionXdr: TRANSACTION_XDR,
+          networkPassphrase: TESTNET_PASSPHRASE
+        })
+      ).rejects.toThrow(WalletError);
+    });
+  });
+});
