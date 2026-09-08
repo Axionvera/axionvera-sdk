@@ -1,10 +1,10 @@
 {
-  "runId": "smoke-run-20260830-ddc4",
+  "runId": "smoke-run-20260908-d5d6",
   "network": "testnet",
   "mode": "dry-run",
-  "startedAt": "2026-08-30T14:25:56.911Z",
-  "finishedAt": "2026-08-30T14:25:56.912Z",
-  "durationMs": 1,
+  "startedAt": "2026-09-08T09:18:55.719Z",
+  "finishedAt": "2026-09-08T09:18:55.722Z",
+  "durationMs": 3,
   "summary": {
     "totalChecks": 6,
     "passed": 6,
@@ -31,7 +31,7 @@
           "kind": "read",
           "mode": "dry-run-plan",
           "status": "passed",
-          "durationMs": 0.0462,
+          "durationMs": 0.041558,
           "result": {
             "assetCode": "USDC",
             "totalDeposits": "1000000",
@@ -43,7 +43,7 @@
           "kind": "read",
           "mode": "dry-run-plan",
           "status": "passed",
-          "durationMs": 0.0077,
+          "durationMs": 0.004928,
           "args": [
             "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"
           ],
@@ -57,7 +57,7 @@
           "kind": "read",
           "mode": "dry-run-plan",
           "status": "passed",
-          "durationMs": 0.0034,
+          "durationMs": 0.002485,
           "args": [
             "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF"
           ],
@@ -70,10 +70,10 @@
           "kind": "write",
           "mode": "dry-run-plan",
           "status": "passed",
-          "durationMs": 0.4157,
+          "durationMs": 0.568691,
           "writeDisabled": true,
           "result": {
-            "hash": "MOCK_DEPOSIT_3b3d09f4",
+            "hash": "MOCK_DEPOSIT_a50282dc",
             "status": "success",
             "simulated": true
           }
@@ -83,10 +83,10 @@
           "kind": "write",
           "mode": "dry-run-plan",
           "status": "passed",
-          "durationMs": 0.0967,
+          "durationMs": 0.038014,
           "writeDisabled": true,
           "result": {
-            "hash": "MOCK_WITHDRAW_714eba05",
+            "hash": "MOCK_WITHDRAW_be52c5d3",
             "status": "success",
             "simulated": true
           }
@@ -96,10 +96,10 @@
           "kind": "write",
           "mode": "dry-run-plan",
           "status": "passed",
-          "durationMs": 0.0473,
+          "durationMs": 0.037853,
           "writeDisabled": true,
           "result": {
-            "hash": "MOCK_CLAIMREWARDS_191da4fc",
+            "hash": "MOCK_CLAIMREWARDS_a81f1b4b",
             "status": "success",
             "simulated": true
           }
