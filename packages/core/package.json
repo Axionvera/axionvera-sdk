@@ -30,6 +30,7 @@
     "vitest": "^4.1.11"
   },
   "dependencies": {
+    "@stellar/stellar-sdk": "^17.0.1",
     "valibot": "^1.4.2"
   }
 }
