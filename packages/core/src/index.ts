@@ -6,6 +6,7 @@ export * from './schemas/handoff';
 export * from './schemas/release-packet';
 export * from './soroban';
 export * from './sorobanLiveRead';
+export * from './sorobanLiveWrite';
 export * from './errors';
 export * from './events';
 export {
