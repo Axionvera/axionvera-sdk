@@ -160,3 +160,32 @@ describe('soroban live read helpers', () => {
     await expect(reader.read({ method: 'total_deposits' })).rejects.toThrow(NetworkError);
   });
 });
+
+describe('StellarVaultReader claimableRewards', () => {
+  it('reads claimable_rewards for a user', async () => {
+    const user = 'GDGOJ2KHXL3BSWHDFQYIOTCGBYP5SE4NGPUJY7XUVQX75SYKIMPJG7BO';
+
+    const calls: string[] = [];
+
+    const reader = new StellarVaultReader({
+      contractId: 'CAZGEBQ3MAU7CAUOCKGFUSC2MVLAPOHWJ4V3H4NY2L6RNV3MEHQIIP6J',
+      sourcePublicKey: user,
+      server: {
+        async getAccount(publicKey) {
+          return new Account(publicKey, '1');
+        },
+        async simulateTransaction() {
+          calls.push('claimable_rewards');
+          return {
+            result: {
+              retval: nativeToScVal(10n, { type: 'i128' }),
+            },
+          };
+        },
+      },
+    });
+
+    expect(await reader.claimableRewards(user)).toBe('10');
+    expect(calls).toEqual(['claimable_rewards']);
+  });
+});

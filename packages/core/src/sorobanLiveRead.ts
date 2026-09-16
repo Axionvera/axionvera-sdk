@@ -163,4 +163,13 @@ export class StellarVaultReader {
       }),
     );
   }
+
+  async claimableRewards(user: string): Promise<string> {
+    return sorobanNativeToString(
+      await this.reader.read({
+        method: 'claimable_rewards',
+        args: [user],
+      }),
+    );
+  }
 }
