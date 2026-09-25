@@ -3,6 +3,7 @@ export * from './compatibility';
 export * from './contracts/vault';
 export * from './contracts/campaign';
 export * from './contracts/campaignErrors';
+export * from './contracts/campaignEvents';
 export * from './handoff';
 export * from './schemas/handoff';
 export * from './schemas/release-packet';
