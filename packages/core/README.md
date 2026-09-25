@@ -136,6 +136,120 @@ The loader validates:
 - The contract is deployed on the expected network.
 - The contract ID is a valid Soroban ID or an explicitly allowed placeholder.
 
+### Campaign contract
+
+The Core package includes a complete Campaign integration with typed contract
+methods, live Soroban reads, prepared writes, contract-specific errors, helpers,
+typed events, and live event retrieval.
+
+```ts
+import {
+  StellarCampaignReader,
+  StellarCampaignWriter,
+  StellarCampaignEventReader,
+} from '@axionvera/core';
+
+const contractId = 'C...';
+
+const reader = new StellarCampaignReader({
+  contractId,
+  sourcePublicKey: 'G...',
+});
+
+const campaign =
+  await reader.getCampaign(1n);
+
+const unused =
+  await reader.availableUnusedFunds(1n);
+
+const writer = new StellarCampaignWriter({
+  contractId,
+  sourcePublicKey: 'G...',
+});
+
+const prepared =
+  await writer.prepareFundCampaign({
+    campaignId: 1n,
+    amount: 100_000_000n,
+  });
+
+const eventReader =
+  new StellarCampaignEventReader({
+    contractId,
+  });
+
+const page =
+  await eventReader.getEvents({
+    startLedger: 4_850_000,
+    limit: 100,
+  });
+
+console.log(campaign);
+console.log(unused);
+console.log(prepared.unsignedXdr);
+console.log(page.events);
+```
+
+`StellarCampaignReader` provides all nine Campaign read methods.
+
+`StellarCampaignWriter` provides preparation methods for all 12 Campaign writes.
+It builds the transaction but deliberately keeps wallet signing outside the contract
+writer.
+
+Use `requestWalletSignature()` with a `WalletConnector`, then submit the signed XDR
+through `StellarCampaignWriter`:
+
+```ts
+import {
+  requestWalletSignature,
+} from '@axionvera/core';
+
+const signed =
+  await requestWalletSignature({
+    wallet,
+    request: prepared,
+  });
+
+const result =
+  await writer.submitSignedTransaction(
+    signed.signedXdr,
+  );
+
+console.log(result);
+```
+
+The Campaign SDK covers:
+
+- all 21 public Campaign contract methods
+- all 27 deployed Campaign contract error codes
+- all 12 typed Campaign event variants
+- live RPC event retrieval
+- ledger-range event queries
+- cursor-based event pagination
+- preservation of unrecognized Campaign events
+- Campaign accounting and agent-summary helpers
+
+`StellarCampaignEventReader` returns successfully decoded events in `events` and
+preserves unknown or future event shapes separately in `unrecognizedEvents`.
+
+```ts
+const page =
+  await eventReader.getEvents({
+    startLedger: 4_850_000,
+    limit: 100,
+  });
+
+console.log(page.events);
+console.log(page.unrecognizedEvents);
+console.log(page.cursor);
+console.log(page.oldestLedger);
+console.log(page.latestLedger);
+```
+
+For the complete contract interface, write lifecycle, error map, event catalogue,
+React integration, and verified testnet lifecycle, see the
+[Campaign SDK guide](../../docs/features/CAMPAIGN_SDK.md).
+
 ### Use a mock wallet
 
 ```ts

@@ -118,6 +118,196 @@ function DepositButton() {
 
 Write helpers (`deposit`, `withdraw`, `claimRewards`) require a `walletAddress`; action errors are stored in `error` state and can be cleared with `resetError`.
 
+### useCampaign
+
+`useCampaign` exposes the Campaign read interface and higher-level Campaign read
+helpers through a React hook.
+
+```tsx
+import {
+  useCampaign,
+} from '@axionvera/react';
+
+import type {
+  ContractInvoker,
+} from '@axionvera/core';
+
+const invoker: ContractInvoker = {
+  async invoke(request) {
+    // Forward writes to your Soroban invocation layer.
+    return {
+      status: 'success',
+    };
+  },
+
+  async read(request) {
+    // Forward reads to your Soroban read layer.
+    return {};
+  },
+};
+
+function CampaignPanel() {
+  const campaign =
+    useCampaign({
+      contractId: 'C...',
+      invoker,
+    });
+
+  const loadCampaign =
+    async () => {
+      const value =
+        await campaign.getCampaign(1n);
+
+      console.log(value);
+    };
+
+  const loadSnapshot =
+    async () => {
+      const snapshot =
+        await campaign.getCampaignSnapshot(
+          1n,
+        );
+
+      console.log(snapshot);
+    };
+
+  return (
+    <>
+      <button onClick={loadCampaign}>
+        Load campaign
+      </button>
+
+      <button onClick={loadSnapshot}>
+        Load snapshot
+      </button>
+    </>
+  );
+}
+```
+
+`useCampaign` exposes all nine Campaign reads:
+
+```text
+getCampaign
+getActivationRule
+isVerifier
+claimableReward
+agentTotalEarned
+availableUnusedFunds
+isInitialized
+protocolAdmin
+nextCampaignId
+```
+
+It also exposes the higher-level helpers:
+
+```text
+getCampaignSnapshot
+getAgentRewardSummary
+```
+
+### useCampaignWriter
+
+`useCampaignWriter` connects the Campaign live-write path to the wallet configured
+through `AxionveraProvider`.
+
+The write lifecycle is:
+
+```text
+prepare -> wallet sign -> submit
+```
+
+A connected wallet is required before a Campaign write action can run.
+
+```tsx
+import {
+  useCampaignWriter,
+} from '@axionvera/react';
+
+function FundCampaignButton() {
+  const {
+    fundCampaign,
+    isSubmitting,
+    error,
+    result,
+    resetError,
+  } = useCampaignWriter({
+    contractId: 'C...',
+  });
+
+  const fund =
+    async () => {
+      await fundCampaign({
+        campaignId: 1n,
+        amount: 100_000_000n,
+      });
+    };
+
+  if (error) {
+    return (
+      <button
+        onClick={resetError}
+      >
+        {error.message}
+      </button>
+    );
+  }
+
+  return (
+    <div>
+      <button
+        disabled={isSubmitting}
+        onClick={fund}
+      >
+        {isSubmitting
+          ? 'Funding...'
+          : 'Fund campaign'}
+      </button>
+
+      {result?.hash && (
+        <p>
+          Transaction: {result.hash}
+        </p>
+      )}
+    </div>
+  );
+}
+```
+
+`useCampaignWriter` exposes all 12 Campaign write operations:
+
+```text
+initialize
+createCampaign
+fundCampaign
+addActivationRule
+addVerifier
+removeVerifier
+pauseCampaign
+resumeCampaign
+closeCampaign
+withdrawUnusedFunds
+verifyAndAllocateReward
+claimReward
+```
+
+The hook also exposes write state:
+
+```text
+writer
+isSubmitting
+error
+result
+resetError
+```
+
+The hook creates the live Campaign writer from the connected wallet, prepares the
+transaction, requests the wallet signature, and submits the signed transaction.
+
+For the full Campaign contract interface, Core APIs, event reader, errors, helpers,
+testnet verification, and React usage, see the
+[Campaign SDK guide](../../docs/features/CAMPAIGN_SDK.md).
+
 ### useTransactionAction
 
 `useTransactionAction` is a generic hook for managing async action state:
