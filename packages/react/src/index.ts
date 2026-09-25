@@ -3,5 +3,6 @@ export * from './useTransactionAction';
 export * from './useTransactionStatus';
 export * from './useVault';
 export * from './useCampaign';
+export * from './useCampaignWriter';
 export * from './useWallet';
 export * from './VaultDemo';
