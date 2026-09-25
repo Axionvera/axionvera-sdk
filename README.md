@@ -249,23 +249,25 @@ The SDK includes comprehensive mock utilities for integration-style testing:
 - `WalletConnector` interface with `MockWalletConnector` for development
 - Transaction result types and polling helpers
 - **Soroban Transaction Execution Schema** - comprehensive schema for execution requests and results (mocked/testnet-ready)
-- React bindings (`AxionveraProvider`, `useWallet`, `useVault`, `useTransactionAction`, `useTransactionStatus`)
+- React bindings (`AxionveraProvider`, `useWallet`, `useVault`, `useTransactionAction`, `useTransactionStatus`, `useCampaign`, `useCampaignWriter`)
+- Full Campaign SDK integration with typed reads, prepared writes, wallet signing, transaction submission, contract errors, helpers, and live event retrieval
 - Comprehensive test coverage with mocked integration tests
 
 **Current Limitations:**
-- No live Soroban transaction submission - `SorobanContractInvoker` is a skeleton adapter
-- No Stellar transaction building (XDR assembly, fee handling, sequence numbers)
-- No wallet signing integration for transaction submission
-- RPC transport exists but Soroban-specific RPC methods are not fully implemented
-- Transaction polling requires custom lookup function (no built-in RPC integration)
+
+- `SorobanContractInvoker` remains a generic skeleton adapter; it does not itself build, sign, or submit Stellar transactions.
+- Live Campaign support uses the dedicated `StellarCampaignReader`, `StellarCampaignWriter`, and `StellarCampaignEventReader` APIs rather than the generic invoker path.
+- Other contracts may still require their own live reader/writer adapters or a custom `ContractInvoker`.
+- Generic transaction polling still requires a lookup function where a higher-level live adapter is not provided.
+- Stellar testnet deployments and RPC event history are not permanent.
 
 **Next Steps (Roadmap):**
-1. Complete Stellar transaction building with XDR assembly
-2. Implement fee estimation and sequence number management
-3. Add wallet signing integration for transaction submission
-4. Implement full Soroban RPC method support (simulateTransaction, sendTransaction)
-5. Add built-in transaction lookup function for `waitForTransaction` using RPC
-6. Add transaction lifecycle management (submission, polling, confirmation) with automatic retry
+
+1. Extend the dedicated live reader/writer pattern to additional Axionvera contracts.
+2. Unify specialised live Soroban helpers with the generic invocation layer where appropriate.
+3. Add built-in transaction lookup and polling to more high-level workflows.
+4. Expand live-network regression coverage and examples.
+5. Continue hardening release, compatibility, and migration documentation.
 
 ### Foundation Layer
 
@@ -276,12 +278,13 @@ v2 intentionally keeps RPC and Soroban invocation adapter-based:
 - `SorobanContractInvoker` provides a basic adapter that routes requests through the transport (currently a skeleton).
 - `MockWalletConnector` implements the `WalletConnector` interface for development and tests.
 
-A production-ready Soroban transaction submission layer is not shipped yet — pass your own `transport` and `invoker`, or start with the mocks.
+The generic `SorobanContractInvoker` remains adapter-based. For the Campaign contract, the SDK now also ships dedicated live read, write, wallet-signing, submission, and event-reader APIs. Other contracts can continue to use custom invokers or their specialised live adapters.
 
 ## Documentation
 
 - [SDK Overview](./docs/sdk-overview.md)
 - [Usage Guide](./docs/usage-guide.md)
+- [Campaign SDK](./docs/features/CAMPAIGN_SDK.md) — typed reads, writes, errors, events, React hooks, and verified testnet integration
 - [Transaction Signing Pipeline](./docs/transaction-signing-pipeline.md)
 - [VaultContract Real-Invoker Readiness](./docs/vault-real-invoker-readiness.md)
 - [SDK-to-Network Compatibility Fixtures](./docs/sdk-network-compatibility.md)

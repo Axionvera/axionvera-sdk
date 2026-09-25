@@ -4,7 +4,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
-    include: ["tests/transactionErrorRecovery.test.ts", "packages/core/src/**/*.test.ts"]
+    include: [
+      "tests/transactionErrorRecovery.test.ts",
+      "packages/core/src/**/*.test.ts",
+      "packages/react/src/**/*.test.{ts,tsx}"
+    ]
   }
 });
-

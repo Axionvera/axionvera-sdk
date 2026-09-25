@@ -18,6 +18,12 @@ import {
   transactionTimeout,
 } from './transactions';
 import type { AmountInput, TransactionActionResult } from './types';
+import {
+  normalizeCampaignId,
+  type CampaignIdInput,
+  type CreateCampaignInput,
+} from './contracts/campaign';
+import { normalizeCampaignContractError } from './contracts/campaignErrors';
 
 export type SorobanWriteArg = string | number | boolean | bigint | xdr.ScVal;
 
@@ -304,5 +310,401 @@ export class StellarVaultWriter {
     options?: SubmitSignedTransactionOptions,
   ): Promise<TransactionActionResult> {
     return this.writer.submitSignedTransaction(signedXdr, options);
+  }
+}
+
+const MAX_I128 = (1n << 127n) - 1n;
+
+function normalizeCampaignI128(
+  value: CampaignIdInput,
+  name: string,
+): bigint {
+  let normalized: bigint;
+
+  if (typeof value === 'bigint') {
+    normalized = value;
+  } else if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value)) {
+      throw new ValidationError(
+        `${name} number must be a safe integer; use bigint or string for larger values`,
+      );
+    }
+
+    normalized = BigInt(value);
+  } else {
+    const trimmed = value.trim();
+
+    if (!/^\d+$/.test(trimmed)) {
+      throw new ValidationError(`${name} must be a positive integer`);
+    }
+
+    normalized = BigInt(trimmed);
+  }
+
+  if (normalized <= 0n) {
+    throw new ValidationError(`${name} must be greater than zero`);
+  }
+
+  if (normalized > MAX_I128) {
+    throw new ValidationError(`${name} exceeds the Soroban i128 range`);
+  }
+
+  return normalized;
+}
+
+function normalizeCampaignU64(
+  value: CampaignIdInput,
+  name: string,
+): bigint {
+  let normalized: bigint;
+
+  if (typeof value === 'bigint') {
+    normalized = value;
+  } else if (typeof value === 'number') {
+    if (!Number.isSafeInteger(value)) {
+      throw new ValidationError(
+        `${name} number must be a safe integer; use bigint or string for larger values`,
+      );
+    }
+
+    normalized = BigInt(value);
+  } else {
+    const trimmed = value.trim();
+
+    if (!/^\d+$/.test(trimmed)) {
+      throw new ValidationError(`${name} must be a positive integer`);
+    }
+
+    normalized = BigInt(trimmed);
+  }
+
+  if (normalized <= 0n) {
+    throw new ValidationError(`${name} must be greater than zero`);
+  }
+
+  const maxU64 = 18_446_744_073_709_551_615n;
+
+  if (normalized > maxU64) {
+    throw new ValidationError(`${name} exceeds the Soroban u64 range`);
+  }
+
+  return normalized;
+}
+
+export function campaignU64ToScVal(
+  value: CampaignIdInput,
+  name = 'value',
+): xdr.ScVal {
+  return nativeToScVal(
+    normalizeCampaignU64(value, name),
+    { type: 'u64' },
+  );
+}
+
+export function campaignI128ToScVal(
+  value: CampaignIdInput,
+  name: string,
+): xdr.ScVal {
+  return nativeToScVal(
+    normalizeCampaignI128(value, name),
+    { type: 'i128' },
+  );
+}
+
+export class StellarCampaignWriter {
+  private readonly writer: StellarSorobanWriter;
+
+  constructor(config: StellarSorobanWriteConfig) {
+    this.writer = new StellarSorobanWriter(config);
+  }
+
+  private async prepareWrite(
+    request: Parameters<StellarSorobanWriter['prepareWrite']>[0],
+  ): Promise<StellarPreparedWriteTransaction> {
+    try {
+      return await this.writer.prepareWrite(request);
+    } catch (error) {
+      throw normalizeCampaignContractError(error);
+    }
+  }
+
+  async prepareCreateCampaign(
+    input: CreateCampaignInput,
+  ): Promise<StellarPreparedWriteTransaction> {
+    const startTime = normalizeCampaignU64(
+      input.startTime,
+      'startTime',
+    );
+    const endTime = normalizeCampaignU64(
+      input.endTime,
+      'endTime',
+    );
+
+    if (endTime <= startTime) {
+      throw new ValidationError(
+        'endTime must be greater than startTime',
+      );
+    }
+
+    return this.prepareWrite({
+      method: 'create_campaign',
+      args: [
+        toSorobanWriteScVal(input.admin),
+        toSorobanWriteScVal(input.rewardToken),
+        toSorobanWriteScVal(input.name),
+        nativeToScVal(startTime, { type: 'u64' }),
+        nativeToScVal(endTime, { type: 'u64' }),
+        campaignI128ToScVal(
+          input.perAgentCap,
+          'perAgentCap',
+        ),
+      ],
+    });
+  }
+
+  async prepareFundCampaign(input: {
+    campaignId: CampaignIdInput;
+    amount: CampaignIdInput;
+  }): Promise<StellarPreparedWriteTransaction> {
+    return this.prepareWrite({
+      method: 'fund_campaign',
+      args: [
+        campaignU64ToScVal(
+          normalizeCampaignId(input.campaignId),
+          'campaignId',
+        ),
+        campaignI128ToScVal(
+          input.amount,
+          'amount',
+        ),
+      ],
+    });
+  }
+
+  async prepareAddActivationRule(input: {
+    campaignId: CampaignIdInput;
+    milestone: string;
+    rewardAmount: CampaignIdInput;
+  }): Promise<StellarPreparedWriteTransaction> {
+    if (input.milestone.trim().length === 0) {
+      throw new ValidationError(
+        'milestone must not be empty',
+      );
+    }
+
+    return this.prepareWrite({
+      method: 'add_activation_rule',
+      args: [
+        campaignU64ToScVal(
+          normalizeCampaignId(input.campaignId),
+          'campaignId',
+        ),
+        toSorobanWriteScVal(input.milestone),
+        campaignI128ToScVal(
+          input.rewardAmount,
+          'rewardAmount',
+        ),
+      ],
+    });
+  }
+
+  async prepareAddVerifier(input: {
+    campaignId: CampaignIdInput;
+    verifier: string;
+  }): Promise<StellarPreparedWriteTransaction> {
+    if (input.verifier.trim().length === 0) {
+      throw new ValidationError(
+        'verifier must not be empty',
+      );
+    }
+
+    return this.prepareWrite({
+      method: 'add_verifier',
+      args: [
+        campaignU64ToScVal(
+          normalizeCampaignId(input.campaignId),
+          'campaignId',
+        ),
+        toSorobanWriteScVal(input.verifier),
+      ],
+    });
+  }
+
+  async prepareRemoveVerifier(input: {
+    campaignId: CampaignIdInput;
+    verifier: string;
+  }): Promise<StellarPreparedWriteTransaction> {
+    if (input.verifier.trim().length === 0) {
+      throw new ValidationError(
+        'verifier must not be empty',
+      );
+    }
+
+    return this.prepareWrite({
+      method: 'remove_verifier',
+      args: [
+        campaignU64ToScVal(
+          normalizeCampaignId(input.campaignId),
+          'campaignId',
+        ),
+        toSorobanWriteScVal(input.verifier),
+      ],
+    });
+  }
+
+  async preparePauseCampaign(input: {
+    campaignId: CampaignIdInput;
+  }): Promise<StellarPreparedWriteTransaction> {
+    return this.prepareWrite({
+      method: 'pause_campaign',
+      args: [
+        campaignU64ToScVal(
+          normalizeCampaignId(input.campaignId),
+          'campaignId',
+        ),
+      ],
+    });
+  }
+
+  async prepareResumeCampaign(input: {
+    campaignId: CampaignIdInput;
+  }): Promise<StellarPreparedWriteTransaction> {
+    return this.prepareWrite({
+      method: 'resume_campaign',
+      args: [
+        campaignU64ToScVal(
+          normalizeCampaignId(input.campaignId),
+          'campaignId',
+        ),
+      ],
+    });
+  }
+
+  async prepareCloseCampaign(input: {
+    campaignId: CampaignIdInput;
+  }): Promise<StellarPreparedWriteTransaction> {
+    return this.prepareWrite({
+      method: 'close_campaign',
+      args: [
+        campaignU64ToScVal(
+          normalizeCampaignId(input.campaignId),
+          'campaignId',
+        ),
+      ],
+    });
+  }
+
+  async prepareWithdrawUnusedFunds(input: {
+    campaignId: CampaignIdInput;
+    amount: CampaignIdInput;
+  }): Promise<StellarPreparedWriteTransaction> {
+    return this.prepareWrite({
+      method: 'withdraw_unused_funds',
+      args: [
+        campaignU64ToScVal(
+          normalizeCampaignId(input.campaignId),
+          'campaignId',
+        ),
+        campaignI128ToScVal(
+          input.amount,
+          'amount',
+        ),
+      ],
+    });
+  }
+
+  async prepareVerifyAndAllocateReward(input: {
+    campaignId: CampaignIdInput;
+    verifier: string;
+    agent: string;
+    merchantRef: string;
+    milestone: string;
+  }): Promise<StellarPreparedWriteTransaction> {
+    if (input.verifier.trim().length === 0) {
+      throw new ValidationError(
+        'verifier must not be empty',
+      );
+    }
+
+    if (input.agent.trim().length === 0) {
+      throw new ValidationError(
+        'agent must not be empty',
+      );
+    }
+
+    if (input.merchantRef.trim().length === 0) {
+      throw new ValidationError(
+        'merchantRef must not be empty',
+      );
+    }
+
+    if (input.milestone.trim().length === 0) {
+      throw new ValidationError(
+        'milestone must not be empty',
+      );
+    }
+
+    return this.prepareWrite({
+      method: 'verify_and_allocate_reward',
+      args: [
+        campaignU64ToScVal(
+          normalizeCampaignId(input.campaignId),
+          'campaignId',
+        ),
+        toSorobanWriteScVal(input.verifier),
+        toSorobanWriteScVal(input.agent),
+        toSorobanWriteScVal(input.merchantRef),
+        toSorobanWriteScVal(input.milestone),
+      ],
+    });
+  }
+
+  async prepareClaimReward(input: {
+    campaignId: CampaignIdInput;
+    agent: string;
+  }): Promise<StellarPreparedWriteTransaction> {
+    if (input.agent.trim().length === 0) {
+      throw new ValidationError(
+        'agent must not be empty',
+      );
+    }
+
+    return this.prepareWrite({
+      method: 'claim_reward',
+      args: [
+        campaignU64ToScVal(
+          normalizeCampaignId(input.campaignId),
+          'campaignId',
+        ),
+        toSorobanWriteScVal(input.agent),
+      ],
+    });
+  }
+
+  async prepareInitialize(input: {
+    protocolAdmin: string;
+  }): Promise<StellarPreparedWriteTransaction> {
+    if (input.protocolAdmin.trim().length === 0) {
+      throw new ValidationError(
+        'protocolAdmin must not be empty',
+      );
+    }
+
+    return this.prepareWrite({
+      method: 'initialize',
+      args: [
+        toSorobanWriteScVal(input.protocolAdmin),
+      ],
+    });
+  }
+
+  async submitSignedTransaction(
+    signedXdr: string,
+    options?: SubmitSignedTransactionOptions,
+  ): Promise<TransactionActionResult> {
+    return this.writer.submitSignedTransaction(
+      signedXdr,
+      options,
+    );
   }
 }
