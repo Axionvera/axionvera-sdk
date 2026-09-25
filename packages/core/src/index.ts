@@ -1,6 +1,7 @@
 export * from './client';
 export * from './compatibility';
 export * from './contracts/vault';
+export * from './contracts/campaign';
 export * from './handoff';
 export * from './schemas/handoff';
 export * from './schemas/release-packet';
