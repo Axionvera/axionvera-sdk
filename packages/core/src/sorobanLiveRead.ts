@@ -19,6 +19,11 @@ import {
   type CampaignStatus,
 } from './contracts/campaign';
 import { normalizeCampaignContractError } from './contracts/campaignErrors';
+import {
+  decodeCampaignEvent,
+  type CampaignEvent,
+  type RawCampaignEvent,
+} from './contracts/campaignEvents';
 
 export type SorobanReadArg = string | number | boolean | xdr.ScVal;
 
@@ -435,5 +440,161 @@ export class StellarCampaignReader {
       }),
       'next_campaign_id',
     );
+  }
+}
+
+export interface StellarCampaignEventServer {
+  getEvents(
+    request: rpc.Api.GetEventsRequest,
+  ): Promise<rpc.Api.GetEventsResponse>;
+}
+
+export interface StellarCampaignEventReaderConfig {
+  contractId: string;
+  rpcUrl?: string;
+  server?: StellarCampaignEventServer;
+}
+
+export type CampaignEventQuery =
+  | {
+      startLedger: number;
+      endLedger?: number;
+      cursor?: never;
+      limit?: number;
+    }
+  | {
+      cursor: string;
+      startLedger?: never;
+      endLedger?: never;
+      limit?: number;
+    };
+
+export interface CampaignEventPage {
+  events: CampaignEvent[];
+  unrecognizedEvents: RawCampaignEvent[];
+  cursor: string;
+  latestLedger: number;
+  oldestLedger: number;
+  latestLedgerCloseTime: string;
+  oldestLedgerCloseTime: string;
+}
+
+function toRawCampaignEvent(
+  event: rpc.Api.EventResponse,
+  fallbackContractId: string,
+): RawCampaignEvent {
+  return {
+    contractId:
+      event.contractId?.contractId() ??
+      fallbackContractId,
+    topics: event.topic,
+    data: event.value,
+    transactionHash: event.txHash,
+    ledger: event.ledger,
+    raw: event,
+  };
+}
+
+export class StellarCampaignEventReader {
+  private readonly contractId: string;
+  private readonly server: StellarCampaignEventServer;
+
+  constructor(
+    config: StellarCampaignEventReaderConfig,
+  ) {
+    this.contractId = requireNonEmptyString(
+      config.contractId,
+      'contractId',
+    );
+
+    const rpcUrl =
+      config.rpcUrl ??
+      'https://soroban-testnet.stellar.org';
+
+    this.server =
+      config.server ??
+      new rpc.Server(rpcUrl);
+  }
+
+  async getEvents(
+    query: CampaignEventQuery,
+  ): Promise<CampaignEventPage> {
+    const filters: rpc.Api.EventFilter[] = [
+      {
+        type: 'contract',
+        contractIds: [this.contractId],
+      },
+    ];
+
+    let request: rpc.Api.GetEventsRequest;
+
+    if (query.cursor !== undefined) {
+      request = {
+        filters,
+        cursor: query.cursor,
+        ...(query.limit !== undefined
+          ? { limit: query.limit }
+          : {}),
+      };
+    } else {
+      request = {
+        filters,
+        startLedger: query.startLedger,
+        ...(query.endLedger !== undefined
+          ? { endLedger: query.endLedger }
+          : {}),
+        ...(query.limit !== undefined
+          ? { limit: query.limit }
+          : {}),
+      };
+    }
+
+    try {
+      const response =
+        await this.server.getEvents(request);
+
+      const events: CampaignEvent[] = [];
+      const unrecognizedEvents:
+        RawCampaignEvent[] = [];
+
+      for (const event of response.events) {
+        const raw = toRawCampaignEvent(
+          event,
+          this.contractId,
+        );
+
+        const decoded =
+          decodeCampaignEvent(raw);
+
+        if (decoded) {
+          events.push(decoded);
+        } else {
+          unrecognizedEvents.push(raw);
+        }
+      }
+
+      return {
+        events,
+        unrecognizedEvents,
+        cursor: response.cursor,
+        latestLedger: response.latestLedger,
+        oldestLedger: response.oldestLedger,
+        latestLedgerCloseTime:
+          response.latestLedgerCloseTime,
+        oldestLedgerCloseTime:
+          response.oldestLedgerCloseTime,
+      };
+    } catch (error) {
+      if (error instanceof NetworkError) {
+        throw error;
+      }
+
+      throw new NetworkError(
+        error instanceof Error
+          ? error.message
+          : 'Campaign event read failed',
+        error,
+      );
+    }
   }
 }
