@@ -4,6 +4,8 @@ import {
 } from '@stellar/stellar-sdk';
 import { describe, expect, it } from 'vitest';
 
+import { ContractError } from './errors';
+
 import {
   StellarCampaignWriter,
   campaignI128ToScVal,
@@ -374,5 +376,37 @@ describe('Campaign live Soroban initialization write', () => {
     expect((prepared.args[0] as { type: string }).type).toBe(
       'scvAddress',
     );
+  });
+});
+
+describe('Campaign live write error normalization', () => {
+  it('upgrades Campaign contract failures during preparation', async () => {
+    class FailingWriteServer extends FakeWriteServer {
+      override async prepareTransaction(): Promise<never> {
+        throw new ContractError(
+          'invoke failed: HostError: Error(Contract, #17)',
+        );
+      }
+    }
+
+    const writer = new StellarCampaignWriter({
+      contractId: CONTRACT_ID,
+      sourcePublicKey: ADMIN,
+      server: new FailingWriteServer(),
+    });
+
+    await expect(
+      writer.prepareVerifyAndAllocateReward({
+        campaignId: 1n,
+        verifier: ADMIN,
+        agent: ADMIN,
+        merchantRef: 'order-123',
+        milestone: 'purchase_verified',
+      }),
+    ).rejects.toMatchObject({
+      name: 'CampaignContractError',
+      contractCode: 17,
+      contractErrorName: 'DuplicateActivation',
+    });
   });
 });

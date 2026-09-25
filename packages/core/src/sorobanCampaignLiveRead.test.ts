@@ -4,6 +4,8 @@ import {
 } from '@stellar/stellar-sdk';
 import { describe, expect, it } from 'vitest';
 
+import { ContractError } from './errors';
+
 import type {
   ActivationRule,
   Campaign,
@@ -260,5 +262,35 @@ describe('Campaign live Soroban read coverage', () => {
     await expect(
       reader.protocolAdmin(),
     ).resolves.toBe(PUBLIC_KEY);
+  });
+});
+
+describe('Campaign live read error normalization', () => {
+  it('upgrades Campaign contract failures from live reads', async () => {
+    const server = {
+      async getAccount() {
+        return new Account(PUBLIC_KEY, '1');
+      },
+
+      async simulateTransaction() {
+        throw new ContractError(
+          'read failed: HostError: Error(Contract, #5)',
+        );
+      },
+    };
+
+    const reader = new StellarCampaignReader({
+      contractId: CONTRACT_ID,
+      sourcePublicKey: PUBLIC_KEY,
+      server,
+    });
+
+    await expect(
+      reader.getCampaign(1n),
+    ).rejects.toMatchObject({
+      name: 'CampaignContractError',
+      contractCode: 5,
+      contractErrorName: 'CampaignNotFound',
+    });
   });
 });

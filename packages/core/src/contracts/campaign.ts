@@ -1,5 +1,6 @@
 import { ValidationError } from '../errors';
 import { createContractCallRequest } from '../transactions';
+import { normalizeCampaignContractError } from './campaignErrors';
 import type { ContractInvoker } from './vault';
 
 export type CampaignStatus = 'Active' | 'Paused' | 'Closed';
@@ -385,13 +386,17 @@ export class CampaignContract {
     method: string,
     args: readonly unknown[] = [],
   ): Promise<TResponse> {
-    return this.invoker.invoke<TResponse>(
-      createContractCallRequest(
-        this.contractId,
-        method,
-        args,
-      ),
-    );
+    try {
+      return await this.invoker.invoke<TResponse>(
+        createContractCallRequest(
+          this.contractId,
+          method,
+          args,
+        ),
+      );
+    } catch (error) {
+      throw normalizeCampaignContractError(error);
+    }
   }
 
   private async read<TResponse>(
@@ -404,10 +409,14 @@ export class CampaignContract {
       args,
     );
 
-    if (this.invoker.read) {
-      return this.invoker.read<TResponse>(request);
-    }
+    try {
+      if (this.invoker.read) {
+        return await this.invoker.read<TResponse>(request);
+      }
 
-    return this.invoker.invoke<TResponse>(request);
+      return await this.invoker.invoke<TResponse>(request);
+    } catch (error) {
+      throw normalizeCampaignContractError(error);
+    }
   }
 }

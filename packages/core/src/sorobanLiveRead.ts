@@ -18,6 +18,7 @@ import {
   type CampaignIdInput,
   type CampaignStatus,
 } from './contracts/campaign';
+import { normalizeCampaignContractError } from './contracts/campaignErrors';
 
 export type SorobanReadArg = string | number | boolean | xdr.ScVal;
 
@@ -327,11 +328,21 @@ export class StellarCampaignReader {
     this.reader = new StellarSorobanReader(config);
   }
 
+  private async read<TResponse>(
+    request: Parameters<StellarSorobanReader['read']>[0],
+  ): Promise<TResponse> {
+    try {
+      return (await this.reader.read(request)) as TResponse;
+    } catch (error) {
+      throw normalizeCampaignContractError(error);
+    }
+  }
+
   async getCampaign(
     campaignId: CampaignIdInput,
   ): Promise<Campaign> {
     return mapCampaign(
-      await this.reader.read({
+      await this.read({
         method: 'get_campaign',
         args: [campaignIdToScVal(campaignId)],
       }),
@@ -343,7 +354,7 @@ export class StellarCampaignReader {
     milestone: string,
   ): Promise<ActivationRule> {
     return mapActivationRule(
-      await this.reader.read({
+      await this.read({
         method: 'get_activation_rule',
         args: [campaignIdToScVal(campaignId), milestone],
       }),
@@ -355,7 +366,7 @@ export class StellarCampaignReader {
     verifier: string,
   ): Promise<boolean> {
     return Boolean(
-      await this.reader.read({
+      await this.read({
         method: 'is_verifier',
         args: [campaignIdToScVal(campaignId), verifier],
       }),
@@ -367,7 +378,7 @@ export class StellarCampaignReader {
     agent: string,
   ): Promise<bigint> {
     return nativeBigInt(
-      await this.reader.read({
+      await this.read({
         method: 'claimable_reward',
         args: [campaignIdToScVal(campaignId), agent],
       }),
@@ -380,7 +391,7 @@ export class StellarCampaignReader {
     agent: string,
   ): Promise<bigint> {
     return nativeBigInt(
-      await this.reader.read({
+      await this.read({
         method: 'agent_total_earned',
         args: [campaignIdToScVal(campaignId), agent],
       }),
@@ -392,7 +403,7 @@ export class StellarCampaignReader {
     campaignId: CampaignIdInput,
   ): Promise<bigint> {
     return nativeBigInt(
-      await this.reader.read({
+      await this.read({
         method: 'available_unused_funds',
         args: [campaignIdToScVal(campaignId)],
       }),
@@ -402,7 +413,7 @@ export class StellarCampaignReader {
 
   async isInitialized(): Promise<boolean> {
     return Boolean(
-      await this.reader.read({
+      await this.read({
         method: 'is_initialized',
       }),
     );
@@ -410,7 +421,7 @@ export class StellarCampaignReader {
 
   async protocolAdmin(): Promise<string> {
     return nativeString(
-      await this.reader.read({
+      await this.read({
         method: 'protocol_admin',
       }),
       'protocol_admin',
@@ -419,7 +430,7 @@ export class StellarCampaignReader {
 
   async nextCampaignId(): Promise<bigint> {
     return nativeBigInt(
-      await this.reader.read({
+      await this.read({
         method: 'next_campaign_id',
       }),
       'next_campaign_id',

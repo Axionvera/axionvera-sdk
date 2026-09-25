@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { ValidationError } from '../errors';
+import {
+  ContractError,
+  ValidationError,
+} from '../errors';
 import { TestContractInvoker } from '../testing/testInvoker';
 import {
   CampaignContract,
@@ -799,5 +802,49 @@ describe('CampaignContract initialization write method', () => {
     ).rejects.toThrow(ValidationError);
 
     expect(invoker.calls).toEqual([]);
+  });
+});
+
+describe('CampaignContract error normalization', () => {
+  it('normalizes Campaign contract errors from reads', async () => {
+    const invoker = new TestContractInvoker().failOnRead(
+      new ContractError(
+        'read failed: HostError: Error(Contract, #5)',
+      ),
+    );
+
+    const contract = createContract(invoker);
+
+    await expect(
+      contract.getCampaign(1n),
+    ).rejects.toMatchObject({
+      name: 'CampaignContractError',
+      contractCode: 5,
+      contractErrorName: 'CampaignNotFound',
+    });
+  });
+
+  it('normalizes Campaign contract errors from writes', async () => {
+    const invoker = new TestContractInvoker().failOnInvoke(
+      new ContractError(
+        'invoke failed: HostError: Error(Contract, #17)',
+      ),
+    );
+
+    const contract = createContract(invoker);
+
+    await expect(
+      contract.verifyAndAllocateReward({
+        campaignId: 1n,
+        verifier: VERIFIER,
+        agent: AGENT,
+        merchantRef: 'order-123',
+        milestone: 'purchase_verified',
+      }),
+    ).rejects.toMatchObject({
+      name: 'CampaignContractError',
+      contractCode: 17,
+      contractErrorName: 'DuplicateActivation',
+    });
   });
 });

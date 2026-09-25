@@ -23,6 +23,7 @@ import {
   type CampaignIdInput,
   type CreateCampaignInput,
 } from './contracts/campaign';
+import { normalizeCampaignContractError } from './contracts/campaignErrors';
 
 export type SorobanWriteArg = string | number | boolean | bigint | xdr.ScVal;
 
@@ -417,6 +418,16 @@ export class StellarCampaignWriter {
     this.writer = new StellarSorobanWriter(config);
   }
 
+  private async prepareWrite(
+    request: Parameters<StellarSorobanWriter['prepareWrite']>[0],
+  ): Promise<StellarPreparedWriteTransaction> {
+    try {
+      return await this.writer.prepareWrite(request);
+    } catch (error) {
+      throw normalizeCampaignContractError(error);
+    }
+  }
+
   async prepareCreateCampaign(
     input: CreateCampaignInput,
   ): Promise<StellarPreparedWriteTransaction> {
@@ -435,7 +446,7 @@ export class StellarCampaignWriter {
       );
     }
 
-    return this.writer.prepareWrite({
+    return this.prepareWrite({
       method: 'create_campaign',
       args: [
         toSorobanWriteScVal(input.admin),
@@ -455,7 +466,7 @@ export class StellarCampaignWriter {
     campaignId: CampaignIdInput;
     amount: CampaignIdInput;
   }): Promise<StellarPreparedWriteTransaction> {
-    return this.writer.prepareWrite({
+    return this.prepareWrite({
       method: 'fund_campaign',
       args: [
         campaignU64ToScVal(
@@ -481,7 +492,7 @@ export class StellarCampaignWriter {
       );
     }
 
-    return this.writer.prepareWrite({
+    return this.prepareWrite({
       method: 'add_activation_rule',
       args: [
         campaignU64ToScVal(
@@ -507,7 +518,7 @@ export class StellarCampaignWriter {
       );
     }
 
-    return this.writer.prepareWrite({
+    return this.prepareWrite({
       method: 'add_verifier',
       args: [
         campaignU64ToScVal(
@@ -529,7 +540,7 @@ export class StellarCampaignWriter {
       );
     }
 
-    return this.writer.prepareWrite({
+    return this.prepareWrite({
       method: 'remove_verifier',
       args: [
         campaignU64ToScVal(
@@ -544,7 +555,7 @@ export class StellarCampaignWriter {
   async preparePauseCampaign(input: {
     campaignId: CampaignIdInput;
   }): Promise<StellarPreparedWriteTransaction> {
-    return this.writer.prepareWrite({
+    return this.prepareWrite({
       method: 'pause_campaign',
       args: [
         campaignU64ToScVal(
@@ -558,7 +569,7 @@ export class StellarCampaignWriter {
   async prepareResumeCampaign(input: {
     campaignId: CampaignIdInput;
   }): Promise<StellarPreparedWriteTransaction> {
-    return this.writer.prepareWrite({
+    return this.prepareWrite({
       method: 'resume_campaign',
       args: [
         campaignU64ToScVal(
@@ -572,7 +583,7 @@ export class StellarCampaignWriter {
   async prepareCloseCampaign(input: {
     campaignId: CampaignIdInput;
   }): Promise<StellarPreparedWriteTransaction> {
-    return this.writer.prepareWrite({
+    return this.prepareWrite({
       method: 'close_campaign',
       args: [
         campaignU64ToScVal(
@@ -587,7 +598,7 @@ export class StellarCampaignWriter {
     campaignId: CampaignIdInput;
     amount: CampaignIdInput;
   }): Promise<StellarPreparedWriteTransaction> {
-    return this.writer.prepareWrite({
+    return this.prepareWrite({
       method: 'withdraw_unused_funds',
       args: [
         campaignU64ToScVal(
@@ -633,7 +644,7 @@ export class StellarCampaignWriter {
       );
     }
 
-    return this.writer.prepareWrite({
+    return this.prepareWrite({
       method: 'verify_and_allocate_reward',
       args: [
         campaignU64ToScVal(
@@ -658,7 +669,7 @@ export class StellarCampaignWriter {
       );
     }
 
-    return this.writer.prepareWrite({
+    return this.prepareWrite({
       method: 'claim_reward',
       args: [
         campaignU64ToScVal(
@@ -679,7 +690,7 @@ export class StellarCampaignWriter {
       );
     }
 
-    return this.writer.prepareWrite({
+    return this.prepareWrite({
       method: 'initialize',
       args: [
         toSorobanWriteScVal(input.protocolAdmin),
